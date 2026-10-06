@@ -134,18 +134,82 @@ Adiados. Registrados, mas fora do roadmap atual.
 | Push da imagem para o ECR no CI | Exigiria credenciais AWS; ECR criado via Terraform e documentado |
 | MongoDB gerenciado na AWS via Terraform | Fora do escopo; DocumentDB/Atlas apenas documentados |
 
-## Rastreabilidade
+## Traceability
 
-Quais fases cobrem quais requisitos. Preenchido na criação do roadmap.
+Rastreabilidade: quais fases cobrem quais requisitos. Preenchido na criação do roadmap. O título da seção, os nomes das colunas e os valores de status ficam em inglês porque as ferramentas do GSD os leem literalmente (`Pending` → `In Progress` → `Complete`).
 
-| Requisito | Fase | Status |
-|-----------|------|--------|
+| Requirement | Phase | Status |
+|-------------|-------|--------|
+| LINK-01 | Phase 1 | Pending |
+| LINK-02 | Phase 1 | Pending |
+| LINK-03 | Phase 1 | Pending |
+| LINK-04 | Phase 1 | Pending |
+| LINK-05 | Phase 1 | Pending |
+| LINK-06 | Phase 1 | Pending |
+| REDIR-01 | Phase 1 | Pending |
+| REDIR-02 | Phase 1 | Pending |
+| REDIR-03 | Phase 2 | Pending |
+| REDIR-04 | Phase 2 | Pending |
+| REDIR-05 | Phase 2 | Pending |
+| REDIR-06 | Phase 2 | Pending |
+| CLICK-01 | Phase 2 | Pending |
+| CLICK-02 | Phase 2 | Pending |
+| CLICK-03 | Phase 2 | Pending |
+| CLICK-04 | Phase 2 | Pending |
+| CLICK-05 | Phase 2 | Pending |
+| CLICK-06 | Phase 2 | Pending |
+| CLICK-07 | Phase 2 | Pending |
+| CLICK-08 | Phase 2 | Pending |
+| STAT-01 | Phase 2 | Pending |
+| STAT-02 | Phase 2 | Pending |
+| STAT-03 | Phase 2 | Pending |
+| STAT-04 | Phase 2 | Pending |
+| RATE-01 | Phase 2 | Pending |
+| RATE-02 | Phase 2 | Pending |
+| DATA-01 | Phase 1 | Pending |
+| DATA-02 | Phase 2 | Pending |
+| QUAL-01 | Phase 1 | Pending |
+| QUAL-02 | Phase 2 | Pending |
+| QUAL-03 | Phase 1 | Pending |
+| QUAL-04 | Phase 1 | Pending |
+| CONT-01 | Phase 3 | Pending |
+| CONT-02 | Phase 3 | Pending |
+| CONT-03 | Phase 1 | Pending |
+| CONT-04 | Phase 3 | Pending |
+| K8S-01 | Phase 4 | Pending |
+| K8S-02 | Phase 4 | Pending |
+| K8S-03 | Phase 4 | Pending |
+| K8S-04 | Phase 4 | Pending |
+| CI-01 | Phase 1 | Pending |
+| CI-02 | Phase 4 | Pending |
+| CI-03 | Phase 4 | Pending |
+| CI-04 | Phase 4 | Pending |
+| OBS-01 | Phase 2 | Pending |
+| OBS-02 | Phase 3 | Pending |
+| OBS-03 | Phase 3 | Pending |
+| OBS-04 | Phase 3 | Pending |
+| OBS-05 | Phase 3 | Pending |
+| IAC-01 | Phase 5 | Pending |
+| IAC-02 | Phase 5 | Pending |
+| IAC-03 | Phase 5 | Pending |
+| IAC-04 | Phase 5 | Pending |
+| IAC-05 | Phase 5 | Pending |
+| LOAD-01 | Phase 3 | Pending |
+| DOC-01 | Phase 5 | Pending |
+| DOC-02 | Phase 5 | Pending |
 
 **Cobertura:**
 - Requisitos v1: 57 no total
-- Mapeados em fases: 0
-- Não mapeados: 57 ⚠️
+- Mapeados em fases: 57
+- Não mapeados: 0 ✓
+
+**Por fase:**
+- Phase 1: 14 requisitos
+- Phase 2: 21 requisitos
+- Phase 3: 8 requisitos
+- Phase 4: 7 requisitos
+- Phase 5: 7 requisitos
 
 ---
 *Requisitos definidos em: 2026-10-06*
-*Última atualização: 2026-10-06 após a definição inicial*
+*Última atualização: 2026-10-06 após a criação do roadmap (rastreabilidade preenchida)*

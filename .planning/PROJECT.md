@@ -1,14 +1,20 @@
 # Link Pulse
 
-## O Que É
+## What This Is
+
+*O Que É*
 
 Link Pulse é um encurtador de URLs com analytics de cliques, construído como projeto de portfólio backend com ênfase em DevOps/cloud: deploy, observabilidade e infraestrutura como código. A API (sem frontend, sem autenticação) cria links curtos, redireciona com cache Redis e registra cliques de forma assíncrona no MongoDB para estatísticas. O público é recrutadores/avaliadores técnicos que vão ler o repositório, rodar `make up`/`make k8s` e olhar os dashboards.
 
-## Valor Central
+## Core Value
+
+*Valor Central*
 
 Um avaliador clona o repositório, roda `make up` (compose) ou `make k8s` (kind + Prometheus/Grafana) e vê um encurtador funcionando de ponta a ponta, com redirect rápido via cache e métricas reais nos dashboards versionados.
 
-## Requisitos
+## Requirements
+
+*Requisitos*
 
 ### Validados
 
