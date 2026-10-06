@@ -52,7 +52,7 @@ Um avaliador clona o repositório, roda `make up` (compose) ou `make k8s` (kind 
 
 **AWS / Terraform**
 - [ ] Terraform provisionando ECR, ECS Fargate, RDS (Postgres), ElastiCache (Redis) e rede necessária
-- [ ] Terraform validado contra LocalStack e com `terraform plan` para AWS documentado (sem apply em conta real)
+- [ ] Terraform validado em camadas: `fmt`/`validate`/`tflint`; `terraform test` com `mock_provider "aws"` cobrindo todos os módulos; apply parcial no LocalStack Hobby (rede, IAM, logs, secrets) quando houver token; `plan` documentado (sem apply em conta real)
 
 **Documentação**
 - [ ] README em português com diagrama de arquitetura, instruções (`make up`, `make k8s`), resultados do k6 e prints dos dashboards
@@ -75,8 +75,8 @@ Um avaliador clona o repositório, roda `make up` (compose) ou `make k8s` (kind 
 
 ## Restrições
 
-- **Stack**: Java 21, Spring Boot 3.x, Spring Data JPA, PostgreSQL + Liquibase, MongoDB, Redis — definido pelo autor
-- **Infra local**: Docker Compose, kind (Helm), LocalStack — tudo precisa rodar sem conta cloud
+- **Stack**: Java 21, Spring Boot 4.1.x, Spring Data JPA, PostgreSQL + Liquibase, MongoDB, Valkey (protocolo Redis) — definido pelo autor; Boot 4.1 escolhido porque a linha 3.x perdeu suporte OSS em 2026-06-30
+- **Infra local**: Docker Compose, kind (Helm + Traefik), LocalStack Hobby (token gratuito, opcional no CI) — tudo precisa rodar sem conta cloud paga
 - **Custo**: zero custo de AWS
 - **Prazo**: ~1-2 semanas
 - **Idioma**: documentação em pt-BR
@@ -88,10 +88,14 @@ Um avaliador clona o repositório, roda `make up` (compose) ou `make k8s` (kind 
 | Base62 do ID da sequência do Postgres | Sem colisão, determinístico e simples de testar | — Pendente |
 | Redis Streams para eventos de clique | Assíncrono e durável sem infra nova; demonstra backpressure/lag | — Pendente |
 | Helm chart (com values dev/prod) | Padrão de mercado; integra com kube-prometheus-stack | — Pendente |
-| ECS Fargate como alvo AWS | Terraform mais leve que EKS e melhor suporte no LocalStack | — Pendente |
-| Terraform via LocalStack + plan, sem apply | Custo zero mantendo IaC demonstrável | — Pendente |
+| ECS Fargate como alvo AWS | Terraform mais leve que EKS (o LocalStack gratuito não cobre ECS nem EKS) | — Pendente |
+| Terraform validado em camadas (lint + `terraform test` com mock + LocalStack Hobby parcial) | LocalStack gratuito não inclui ECS/RDS/ElastiCache/ECR desde 2026-03; custo zero | — Pendente |
 | Imagem publicada no GHCR | Grátis, sem secrets AWS no CI | — Pendente |
 | 404 para inexistente, 410 para expirado | Semântica HTTP correta | — Pendente |
+| Spring Boot 4.1.1 | Linha 3.x sem suporte OSS desde 2026-06-30; 4.1 suportado até 2027-07 | — Pendente |
+| Valkey 8.1 em todos os ambientes | Paridade com ElastiCache (Redis OSS parado na 7.1); protocolo compatível com Spring Data Redis | — Pendente |
+| Traefik + manifests próprios no kind | ingress-nginx aposentado (2026-03) e catálogo gratuito Bitnami encerrado | — Pendente |
+| Coleção Mongo normal `click_events` (não time-series) | Time-series não aceita índice único; idempotência usa `_id` = ID do stream | — Pendente |
 
 ## Evolução
 
@@ -111,4 +115,4 @@ Este documento evolui nas transições de fase e nos fechamentos de milestone.
 4. Atualizar Contexto com o estado atual
 
 ---
-*Última atualização: 2026-10-06 após a inicialização*
+*Última atualização: 2026-10-06 após a pesquisa (decisões de stack revisadas)*
