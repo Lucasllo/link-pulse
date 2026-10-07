@@ -7,7 +7,7 @@
 
 Um cliente faz `POST /links` com uma URL, recebe um código curto de 7 caracteres (ou o alias que pediu) e, ao chamar `GET /{code}`, é redirecionado (302, sem cache no navegador) para a URL original lida do PostgreSQL. Tudo isso passa pelo mesmo `./mvnw -B -ntp verify`, que roda igual no Git Bash do Windows (caminho com espaço) e no GitHub Actions (checkout em `link pulse/`).
 
-Planos que compõem o esqueleto: `01-01` (build/CI), `01-02` (redirect a partir do Postgres), `01-03` (criação com código gerado). `01-04` e `01-05` são slices de expansão em cima dele.
+Planos que compõem o esqueleto: `01-01` (build/CI), `01-02` (redirect a partir do Postgres), `01-03` (criação com código gerado). `01-04` a `01-07` são slices de expansão em cima dele (alias; runtime local com seed; URL/expiração/Problem Details; Swagger UI e README).
 
 ## Architectural Decisions
 
@@ -35,7 +35,7 @@ Planos que compõem o esqueleto: `01-01` (build/CI), `01-02` (redirect a partir 
 - [ ] Project scaffold (framework, build, lint, test runner) — `01-01`
 - [ ] Routing — `GET /{code}` (`01-02`) e `POST /links` (`01-03`)
 - [ ] Database — leitura (`findByCode`, `01-02`) e escrita (`nextval` + `saveAndFlush`, `01-03`)
-- [ ] "UI" — API HTTP consumida via curl/Swagger UI (`01-05`); não há frontend no projeto
+- [ ] "UI" — API HTTP consumida via curl/Swagger UI (`01-07`); não há frontend no projeto
 - [ ] Deployment — `make run` com Postgres local + seed dev (`01-05`) e CI verde no GitHub Actions (`01-01`)
 
 ## Out of Scope (Deferred to Later Slices)

@@ -856,19 +856,19 @@ volumes: { pgdata: {} }
 | A8 | Um cliente HTTP real nos testes pode seguir o 302 por padrão | Alternatives | Baixo: a recomendação é MockMvc |
 | A9 | Linhas `wrapperVersion`/`distributionType` no properties seguem o formato do plugin | Code Examples | Nulo: o script as ignora |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **Layout `app/` ou raiz?**
+1. **Layout `app/` ou raiz?** — RESOLVED
    - What we know: o ARCHITECTURE.md recomenda `app/` (contexto Docker autocontido na Phase 3); o CONTEXT.md não decidiu.
    - What's unclear: preferência do autor.
-   - Recommendation: `app/`. Mudar depois custa um `git mv` e ajustes no CI/Makefile.
-2. **Licença FSL do Liquibase 5.0.3.**
+   - RESOLVED: `app/`. Adotado por todos os planos: a 01-01 cria `app/pom.xml`, `app/mvnw` e o CI/Makefile com `cd app`, e o SKELETON.md registra o layout como `costly`. Mudar depois custa um `git mv` e ajustes no CI/Makefile.
+2. **Licença FSL do Liquibase 5.0.3.** — RESOLVED
    - What we know: o BOM do Boot 4.1.1 gerencia a 5.0.3 com licença `FSL-1.1-ALv2` `[VERIFIED]`. O STACK.md cita a 4.33.0 (Apache) como opção, fixada por propriedade.
-   - Recommendation: manter a 5.0.3 do BOM (o CLAUDE.md manda não sobrescrever o BOM; uso em portfólio é permitido pela FSL). Registrar no PROJECT.md agora e no README na Phase 5. Isso resolve o blocker do STATE.md.
-3. **Actuator já na Phase 1?**
-   - Recommendation: sim, mínimo (`health,info` na 8081). É barato e fixa o contrato de portas citado no CONTEXT.md. Os grupos liveness/readiness ficam para a Phase 4.
-4. **Endpoint `GET /links/{code}` de metadados.**
-   - Recommendation: não implementar nesta fase. Não é requisito e entraria em conflito de forma com `/links/{code}/stats` só na Phase 2.
+   - RESOLVED: manter a 5.0.3 do BOM (o CLAUDE.md manda não sobrescrever o BOM; uso em portfólio é permitido pela FSL). A 01-07 registra a licença na tabela de decisões do PROJECT.md e no README já na Phase 1, o que resolve o blocker do STATE.md; o SKELETON.md cita a 5.0.3 com FSL-1.1-ALv2.
+3. **Actuator já na Phase 1?** — RESOLVED
+   - RESOLVED: sim, mínimo (`health,info` na 8081). A 01-01 configura `management.server.port: 8081` e `exposure.include: health,info` (T-01-04), e a 01-05 usa `/actuator/health` na prova de runtime. Os grupos liveness/readiness ficam para a Phase 4.
+4. **Endpoint `GET /links/{code}` de metadados.** — RESOLVED
+   - RESOLVED: não implementar nesta fase (Claude's Discretion do CONTEXT.md). Nenhum plano cria o endpoint, e o SKELETON.md o lista em "Out of Scope". Não é requisito e entraria em conflito de forma com `/links/{code}/stats` só na Phase 2.
 
 ## Environment Availability
 
