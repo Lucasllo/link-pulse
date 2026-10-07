@@ -31,7 +31,14 @@ As fases decimais aparecem entre as inteiras vizinhas, em ordem numérica.
   3. `GET /{code}` redireciona com 302 e `Cache-Control` que impede cache no navegador; código inexistente retorna 404 e link expirado retorna 410 Gone
   4. A aplicação sobe com o schema criado pelo Liquibase (changelogs YAML, contexts dev/prod) e com o Hibernate em `ddl-auto=validate`, e a Swagger UI (springdoc) documenta os endpoints
   5. Cada push/PR roda no GitHub Actions o build, os testes unitários do gerador (ida e volta, unicidade), os testes de integração com Testcontainers, o Checkstyle e o SpotBugs, falhando em qualquer violação; o mesmo build roda no Git Bash/WSL e no Linux, mesmo com espaço no caminho (LF via `.gitattributes`, `mvnw` executável, instrução de instalação do `make`)
-**Plans**: TBD
+**Plans**: 5 plans
+
+Plans:
+- [ ] 01-01-PLAN.md — Build reproduzível com gates e CI: wrapper, pom Boot 4.1.1, Checkstyle/SpotBugs, ci.yml, Dependabot e Makefile base (wave 1)
+- [ ] 01-02-PLAN.md — Redirect 302/404/410 a partir do Postgres, schema Liquibase + validate e base de ITs com Testcontainers (wave 2)
+- [ ] 01-03-PLAN.md — POST /links com código gerado não enumerável (permutação + Base62) e testes do gerador e de concorrência (wave 3)
+- [ ] 01-04-PLAN.md — Alias (regex, reservados, 409 com corrida), validação de URL/expiração e Problem Details com errors[] (wave 4)
+- [ ] 01-05-PLAN.md — Run local com seed dev e compose, contexts dev/prod provados, Swagger UI documentada e README pt-BR (wave 4)
 
 ### Phase 2: Hot path no Valkey e pipeline de cliques
 **Goal**: Redirects saem do cache Valkey e continuam funcionando se ele cair; cada clique vira um evento processado de forma assíncrona e idempotente no MongoDB, e o cliente consulta estatísticas confiáveis de cada link
