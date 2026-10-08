@@ -1,5 +1,7 @@
 package dev.linkpulse.link;
 
+import dev.linkpulse.config.LinkPulseProperties;
+import java.net.URI;
 import java.sql.SQLException;
 import java.time.Clock;
 import java.time.Instant;
@@ -28,6 +30,7 @@ public class LinkService {
     private final LinkRepository repository;
     private final CodeGenerator codeGenerator;
     private final AliasPolicy aliasPolicy;
+    private final LinkPulseProperties properties;
     private final Clock clock;
 
     /**
@@ -36,13 +39,16 @@ public class LinkService {
      * @param repository repositório dos links
      * @param codeGenerator gerador do código curto a partir do ID da sequência
      * @param aliasPolicy regras do alias customizado (formato e reservados)
+     * @param properties propriedades da aplicação; o host do {@code linkpulse.base-url} não pode
+     *     ser destino de um link
      * @param clock relógio da aplicação (base da expiração e do {@code createdAt})
      */
     public LinkService(LinkRepository repository, CodeGenerator codeGenerator,
-            AliasPolicy aliasPolicy, Clock clock) {
+            AliasPolicy aliasPolicy, LinkPulseProperties properties, Clock clock) {
         this.repository = repository;
         this.codeGenerator = codeGenerator;
         this.aliasPolicy = aliasPolicy;
+        this.properties = properties;
         this.clock = clock;
     }
 
@@ -57,13 +63,19 @@ public class LinkService {
      * <p>Alias duplicado vira 409 em dois pontos: na checagem prévia e, se duas criações correm
      * ao mesmo tempo, na violação de {@code uk_links_code} (D-08).
      *
+     * <p>A URL de destino não pode apontar para o próprio encurtador (host do
+     * {@code linkpulse.base-url}): isso evita loop de redirect e cadeias de ofuscação.
+     *
      * @param request URL de destino e opcionais
      * @return o link persistido
-     * @throws org.springframework.web.ErrorResponseException 400 se o alias é inválido ou
-     *     reservado, 409 se o alias já existe
+     * @throws org.springframework.web.ErrorResponseException 400 se a URL aponta para o próprio
+     *     encurtador ou se o alias é inválido ou reservado, 409 se o alias já existe
      */
     @Transactional
     public Link create(CreateLinkRequest request) {
+        if (pointsToShortener(request.url())) {
+            throw LinkProblems.invalidField("url", "não pode apontar para o próprio encurtador");
+        }
         String alias = request.alias();
         if (alias != null) {
             aliasPolicy.check(alias);
@@ -86,6 +98,20 @@ public class LinkService {
             // Código gerado colidindo é impossível (D-05): se acontecer, é bug e vira 500.
             throw e;
         }
+    }
+
+    /**
+     * Indica se a URL tem o mesmo host do {@code linkpulse.base-url}, sem diferenciar caixa.
+     *
+     * <p>A URL já passou pelo {@code @HttpUrl} na borda HTTP; o teste de host nulo só protege
+     * chamadas diretas ao service.
+     *
+     * @param url URL de destino
+     * @return {@code true} se o destino é o próprio encurtador
+     */
+    private boolean pointsToShortener(String url) {
+        String host = URI.create(url).getHost();
+        return host != null && host.equalsIgnoreCase(properties.baseUrl().getHost());
     }
 
     /**
