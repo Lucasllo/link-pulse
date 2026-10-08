@@ -35,7 +35,7 @@ As fases decimais aparecem entre as inteiras vizinhas, em ordem numérica.
   4. A aplicação sobe com o schema criado pelo Liquibase (changelogs YAML, contexts dev/prod) e com o Hibernate em `ddl-auto=validate`, e a Swagger UI (springdoc) documenta os endpoints
   5. Cada push/PR roda no GitHub Actions o build, os testes unitários do gerador (ida e volta, unicidade), os testes de integração com Testcontainers, o Checkstyle e o SpotBugs, falhando em qualquer violação; o mesmo build roda no Git Bash/WSL e no Linux, mesmo com espaço no caminho (LF via `.gitattributes`, `mvnw` executável, instrução de instalação do `make`)
 
-**Plans**: 2/7 plans executed
+**Plans**: 3/7 plans executed
 
 Plans:
 **Wave 1**
@@ -48,7 +48,7 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 01-03-PLAN.md — POST /links com código gerado não enumerável (permutação + Base62) e testes do gerador e de concorrência (wave 3)
+- [x] 01-03-PLAN.md — POST /links com código gerado não enumerável (permutação + Base62) e testes do gerador e de concorrência (wave 3)
 
 **Wave 4** *(blocked on Wave 3 completion)*
 
@@ -130,7 +130,7 @@ As fases seguem a ordem numérica: 1 → 2 → 3 → 4 → 5 (a parte Terraform 
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Fundação e núcleo de links | 2/7 | In Progress|  |
+| 1. Fundação e núcleo de links | 3/7 | In Progress|  |
 | 2. Hot path no Valkey e pipeline de cliques | 0/TBD | Not started | - |
 | 3. Stack local observável | 0/TBD | Not started | - |
 | 4. Kubernetes no kind e entrega contínua | 0/TBD | Not started | - |
