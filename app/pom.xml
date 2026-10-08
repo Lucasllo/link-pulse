@@ -21,6 +21,8 @@
         <!-- O parent usa 17 por padrão; o projeto roda em Java 21. -->
         <java.version>21</java.version>
         <springdoc.version>3.1.1</springdoc.version>
+        <!-- O plugin 3.6.0 traz o Checkstyle 9.3, que não entende Java 21; o engine é sobrescrito. -->
+        <checkstyle.version>14.3.0</checkstyle.version>
     </properties>
 
     <dependencies>
@@ -64,6 +66,58 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-failsafe-plugin</artifactId>
+            </plugin>
+
+            <!-- Estilo: Google adaptado (4 espaços, severity error). Roda em validate e quebra o build. -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-checkstyle-plugin</artifactId>
+                <version>3.6.0</version>
+                <dependencies>
+                    <dependency>
+                        <groupId>com.puppycrawl.tools</groupId>
+                        <artifactId>checkstyle</artifactId>
+                        <version>${checkstyle.version}</version>
+                    </dependency>
+                </dependencies>
+                <configuration>
+                    <configLocation>config/checkstyle/checkstyle.xml</configLocation>
+                    <consoleOutput>true</consoleOutput>
+                    <failOnViolation>true</failOnViolation>
+                    <!-- Defesa: falha mesmo que alguém volte a severity do checkstyle.xml para warning. -->
+                    <violationSeverity>warning</violationSeverity>
+                    <includeTestSourceDirectory>true</includeTestSourceDirectory>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>checkstyle</id>
+                        <phase>validate</phase>
+                        <goals>
+                            <goal>check</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- Bugs: SpotBugs com esforço máximo; achados de prioridade Medium ou maior quebram o verify. -->
+            <plugin>
+                <groupId>com.github.spotbugs</groupId>
+                <artifactId>spotbugs-maven-plugin</artifactId>
+                <version>4.10.4.1</version>
+                <configuration>
+                    <effort>Max</effort>
+                    <threshold>Medium</threshold>
+                    <excludeFilterFile>config/spotbugs/exclude.xml</excludeFilterFile>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>spotbugs</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>check</goal>
+                        </goals>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>
