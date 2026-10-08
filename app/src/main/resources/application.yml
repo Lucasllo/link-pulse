@@ -4,6 +4,22 @@ spring:
   threads:
     virtual:
       enabled: true
+  # Sem URL de datasource aqui: prod usa SPRING_DATASOURCE_URL/USERNAME/PASSWORD,
+  # o dev usa application-dev.yml e os ITs usam @ServiceConnection.
+  jpa:
+    hibernate:
+      # O schema vem só do Liquibase; o Hibernate apenas confere.
+      ddl-auto: validate
+    open-in-view: false
+  liquibase:
+    change-log: classpath:db/changelog/db.changelog-master.yaml
+    # Default explícito; o profile dev sobrescreve para "dev".
+    contexts: prod
+    # O Liquibase OSS envia analytics anônimos por padrão.
+    analytics-enabled: false
+  mvc:
+    problemdetails:
+      enabled: true
 
 server:
   port: 8080

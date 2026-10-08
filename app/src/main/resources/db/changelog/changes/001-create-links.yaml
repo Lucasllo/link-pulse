@@ -1,0 +1,46 @@
+# DDL dos links. Nunca leva context: precisa rodar em todos os ambientes.
+# Changesets aplicados são imutáveis (checksum); qualquer mudança vai num changeset novo.
+databaseChangeLog:
+  - changeSet:
+      id: 001-create-link-id-seq
+      author: link-pulse
+      changes:
+        - createSequence:
+            sequenceName: link_id_seq
+            startValue: 1
+            incrementBy: 1
+  - changeSet:
+      id: 001-create-links-table
+      author: link-pulse
+      changes:
+        - createTable:
+            tableName: links
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  constraints:
+                    primaryKey: true
+                    primaryKeyName: pk_links
+                    nullable: false
+              - column:
+                  name: code
+                  type: VARCHAR(32)
+                  constraints:
+                    nullable: false
+                    unique: true
+                    uniqueConstraintName: uk_links_code
+              - column:
+                  name: target_url
+                  type: VARCHAR(2048)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: expires_at
+                  type: TIMESTAMP WITH TIME ZONE
+              - column:
+                  name: created_at
+                  type: TIMESTAMP WITH TIME ZONE
+                  defaultValueComputed: now()
+                  constraints:
+                    nullable: false
