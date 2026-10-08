@@ -1,0 +1,5 @@
+# Profile prod: datasource vem por env (SPRING_DATASOURCE_URL/USERNAME/PASSWORD).
+spring:
+  liquibase:
+    # Explícito, igual ao default do application.yml: o seed de dev nunca roda em prod.
+    contexts: prod
