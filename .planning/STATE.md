@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 01
 current_phase_name: Fundação e núcleo de links
 status: executing
-stopped_at: Completed 01-02-PLAN.md
-last_updated: "2026-10-08T22:47:18.968Z"
+stopped_at: Completed 01-03-PLAN.md
+last_updated: "2026-10-08T22:55:03.716Z"
 last_activity: 2026-10-08
 last_activity_desc: Phase 01 execution started
-state_head: 0635bd61eaadd200227dd9d36cd316afab1284c6
+state_head: d2d01b9b72b926a73d1adbac83d3ae723290688a
 progress:
   total_phases: 5
   completed_phases: 0
   total_plans: 7
-  completed_plans: 2
+  completed_plans: 3
   percent: 0
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-10-06)
 ## Current Position
 
 Phase: 01 (Fundação e núcleo de links) — EXECUTING
-Plan: 3 of 7
+Plan: 4 of 7
 Status: Ready to execute
 Last activity: 2026-10-08 — Phase 01 execution started
 
@@ -60,6 +60,7 @@ Progress: [░░░░░░░░░░] 0%
 |------|----------|-------|-------|
 | Phase 01 P01 | 21min | 3 tasks | 13 files |
 | Phase 01 P02 | 10min | 2 tasks | 13 files |
+| Phase 01 P03 | 5min | 2 tasks | 11 files |
 
 ## Accumulated Context
 
@@ -75,6 +76,8 @@ Decisões recentes que afetam o trabalho atual:
 - [Phase 01]: 01-01: actions do CI fixadas por SHA (checkout v7.0.1, setup-java v6.0.1, upload-artifact v7.0.1) e conferidas por git ls-remote
 - [Phase 01]: 01-02: Cache-Control do 302 fixado em 'no-store, private'; expiração inclusiva (now == expiresAt → 410) pelo Clock UTC da aplicação
 - [Phase 01]: 01-02: LinkRepository.nextId() com @Transactional de escrita (evita nextval em transação read-only); spring.mvc.problemdetails.enabled provisório até o GlobalExceptionHandler da 01-06
+- [Phase 01]: 01-03: CodeGenerator relança falha de modInverse como IllegalArgumentException 'coprimo' sem encadear a causa (causa raiz legível na falha de subida); linkpulse.code.alphabet/multiplier são contrato one-way
+- [Phase 01]: 01-03: POST /links devolve expiresAt null explícito; shortUrl só de linkpulse.base-url via UriComponentsBuilder.pathSegment; alias aceito e ignorado até a 01-04
 
 ### Pending Todos
 
@@ -98,6 +101,6 @@ Itens reconhecidos e adiados no fechamento de milestone, do mais recente para o 
 
 ## Session Continuity
 
-Last session: 2026-10-08T22:47:18.932Z
-Stopped at: Completed 01-02-PLAN.md
+Last session: 2026-10-08T22:55:03.676Z
+Stopped at: Completed 01-03-PLAN.md
 Resume file: None
