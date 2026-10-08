@@ -1,0 +1,22 @@
+# Dados de demonstração. Só roda com o context dev (profile dev); prod usa contexts=prod.
+databaseChangeLog:
+  - changeSet:
+      id: 002-seed-dev-demo-link
+      author: link-pulse
+      contextFilter: dev
+      changes:
+        - insert:
+            tableName: links
+            columns:
+              - column:
+                  name: id
+                  valueComputed: nextval('link_id_seq')
+              - column:
+                  name: code
+                  value: demo-link
+              - column:
+                  name: target_url
+                  value: https://example.com/
+              - column:
+                  name: created_at
+                  valueComputed: now()

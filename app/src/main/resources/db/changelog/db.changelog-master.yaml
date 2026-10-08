@@ -2,3 +2,6 @@ databaseChangeLog:
   - include:
       file: changes/001-create-links.yaml
       relativeToChangelogFile: true
+  - include:
+      file: changes/002-seed-dev.yaml
+      relativeToChangelogFile: true
