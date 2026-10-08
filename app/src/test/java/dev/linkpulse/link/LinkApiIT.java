@@ -1,6 +1,8 @@
 package dev.linkpulse.link;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.BDDMockito.given;
 
 import com.jayway.jsonpath.JsonPath;
 import dev.linkpulse.AbstractIT;
@@ -15,6 +17,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.MethodOrderer;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestMethodOrder;
@@ -22,6 +25,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.web.servlet.assertj.MockMvcTester;
 import org.springframework.test.web.servlet.assertj.MvcTestResult;
 import org.springframework.web.ErrorResponseException;
 
@@ -228,6 +233,67 @@ class LinkApiIT extends AbstractIT {
 
         assertThat(result).hasStatus(HttpStatus.CREATED);
         assertThat(body(result).get("targetUrl")).isEqualTo(url);
+    }
+
+    @Test
+    void urlPointingToTheShortenerItselfIsValidationErrorOnUrl() throws Exception {
+        MvcTestResult result = create("{\"url\":\"http://LOCALHOST:8080/qualquer\"}");
+
+        assertValidationErrorOn(result, "url");
+    }
+
+    @Test
+    void expiresAtInThePastIsValidationErrorOnExpiresAt() throws Exception {
+        MvcTestResult result = create("{\"url\":\"https://example.com/passado\","
+                + "\"expiresAt\":\"2020-01-01T00:00:00Z\"}");
+
+        assertValidationErrorOn(result, "expiresAt");
+    }
+
+    @Test
+    void expiresAtWithoutOffsetIsMalformedRequest() throws Exception {
+        MvcTestResult result = create("{\"url\":\"https://example.com/sem-offset\","
+                + "\"expiresAt\":\"2030-01-01T00:00:00\"}");
+
+        assertProblem(result, HttpStatus.BAD_REQUEST, "/problems/malformed-request");
+    }
+
+    @Test
+    void malformedJsonIsMalformedRequestWithoutParserDetails() throws Exception {
+        MvcTestResult result = create("{\"url\":");
+
+        assertProblem(result, HttpStatus.BAD_REQUEST, "/problems/malformed-request");
+        assertThat(result.getResponse().getContentAsString())
+                .doesNotContain("JSON parse error", "jackson", "line:", "column:");
+    }
+
+    /**
+     * Falha inesperada no service. Contexto próprio, com o {@link LinkService} trocado por um
+     * mock que lança uma exceção com cara de erro de banco.
+     */
+    @Nested
+    class UnexpectedFailure {
+
+        @MockitoBean
+        private LinkService failingService;
+
+        @Autowired
+        private MockMvcTester nestedMvc;
+
+        @Test
+        void becomesGenericInternalErrorWithoutLeakingDetails() throws Exception {
+            given(failingService.create(any()))
+                    .willThrow(new RuntimeException("falha SQL uk_links_code"));
+
+            MvcTestResult result = nestedMvc.post().uri("/links")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("{\"url\":\"https://example.com/falha\"}")
+                    .exchange();
+
+            assertProblem(result, HttpStatus.INTERNAL_SERVER_ERROR, "/problems/internal-error");
+            assertThat(result.getResponse().getContentAsString())
+                    .doesNotContain("falha", "uk_links_code", "RuntimeException", "SQL");
+        }
     }
 
     private static String urlOfLength(int length) {
