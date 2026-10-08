@@ -206,6 +206,62 @@ class LinkApiIT extends AbstractIT {
         assertAliasValidationError("abcd");
     }
 
+    @Test
+    void urlOutsideTheAllowListIsValidationErrorOnUrl() throws Exception {
+        MvcTestResult result = create("{\"url\":\"ftp://example.com\"}");
+
+        assertValidationErrorOn(result, "url");
+    }
+
+    @Test
+    void urlLongerThan2048CharactersIsValidationErrorOnUrl() throws Exception {
+        MvcTestResult result = create("{\"url\":\"" + urlOfLength(2049) + "\"}");
+
+        assertValidationErrorOn(result, "url");
+    }
+
+    @Test
+    void urlWithExactly2048CharactersIsAccepted() throws Exception {
+        String url = urlOfLength(2048);
+
+        MvcTestResult result = create("{\"url\":\"" + url + "\"}");
+
+        assertThat(result).hasStatus(HttpStatus.CREATED);
+        assertThat(body(result).get("targetUrl")).isEqualTo(url);
+    }
+
+    private static String urlOfLength(int length) {
+        String prefix = "https://example.com/";
+        return prefix + "a".repeat(length - prefix.length());
+    }
+
+    /**
+     * Confere um 400 {@code validation-error} em Problem Details com um item de {@code errors[]}
+     * no campo pedido.
+     */
+    private static void assertValidationErrorOn(MvcTestResult result, String field)
+            throws Exception {
+        assertProblem(result, HttpStatus.BAD_REQUEST, "/problems/validation-error");
+        String raw = result.getResponse().getContentAsString();
+        List<String> fields = JsonPath.read(raw, "$.errors[*].field");
+        assertThat(fields).contains(field);
+    }
+
+    /**
+     * Confere o envelope de Problem Details: content type, {@code type}, {@code title},
+     * {@code status} e nenhum nome de classe de exceção no corpo.
+     */
+    private static void assertProblem(MvcTestResult result, HttpStatus status, String type)
+            throws Exception {
+        assertThat(result).hasStatus(status);
+        assertThat(result.getResponse().getContentType()).startsWith(PROBLEM_JSON);
+        Map<String, Object> body = body(result);
+        assertThat(body.get("type")).isEqualTo(type);
+        assertThat(body.get("title")).isNotNull();
+        assertThat(body.get("status")).isEqualTo(status.value());
+        assertThat(result.getResponse().getContentAsString()).doesNotContain("Exception");
+    }
+
     private void assertAliasValidationError(String alias) throws Exception {
         MvcTestResult result = create(
                 "{\"url\":\"https://example.com/x\",\"alias\":\"" + alias + "\"}");
