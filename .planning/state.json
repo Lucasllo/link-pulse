@@ -1,0 +1,38 @@
+{
+  "contract": "1.0.0",
+  "flavor": "core",
+  "milestone": null,
+  "phases": [
+    {
+      "number": "1",
+      "name": "Fundação e núcleo de links",
+      "status": "pending"
+    },
+    {
+      "number": "2",
+      "name": "Hot path no Valkey e pipeline de cliques",
+      "status": "pending"
+    },
+    {
+      "number": "3",
+      "name": "Stack local observável",
+      "status": "pending"
+    },
+    {
+      "number": "4",
+      "name": "Kubernetes no kind e entrega contínua",
+      "status": "pending"
+    },
+    {
+      "number": "5",
+      "name": "Terraform AWS e vitrine",
+      "status": "pending"
+    }
+  ],
+  "next": {
+    "command": "/gsd:progress --next",
+    "label": "Advance to the next step",
+    "reason": "Phase 01 of 5 · 0% · executing"
+  },
+  "updated_at": "2026-10-07T02:50:14.638Z"
+}
