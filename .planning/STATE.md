@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 01
 current_phase_name: Fundação e núcleo de links
 status: executing
-stopped_at: Completed 01-03-PLAN.md
-last_updated: "2026-10-08T22:55:03.716Z"
+stopped_at: Completed 01-04-PLAN.md
+last_updated: "2026-10-08T23:03:40.693Z"
 last_activity: 2026-10-08
 last_activity_desc: Phase 01 execution started
-state_head: d2d01b9b72b926a73d1adbac83d3ae723290688a
+state_head: 4dc8cf27d07b403ad80568c3873be746d83d28dc
 progress:
   total_phases: 5
   completed_phases: 0
   total_plans: 7
-  completed_plans: 3
+  completed_plans: 4
   percent: 0
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-10-06)
 ## Current Position
 
 Phase: 01 (Fundação e núcleo de links) — EXECUTING
-Plan: 4 of 7
+Plan: 5 of 7
 Status: Ready to execute
 Last activity: 2026-10-08 — Phase 01 execution started
 
@@ -61,6 +61,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 01 P01 | 21min | 3 tasks | 13 files |
 | Phase 01 P02 | 10min | 2 tasks | 13 files |
 | Phase 01 P03 | 5min | 2 tasks | 11 files |
+| Phase 01 P04 | 6 min | 1 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -78,6 +79,8 @@ Decisões recentes que afetam o trabalho atual:
 - [Phase 01]: 01-02: LinkRepository.nextId() com @Transactional de escrita (evita nextval em transação read-only); spring.mvc.problemdetails.enabled provisório até o GlobalExceptionHandler da 01-06
 - [Phase 01]: 01-03: CodeGenerator relança falha de modInverse como IllegalArgumentException 'coprimo' sem encadear a causa (causa raiz legível na falha de subida); linkpulse.code.alphabet/multiplier são contrato one-way
 - [Phase 01]: 01-03: POST /links devolve expiresAt null explícito; shortUrl só de linkpulse.base-url via UriComponentsBuilder.pathSegment; alias aceito e ignorado até a 01-04
+- [Phase 01]: 01-04: corrida de alias detectada pelo nome da constraint uk_links_code (Hibernate ConstraintViolationException) com fallback SQLSTATE 23505; outras violações de integridade viram 500
+- [Phase 01]: 01-04: alias case-sensitive no armazenamento e lookup; reservados (linkpulse.alias.reserved) comparados sem caixa via Locale.ROOT
 
 ### Pending Todos
 
@@ -101,6 +104,6 @@ Itens reconhecidos e adiados no fechamento de milestone, do mais recente para o 
 
 ## Session Continuity
 
-Last session: 2026-10-08T22:55:03.676Z
-Stopped at: Completed 01-03-PLAN.md
+Last session: 2026-10-08T23:03:40.656Z
+Stopped at: Completed 01-04-PLAN.md
 Resume file: None
