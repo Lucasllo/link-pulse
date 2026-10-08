@@ -55,7 +55,7 @@ Requisitos da entrega inicial. Cada um é mapeado para uma fase do roadmap.
 - [x] **QUAL-01**: Testes unitários do gerador de código (Base62 + embaralhamento, ida e volta, unicidade)
 - [ ] **QUAL-02**: Testes de integração com Testcontainers (Postgres + Mongo + Valkey), cobrindo redirect, cache, rate limit, pipeline de cliques (incluindo reentrega) e stats
 - [x] **QUAL-03**: Checkstyle e SpotBugs rodam no build e quebram em violação
-- [ ] **QUAL-04**: API documentada com OpenAPI/Swagger UI (springdoc)
+- [x] **QUAL-04**: API documentada com OpenAPI/Swagger UI (springdoc)
 
 ### Container e ambiente local
 
@@ -171,7 +171,7 @@ Rastreabilidade: quais fases cobrem quais requisitos. Preenchido na criação do
 | QUAL-01 | Phase 1 | Complete |
 | QUAL-02 | Phase 2 | Pending |
 | QUAL-03 | Phase 1 | Complete |
-| QUAL-04 | Phase 1 | Pending |
+| QUAL-04 | Phase 1 | Complete |
 | CONT-01 | Phase 3 | Pending |
 | CONT-02 | Phase 3 | Pending |
 | CONT-03 | Phase 1 | Complete |

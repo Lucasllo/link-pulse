@@ -2,17 +2,17 @@
 gsd_state_version: "1.0"
 current_phase: 01
 current_phase_name: Fundação e núcleo de links
-status: executing
-stopped_at: Completed 01-06-PLAN.md
-last_updated: "2026-10-08T23:20:49.035Z"
+status: verifying
+stopped_at: Completed 01-07-PLAN.md
+last_updated: "2026-10-08T23:29:05.605Z"
 last_activity: 2026-10-08
 last_activity_desc: Phase 01 execution started
-state_head: 7d2efa347e348e1677109a0c0fdd2229bbe07a7f
+state_head: e4848c3a149181b74a9bac1207ed32b7f1fdb367
 progress:
   total_phases: 5
   completed_phases: 0
   total_plans: 7
-  completed_plans: 6
+  completed_plans: 7
   percent: 0
 ---
 
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-10-06)
 
 Phase: 01 (Fundação e núcleo de links) — EXECUTING
 Plan: 7 of 7
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-10-08 — Phase 01 execution started
 
 Progress: [░░░░░░░░░░] 0%
@@ -64,6 +64,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 01 P04 | 6 min | 1 tasks | 8 files |
 | Phase 01 P05 | 4min | 1 tasks | 7 files |
 | Phase 01 P06 | 8min | 2 tasks | 8 files |
+| Phase 01 P07 | 7min | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -88,6 +89,8 @@ Decisões recentes que afetam o trabalho atual:
 - [Phase 01]: 01-06: URL com userinfo (user:senha@host) é rejeitada no @HttpUrl (anti-phishing)
 - [Phase 01]: 01-06: A2 confirmada — Jackson 3 rejeita OffsetDateTime sem offset; expiresAt segue OffsetDateTime + @Future, erro sai como /problems/malformed-request
 - [Phase 01]: 01-06: GlobalExceptionHandler próprio substitui o handler de Problem Details do Boot; 500 genérico /problems/internal-error sem detalhe interno
+- [Phase 01]: Swagger UI/OpenAPI por anotações nos controllers; springdoc publica o redirect como /{code}
+- [Phase 01]: Liquibase 5.0.3 (FSL-1.1-ALv2) mantido e registrado no README e no PROJECT.md; alternativa Apache 4.33.0 documentada
 
 ### Pending Todos
 
@@ -95,7 +98,6 @@ None yet.
 
 ### Blockers/Concerns
 
-- [Phase 1]: Pesquisa leve sobre o impacto do Boot 4.1 (Jackson 3, Testcontainers 2, Liquibase 5.x sob licença FSL) e compatibilidade do springdoc; confirmar e registrar a licença da Liquibase
 - [Phase 1]: Sqids/permutação (LINK-03) precisa estar definido antes do primeiro código gerado; mudar depois altera os códigos existentes
 - [Phase 2]: Pesquisar a API do Spring Data Redis na versão do Boot 4.1 (`cancelOnError`, `BLOCK` com Lettuce, `XAUTOCLAIM`) e o desenho dos testes de reentrega; `maxmemory-policy volatile-lru` em todos os ambientes
 - [Phase 4]: Pesquisar versões atuais dos charts Traefik, kube-prometheus-stack e metrics-server, seletores (`*SelectorNilUsesHelmValues`) e sidecar de dashboards
@@ -111,6 +113,6 @@ Itens reconhecidos e adiados no fechamento de milestone, do mais recente para o 
 
 ## Session Continuity
 
-Last session: 2026-10-08T23:20:48.999Z
-Stopped at: Completed 01-06-PLAN.md
+Last session: 2026-10-08T23:28:54.050Z
+Stopped at: Completed 01-07-PLAN.md
 Resume file: None
