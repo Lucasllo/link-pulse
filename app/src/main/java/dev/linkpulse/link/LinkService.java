@@ -1,9 +1,8 @@
 package dev.linkpulse.link;
 
-import org.springframework.http.HttpStatus;
+import java.time.Clock;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
 
 /**
  * Regras de negócio dos links.
@@ -12,14 +11,17 @@ import org.springframework.web.server.ResponseStatusException;
 public class LinkService {
 
     private final LinkRepository repository;
+    private final Clock clock;
 
     /**
      * Cria o service.
      *
      * @param repository repositório dos links
+     * @param clock relógio da aplicação (base da expiração)
      */
-    public LinkService(LinkRepository repository) {
+    public LinkService(LinkRepository repository, Clock clock) {
         this.repository = repository;
+        this.clock = clock;
     }
 
     /**
@@ -27,11 +29,15 @@ public class LinkService {
      *
      * @param code código curto (case-sensitive)
      * @return a URL de destino
+     * @throws org.springframework.web.ErrorResponseException 404 se o código não existe, 410 se
+     *     o link expirou
      */
     @Transactional(readOnly = true)
     public String resolve(String code) {
-        return repository.findByCode(code)
-                .map(Link::getTargetUrl)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+        Link link = repository.findByCode(code).orElseThrow(() -> LinkProblems.notFound(code));
+        if (link.isExpiredAt(clock.instant())) {
+            throw LinkProblems.expired(code, link.getExpiresAt());
+        }
+        return link.getTargetUrl();
     }
 }
