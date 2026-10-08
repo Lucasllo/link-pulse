@@ -11,6 +11,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.env.Environment;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.assertj.MvcTestResult;
 
@@ -57,5 +58,70 @@ class RedirectIT extends AbstractIT {
     @Test
     void hibernateOnlyValidatesSchema() {
         assertThat(environment.getProperty("spring.jpa.hibernate.ddl-auto")).isEqualTo("validate");
+    }
+
+    @Test
+    void unknownCodeIsNotFoundProblem() {
+        MvcTestResult result = mvc.get().uri("/nao-existe1").exchange();
+
+        assertThat(result).hasStatus(HttpStatus.NOT_FOUND)
+                .hasContentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON);
+        assertThat(result).bodyJson().extractingPath("$.type")
+                .isEqualTo("/problems/link-not-found");
+        assertThat(result).bodyJson().extractingPath("$.title").isEqualTo("Link não encontrado");
+        assertThat(result).bodyJson().extractingPath("$.status").isEqualTo(404);
+        assertThat(result).bodyJson().extractingPath("$.code").isEqualTo("nao-existe1");
+    }
+
+    @Test
+    void expiredLinkIsGoneProblem() {
+        Instant expiresAt = Instant.now().minus(1, ChronoUnit.HOURS).truncatedTo(ChronoUnit.MICROS);
+        saveLink("expired-1", "https://example.com/velho", expiresAt);
+
+        MvcTestResult result = mvc.get().uri("/expired-1").exchange();
+
+        assertThat(result).hasStatus(HttpStatus.GONE)
+                .hasContentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON);
+        assertThat(result).bodyJson().extractingPath("$.type").isEqualTo("/problems/link-expired");
+        assertThat(result).bodyJson().extractingPath("$.code").isEqualTo("expired-1");
+        assertThat(result).bodyJson().extractingPath("$.expiredAt").isEqualTo(expiresAt.toString());
+    }
+
+    @Test
+    void linkExpiringInTheFutureStillRedirects() {
+        Instant expiresAt = Instant.now().plus(1, ChronoUnit.HOURS).truncatedTo(ChronoUnit.MICROS);
+        saveLink("future-1", "https://example.com/futuro", expiresAt);
+
+        MvcTestResult result = mvc.get().uri("/future-1").exchange();
+
+        assertThat(result).hasStatus(HttpStatus.FOUND);
+        assertThat(result.getResponse().getHeader(HttpHeaders.LOCATION))
+                .isEqualTo("https://example.com/futuro");
+    }
+
+    @Test
+    void lookupIsCaseSensitive() {
+        saveLink("AbCd-123", "https://example.com/caso", null);
+
+        assertThat(mvc.get().uri("/AbCd-123").exchange()).hasStatus(HttpStatus.FOUND);
+        MvcTestResult lower = mvc.get().uri("/abcd-123").exchange();
+        assertThat(lower).hasStatus(HttpStatus.NOT_FOUND);
+        assertThat(lower).bodyJson().extractingPath("$.code").isEqualTo("abcd-123");
+    }
+
+    @Test
+    void pathWithDotIsNotRedirectRoute() throws Exception {
+        MvcTestResult result = mvc.get().uri("/favicon.ico").exchange();
+
+        assertThat(result).hasStatus(HttpStatus.NOT_FOUND);
+        assertThat(result.getResponse().getContentAsString()).doesNotContain("link-not-found");
+    }
+
+    @Test
+    void multiSegmentPathIsNotRedirectRoute() throws Exception {
+        MvcTestResult result = mvc.get().uri("/a/b").exchange();
+
+        assertThat(result).hasStatus(HttpStatus.NOT_FOUND);
+        assertThat(result.getResponse().getContentAsString()).doesNotContain("link-not-found");
     }
 }
