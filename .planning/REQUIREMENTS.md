@@ -18,8 +18,8 @@ Requisitos da entrega inicial. Cada um é mapeado para uma fase do roadmap.
 
 ### Redirect
 
-- [ ] **REDIR-01**: `GET /{code}` responde 302 para a URL original, com `Cache-Control` que impede cache no navegador
-- [ ] **REDIR-02**: Código inexistente retorna 404; link expirado retorna 410 Gone
+- [x] **REDIR-01**: `GET /{code}` responde 302 para a URL original, com `Cache-Control` que impede cache no navegador
+- [x] **REDIR-02**: Código inexistente retorna 404; link expirado retorna 410 Gone
 - [ ] **REDIR-03**: Lookup usa cache-aside no Valkey com TTL = min(padrão, tempo até expirar), com negative caching (404/410) invalidado na criação do link
 - [ ] **REDIR-04**: Hit/miss do cache é medido em métrica
 - [ ] **REDIR-05**: Com o Valkey indisponível, o redirect continua funcionando via Postgres (fail-open) e o problema aparece em métrica
@@ -146,8 +146,8 @@ Rastreabilidade: quais fases cobrem quais requisitos. Preenchido na criação do
 | LINK-04 | Phase 1 | Pending |
 | LINK-05 | Phase 1 | Pending |
 | LINK-06 | Phase 1 | Pending |
-| REDIR-01 | Phase 1 | Pending |
-| REDIR-02 | Phase 1 | Pending |
+| REDIR-01 | Phase 1 | Complete |
+| REDIR-02 | Phase 1 | Complete |
 | REDIR-03 | Phase 2 | Pending |
 | REDIR-04 | Phase 2 | Pending |
 | REDIR-05 | Phase 2 | Pending |

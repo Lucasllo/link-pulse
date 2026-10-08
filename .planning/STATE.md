@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 01
 current_phase_name: Fundação e núcleo de links
 status: executing
-stopped_at: Completed 01-01-PLAN.md
-last_updated: "2026-10-08T22:34:38.518Z"
+stopped_at: Completed 01-02-PLAN.md
+last_updated: "2026-10-08T22:47:18.968Z"
 last_activity: 2026-10-08
 last_activity_desc: Phase 01 execution started
-state_head: e4a987ed86a3358c462b0701002ed113da9cf058
+state_head: 0635bd61eaadd200227dd9d36cd316afab1284c6
 progress:
   total_phases: 5
   completed_phases: 0
   total_plans: 7
-  completed_plans: 1
+  completed_plans: 2
   percent: 0
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-10-06)
 ## Current Position
 
 Phase: 01 (Fundação e núcleo de links) — EXECUTING
-Plan: 2 of 7
+Plan: 3 of 7
 Status: Ready to execute
 Last activity: 2026-10-08 — Phase 01 execution started
 
@@ -59,6 +59,7 @@ Progress: [░░░░░░░░░░] 0%
 | Plan | Duration | Tasks | Files |
 |------|----------|-------|-------|
 | Phase 01 P01 | 21min | 3 tasks | 13 files |
+| Phase 01 P02 | 10min | 2 tasks | 13 files |
 
 ## Accumulated Context
 
@@ -72,6 +73,8 @@ Decisões recentes que afetam o trabalho atual:
 - [Stack]: Spring Boot 4.1.1, Valkey 8.1 em todos os ambientes, Traefik + manifests próprios no kind, coleção normal `click_events` (ver PROJECT.md)
 - [Phase 01]: 01-01: Spring Boot 4.1.1 + Java 21; Checkstyle 14.3.0 (google adaptado, severity error) em validate e SpotBugs 4.10.4.1 Max/Medium em verify
 - [Phase 01]: 01-01: actions do CI fixadas por SHA (checkout v7.0.1, setup-java v6.0.1, upload-artifact v7.0.1) e conferidas por git ls-remote
+- [Phase 01]: 01-02: Cache-Control do 302 fixado em 'no-store, private'; expiração inclusiva (now == expiresAt → 410) pelo Clock UTC da aplicação
+- [Phase 01]: 01-02: LinkRepository.nextId() com @Transactional de escrita (evita nextval em transação read-only); spring.mvc.problemdetails.enabled provisório até o GlobalExceptionHandler da 01-06
 
 ### Pending Todos
 
@@ -95,6 +98,6 @@ Itens reconhecidos e adiados no fechamento de milestone, do mais recente para o 
 
 ## Session Continuity
 
-Last session: 2026-10-08T22:34:38.482Z
-Stopped at: Completed 01-01-PLAN.md
+Last session: 2026-10-08T22:47:18.932Z
+Stopped at: Completed 01-02-PLAN.md
 Resume file: None
