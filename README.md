@@ -74,19 +74,19 @@ curl -i -X POST http://localhost:8080/links \
 
 ```http
 HTTP/1.1 201
-Location: http://localhost:8080/cJinsNv
+Location: http://localhost:8080/EdRbklq
 Content-Type: application/json
 
 {
-  "code": "cJinsNv",
-  "shortUrl": "http://localhost:8080/cJinsNv",
+  "code": "EdRbklq",
+  "shortUrl": "http://localhost:8080/EdRbklq",
   "targetUrl": "https://example.com/artigo",
   "expiresAt": null,
-  "createdAt": "2026-10-08T22:50:00Z"
+  "createdAt": "2026-10-08T23:27:24.197641Z"
 }
 ```
 
-O `code` real depende do próximo valor da sequência. `expiresAt` volta `null` quando o link não expira.
+O `code` depende do próximo valor da sequência: num banco de dev novo, o ID 1 fica com o seed `demo-link` e o primeiro POST recebe o ID 2 (`EdRbklq`). `expiresAt` volta `null` quando o link não expira.
 
 Com alias e expiração:
 
@@ -105,7 +105,7 @@ Location: http://localhost:8080/minha-promo
   "shortUrl": "http://localhost:8080/minha-promo",
   "targetUrl": "https://example.com/promo",
   "expiresAt": "2026-12-31T23:59:59Z",
-  "createdAt": "2026-10-08T22:51:00Z"
+  "createdAt": "2026-10-08T23:28:10.512304Z"
 }
 ```
 
@@ -153,7 +153,8 @@ Exemplo:
   "title": "Requisição inválida",
   "status": 400,
   "detail": "Um ou mais campos são inválidos.",
-  "errors": [{ "field": "url", "message": "..." }]
+  "instance": "/links",
+  "errors": [{ "field": "url", "message": "deve ser uma URL http ou https absoluta, com host e sem credenciais" }]
 }
 ```
 
