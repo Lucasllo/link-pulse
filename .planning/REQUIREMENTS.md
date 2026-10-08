@@ -50,7 +50,7 @@ Requisitos da entrega inicial. Cada um é mapeado para uma fase do roadmap.
 
 ### Dados e qualidade
 
-- [ ] **DATA-01**: Schema do Postgres gerenciado por Liquibase com changelogs YAML versionados e contexts dev/prod; Hibernate em `ddl-auto=validate`
+- [x] **DATA-01**: Schema do Postgres gerenciado por Liquibase com changelogs YAML versionados e contexts dev/prod; Hibernate em `ddl-auto=validate`
 - [ ] **DATA-02**: Índices do MongoDB (`{code, ts}` e TTL de retenção) criados explicitamente
 - [x] **QUAL-01**: Testes unitários do gerador de código (Base62 + embaralhamento, ida e volta, unicidade)
 - [ ] **QUAL-02**: Testes de integração com Testcontainers (Postgres + Mongo + Valkey), cobrindo redirect, cache, rate limit, pipeline de cliques (incluindo reentrega) e stats
@@ -166,7 +166,7 @@ Rastreabilidade: quais fases cobrem quais requisitos. Preenchido na criação do
 | STAT-04 | Phase 2 | Pending |
 | RATE-01 | Phase 2 | Pending |
 | RATE-02 | Phase 2 | Pending |
-| DATA-01 | Phase 1 | Pending |
+| DATA-01 | Phase 1 | Complete |
 | DATA-02 | Phase 2 | Pending |
 | QUAL-01 | Phase 1 | Complete |
 | QUAL-02 | Phase 2 | Pending |

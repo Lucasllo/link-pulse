@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 01
 current_phase_name: Fundação e núcleo de links
 status: executing
-stopped_at: Completed 01-04-PLAN.md
-last_updated: "2026-10-08T23:03:40.693Z"
+stopped_at: Completed 01-05-PLAN.md
+last_updated: "2026-10-08T23:10:37.606Z"
 last_activity: 2026-10-08
 last_activity_desc: Phase 01 execution started
-state_head: 4dc8cf27d07b403ad80568c3873be746d83d28dc
+state_head: c4a5506fc0f558ba6f20b5b7cc94967e779a61f8
 progress:
   total_phases: 5
   completed_phases: 0
   total_plans: 7
-  completed_plans: 4
+  completed_plans: 5
   percent: 0
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-10-06)
 ## Current Position
 
 Phase: 01 (Fundação e núcleo de links) — EXECUTING
-Plan: 5 of 7
+Plan: 6 of 7
 Status: Ready to execute
 Last activity: 2026-10-08 — Phase 01 execution started
 
@@ -62,6 +62,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 01 P02 | 10min | 2 tasks | 13 files |
 | Phase 01 P03 | 5min | 2 tasks | 11 files |
 | Phase 01 P04 | 6 min | 1 tasks | 8 files |
+| Phase 01 P05 | 4min | 1 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -81,6 +82,8 @@ Decisões recentes que afetam o trabalho atual:
 - [Phase 01]: 01-03: POST /links devolve expiresAt null explícito; shortUrl só de linkpulse.base-url via UriComponentsBuilder.pathSegment; alias aceito e ignorado até a 01-04
 - [Phase 01]: 01-04: corrida de alias detectada pelo nome da constraint uk_links_code (Hibernate ConstraintViolationException) com fallback SQLSTATE 23505; outras violações de integridade viram 500
 - [Phase 01]: 01-04: alias case-sensitive no armazenamento e lookup; reservados (linkpulse.alias.reserved) comparados sem caixa via Locale.ROOT
+- [Phase 01]: 01-05: seed demo-link em changeset separado (002-seed-dev.yaml) com contextFilter: dev; contexts explícito por profile (prod default/explícito, dev no application-dev.yml), provado por LiquibaseContextsIT
+- [Phase 01]: 01-05: Postgres de dev publicado só em 127.0.0.1:5432 com volume em /var/lib/postgresql; Makefile ganha db-up/db-down e run depende de db-up
 
 ### Pending Todos
 
@@ -104,6 +107,6 @@ Itens reconhecidos e adiados no fechamento de milestone, do mais recente para o 
 
 ## Session Continuity
 
-Last session: 2026-10-08T23:03:40.656Z
-Stopped at: Completed 01-04-PLAN.md
+Last session: 2026-10-08T23:10:37.564Z
+Stopped at: Completed 01-05-PLAN.md
 Resume file: None
