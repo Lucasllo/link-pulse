@@ -12,7 +12,7 @@ Requisitos da entrega inicial. Cada um é mapeado para uma fase do roadmap.
 - [ ] **LINK-01**: Cliente cria link via `POST /links` com URL longa (http/https, tamanho máximo validado) e recebe o código curto e a URL curta
 - [x] **LINK-02**: Código gerado por Base62 a partir do ID da sequência do Postgres (obtido antes do INSERT), sem colisão
 - [x] **LINK-03**: O ID é embaralhado de forma bijetiva (Sqids/permutação) para que códigos consecutivos não sejam enumeráveis
-- [ ] **LINK-04**: Cliente pode informar alias customizado; alias segue regex disjunta dos códigos gerados, respeita lista de palavras reservadas (`links`, `actuator`, etc.) e retorna 409 se já existir
+- [x] **LINK-04**: Cliente pode informar alias customizado; alias segue regex disjunta dos códigos gerados, respeita lista de palavras reservadas (`links`, `actuator`, etc.) e retorna 409 se já existir
 - [ ] **LINK-05**: Cliente pode informar expiração opcional (data futura obrigatória)
 - [ ] **LINK-06**: Erros de validação e conflito são retornados como Problem Details (RFC 9457)
 
@@ -143,7 +143,7 @@ Rastreabilidade: quais fases cobrem quais requisitos. Preenchido na criação do
 | LINK-01 | Phase 1 | Pending |
 | LINK-02 | Phase 1 | Complete |
 | LINK-03 | Phase 1 | Complete |
-| LINK-04 | Phase 1 | Pending |
+| LINK-04 | Phase 1 | Complete |
 | LINK-05 | Phase 1 | Pending |
 | LINK-06 | Phase 1 | Pending |
 | REDIR-01 | Phase 1 | Complete |
