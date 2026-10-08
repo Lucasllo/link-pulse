@@ -24,6 +24,17 @@ spring:
 server:
   port: 8080
 
+# Override por env via relaxed binding: LINKPULSE_BASE_URL, LINKPULSE_CODE_ALPHABET,
+# LINKPULSE_CODE_MULTIPLIER.
+linkpulse:
+  # Base da shortUrl (D-12); compose/kind/ECS sobrescrevem por env.
+  base-url: http://localhost:8080
+  code:
+    # Alfabeto e multiplicador definem todos os códigos publicados: trocar quebra links (D-01).
+    # O multiplicador precisa ser coprimo de 62^7 (validado na subida). É ofuscação, não segurança.
+    alphabet: 0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz
+    multiplier: 2176477521915
+
 management:
   server:
     port: 8081
