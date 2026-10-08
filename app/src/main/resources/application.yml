@@ -17,9 +17,6 @@ spring:
     contexts: prod
     # O Liquibase OSS envia analytics anônimos por padrão.
     analytics-enabled: false
-  mvc:
-    problemdetails:
-      enabled: true
 
 server:
   port: 8080
