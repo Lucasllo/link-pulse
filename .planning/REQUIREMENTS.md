@@ -9,17 +9,17 @@ Requisitos da entrega inicial. Cada um é mapeado para uma fase do roadmap.
 
 ### Links (criação)
 
-- [x] **LINK-01**: Cliente cria link via `POST /links` com URL longa (http/https, tamanho máximo validado) e recebe o código curto e a URL curta
-- [x] **LINK-02**: Código gerado por Base62 a partir do ID da sequência do Postgres (obtido antes do INSERT), sem colisão
-- [x] **LINK-03**: O ID é embaralhado de forma bijetiva (Sqids/permutação) para que códigos consecutivos não sejam enumeráveis
-- [x] **LINK-04**: Cliente pode informar alias customizado; alias segue regex disjunta dos códigos gerados, respeita lista de palavras reservadas (`links`, `actuator`, etc.) e retorna 409 se já existir
-- [x] **LINK-05**: Cliente pode informar expiração opcional (data futura obrigatória)
-- [x] **LINK-06**: Erros de validação e conflito são retornados como Problem Details (RFC 9457)
+- [ ] **LINK-01**: Cliente cria link via `POST /links` com URL longa (http/https, tamanho máximo validado) e recebe o código curto e a URL curta
+- [ ] **LINK-02**: Código gerado por Base62 a partir do ID da sequência do Postgres (obtido antes do INSERT), sem colisão
+- [ ] **LINK-03**: O ID é embaralhado de forma bijetiva (Sqids/permutação) para que códigos consecutivos não sejam enumeráveis
+- [ ] **LINK-04**: Cliente pode informar alias customizado; alias segue regex disjunta dos códigos gerados, respeita lista de palavras reservadas (`links`, `actuator`, etc.) e retorna 409 se já existir
+- [ ] **LINK-05**: Cliente pode informar expiração opcional (data futura obrigatória)
+- [ ] **LINK-06**: Erros de validação e conflito são retornados como Problem Details (RFC 9457)
 
 ### Redirect
 
-- [x] **REDIR-01**: `GET /{code}` responde 302 para a URL original, com `Cache-Control` que impede cache no navegador
-- [x] **REDIR-02**: Código inexistente retorna 404; link expirado retorna 410 Gone
+- [ ] **REDIR-01**: `GET /{code}` responde 302 para a URL original, com `Cache-Control` que impede cache no navegador
+- [ ] **REDIR-02**: Código inexistente retorna 404; link expirado retorna 410 Gone
 - [ ] **REDIR-03**: Lookup usa cache-aside no Valkey com TTL = min(padrão, tempo até expirar), com negative caching (404/410) invalidado na criação do link
 - [ ] **REDIR-04**: Hit/miss do cache é medido em métrica
 - [ ] **REDIR-05**: Com o Valkey indisponível, o redirect continua funcionando via Postgres (fail-open) e o problema aparece em métrica
@@ -50,18 +50,18 @@ Requisitos da entrega inicial. Cada um é mapeado para uma fase do roadmap.
 
 ### Dados e qualidade
 
-- [x] **DATA-01**: Schema do Postgres gerenciado por Liquibase com changelogs YAML versionados e contexts dev/prod; Hibernate em `ddl-auto=validate`
+- [ ] **DATA-01**: Schema do Postgres gerenciado por Liquibase com changelogs YAML versionados e contexts dev/prod; Hibernate em `ddl-auto=validate`
 - [ ] **DATA-02**: Índices do MongoDB (`{code, ts}` e TTL de retenção) criados explicitamente
-- [x] **QUAL-01**: Testes unitários do gerador de código (Base62 + embaralhamento, ida e volta, unicidade)
+- [ ] **QUAL-01**: Testes unitários do gerador de código (Base62 + embaralhamento, ida e volta, unicidade)
 - [ ] **QUAL-02**: Testes de integração com Testcontainers (Postgres + Mongo + Valkey), cobrindo redirect, cache, rate limit, pipeline de cliques (incluindo reentrega) e stats
-- [x] **QUAL-03**: Checkstyle e SpotBugs rodam no build e quebram em violação
-- [x] **QUAL-04**: API documentada com OpenAPI/Swagger UI (springdoc)
+- [ ] **QUAL-03**: Checkstyle e SpotBugs rodam no build e quebram em violação
+- [ ] **QUAL-04**: API documentada com OpenAPI/Swagger UI (springdoc)
 
 ### Container e ambiente local
 
 - [ ] **CONT-01**: Dockerfile multi-stage com layered jar, usuário não-root numérico e HEALTHCHECK
 - [ ] **CONT-02**: `make up` sobe via Docker Compose: app, Postgres, Mongo, Valkey, Prometheus e Grafana, com dependências por healthcheck
-- [x] **CONT-03**: Repositório funciona em Windows (Git Bash/WSL) e Linux: `.gitattributes` com LF, `mvnw` executável, caminhos com espaço tratados, instrução de instalação do `make`
+- [ ] **CONT-03**: Repositório funciona em Windows (Git Bash/WSL) e Linux: `.gitattributes` com LF, `mvnw` executável, caminhos com espaço tratados, instrução de instalação do `make`
 - [ ] **CONT-04**: Script de seed/demo gera links e cliques para popular os dashboards
 
 ### Kubernetes
@@ -73,7 +73,7 @@ Requisitos da entrega inicial. Cada um é mapeado para uma fase do roadmap.
 
 ### CI/CD
 
-- [x] **CI-01**: GitHub Actions roda build, testes (Testcontainers), Checkstyle e SpotBugs em cada push/PR
+- [ ] **CI-01**: GitHub Actions roda build, testes (Testcontainers), Checkstyle e SpotBugs em cada push/PR
 - [ ] **CI-02**: Pipeline faz build da imagem e publica no GHCR (na main)
 - [ ] **CI-03**: Imagem passa por scan do Trivy e é gerado um SBOM
 - [ ] **CI-04**: Job de verificação faz deploy em kind e roda smoke test (criar link → redirect → stats)
@@ -140,14 +140,14 @@ Rastreabilidade: quais fases cobrem quais requisitos. Preenchido na criação do
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| LINK-01 | Phase 1 | Complete |
-| LINK-02 | Phase 1 | Complete |
-| LINK-03 | Phase 1 | Complete |
-| LINK-04 | Phase 1 | Complete |
-| LINK-05 | Phase 1 | Complete |
-| LINK-06 | Phase 1 | Complete |
-| REDIR-01 | Phase 1 | Complete |
-| REDIR-02 | Phase 1 | Complete |
+| LINK-01 | Phase 1 | Gaps Found |
+| LINK-02 | Phase 1 | Gaps Found |
+| LINK-03 | Phase 1 | Gaps Found |
+| LINK-04 | Phase 1 | Gaps Found |
+| LINK-05 | Phase 1 | Gaps Found |
+| LINK-06 | Phase 1 | Gaps Found |
+| REDIR-01 | Phase 1 | Gaps Found |
+| REDIR-02 | Phase 1 | Gaps Found |
 | REDIR-03 | Phase 2 | Pending |
 | REDIR-04 | Phase 2 | Pending |
 | REDIR-05 | Phase 2 | Pending |
@@ -166,21 +166,21 @@ Rastreabilidade: quais fases cobrem quais requisitos. Preenchido na criação do
 | STAT-04 | Phase 2 | Pending |
 | RATE-01 | Phase 2 | Pending |
 | RATE-02 | Phase 2 | Pending |
-| DATA-01 | Phase 1 | Complete |
+| DATA-01 | Phase 1 | Gaps Found |
 | DATA-02 | Phase 2 | Pending |
-| QUAL-01 | Phase 1 | Complete |
+| QUAL-01 | Phase 1 | Gaps Found |
 | QUAL-02 | Phase 2 | Pending |
-| QUAL-03 | Phase 1 | Complete |
-| QUAL-04 | Phase 1 | Complete |
+| QUAL-03 | Phase 1 | Gaps Found |
+| QUAL-04 | Phase 1 | Gaps Found |
 | CONT-01 | Phase 3 | Pending |
 | CONT-02 | Phase 3 | Pending |
-| CONT-03 | Phase 1 | Complete |
+| CONT-03 | Phase 1 | Gaps Found |
 | CONT-04 | Phase 3 | Pending |
 | K8S-01 | Phase 4 | Pending |
 | K8S-02 | Phase 4 | Pending |
 | K8S-03 | Phase 4 | Pending |
 | K8S-04 | Phase 4 | Pending |
-| CI-01 | Phase 1 | Complete |
+| CI-01 | Phase 1 | Gaps Found |
 | CI-02 | Phase 4 | Pending |
 | CI-03 | Phase 4 | Pending |
 | CI-04 | Phase 4 | Pending |
