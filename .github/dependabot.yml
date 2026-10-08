@@ -1,0 +1,14 @@
+version: 2
+updates:
+  # Mantém os pins por SHA das actions atualizados.
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: maven
+    directory: "/app"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
