@@ -1,5 +1,6 @@
 package dev.linkpulse.config;
 
+import dev.linkpulse.link.AliasPolicy;
 import dev.linkpulse.link.CodeGenerator;
 import java.time.Clock;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -33,5 +34,16 @@ public class ApplicationConfig {
     @Bean
     CodeGenerator codeGenerator(LinkPulseProperties properties) {
         return new CodeGenerator(properties.code().alphabet(), properties.code().multiplier());
+    }
+
+    /**
+     * Política de alias com os reservados de {@code linkpulse.alias.reserved} (D-07).
+     *
+     * @param properties propriedades {@code linkpulse.*}
+     * @return a política configurada
+     */
+    @Bean
+    AliasPolicy aliasPolicy(LinkPulseProperties properties) {
+        return new AliasPolicy(properties.alias().reserved());
     }
 }

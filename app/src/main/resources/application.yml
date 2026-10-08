@@ -25,7 +25,7 @@ server:
   port: 8080
 
 # Override por env via relaxed binding: LINKPULSE_BASE_URL, LINKPULSE_CODE_ALPHABET,
-# LINKPULSE_CODE_MULTIPLIER.
+# LINKPULSE_CODE_MULTIPLIER, LINKPULSE_ALIAS_RESERVED (lista separada por vírgula).
 linkpulse:
   # Base da shortUrl (D-12); compose/kind/ECS sobrescrevem por env.
   base-url: http://localhost:8080
@@ -34,6 +34,23 @@ linkpulse:
     # O multiplicador precisa ser coprimo de 62^7 (validado na subida). É ofuscação, não segurança.
     alphabet: 0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz
     multiplier: 2176477521915
+  alias:
+    # Palavras que não podem virar alias, comparadas sem diferenciar maiúsculas (D-07):
+    # rotas reais da aplicação + nomes genéricos. A regex já exige '-' ou '_'; a lista é
+    # defesa extra (cobre, por exemplo, swagger-ui e api-docs).
+    reserved:
+      - links
+      - actuator
+      - swagger-ui
+      - v3
+      - api-docs
+      - health
+      - favicon.ico
+      - robots.txt
+      - admin
+      - api
+      - static
+      - login
 
 management:
   server:
