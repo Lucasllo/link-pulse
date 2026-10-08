@@ -35,7 +35,7 @@ As fases decimais aparecem entre as inteiras vizinhas, em ordem numérica.
   4. A aplicação sobe com o schema criado pelo Liquibase (changelogs YAML, contexts dev/prod) e com o Hibernate em `ddl-auto=validate`, e a Swagger UI (springdoc) documenta os endpoints
   5. Cada push/PR roda no GitHub Actions o build, os testes unitários do gerador (ida e volta, unicidade), os testes de integração com Testcontainers, o Checkstyle e o SpotBugs, falhando em qualquer violação; o mesmo build roda no Git Bash/WSL e no Linux, mesmo com espaço no caminho (LF via `.gitattributes`, `mvnw` executável, instrução de instalação do `make`)
 
-**Plans**: 4/7 plans executed
+**Plans**: 5/7 plans executed
 
 Plans:
 **Wave 1**
@@ -53,7 +53,7 @@ Plans:
 **Wave 4** *(blocked on Wave 3 completion)*
 
 - [x] 01-04-PLAN.md — Alias (regex, reservados case-insensitive, 409 com corrida) com erros de alias em Problem Details (wave 4)
-- [ ] 01-05-PLAN.md — Run local com seed dev e compose.dev.yaml, alvos db-up/db-down e contexts dev/prod provados por IT (wave 4)
+- [x] 01-05-PLAN.md — Run local com seed dev e compose.dev.yaml, alvos db-up/db-down e contexts dev/prod provados por IT (wave 4)
 
 **Wave 5** *(blocked on Wave 4 completion)*
 
@@ -130,7 +130,7 @@ As fases seguem a ordem numérica: 1 → 2 → 3 → 4 → 5 (a parte Terraform 
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Fundação e núcleo de links | 4/7 | In Progress|  |
+| 1. Fundação e núcleo de links | 5/7 | In Progress|  |
 | 2. Hot path no Valkey e pipeline de cliques | 0/TBD | Not started | - |
 | 3. Stack local observável | 0/TBD | Not started | - |
 | 4. Kubernetes no kind e entrega contínua | 0/TBD | Not started | - |
