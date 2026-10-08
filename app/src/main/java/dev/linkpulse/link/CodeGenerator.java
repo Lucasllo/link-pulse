@@ -59,7 +59,9 @@ public final class CodeGenerator {
         try {
             this.inverse = this.multiplier.modInverse(MODULUS);
         } catch (ArithmeticException e) {
-            throw new IllegalArgumentException("multiplicador deve ser coprimo de 62^7", e);
+            // Sem encadear a causa: "BigInteger not invertible" não acrescenta nada, e a
+            // mensagem em pt-BR fica como causa raiz da falha de subida do contexto (D-03).
+            throw new IllegalArgumentException("multiplicador deve ser coprimo de 62^7");
         }
     }
 
