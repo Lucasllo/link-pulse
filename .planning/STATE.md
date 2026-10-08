@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 01
 current_phase_name: Fundação e núcleo de links
 status: executing
-stopped_at: Phase 1 context gathered
-last_updated: "2026-10-07T02:50:14.559Z"
-last_activity: 2026-10-06
-last_activity_desc: Roadmap criado (5 fases, 57/57 requisitos v1 mapeados)
-state_head: 4ad5f9fc90cc365ecb79a00d2892022ecfb17cb2
+stopped_at: Completed 01-01-PLAN.md
+last_updated: "2026-10-08T22:34:38.518Z"
+last_activity: 2026-10-08
+last_activity_desc: Phase 01 execution started
+state_head: e4a987ed86a3358c462b0701002ed113da9cf058
 progress:
   total_phases: 5
   completed_phases: 0
   total_plans: 7
-  completed_plans: 0
+  completed_plans: 1
   percent: 0
 ---
 
@@ -23,14 +23,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-10-06)
 
 **Core value:** Um avaliador clona o repositório, roda `make up` (compose) ou `make k8s` (kind + Prometheus/Grafana) e vê um encurtador funcionando de ponta a ponta, com redirect rápido via cache e métricas reais nos dashboards versionados.
-**Current focus:** Phase 1 — Fundação e núcleo de links
+**Current focus:** Phase 01 — Fundação e núcleo de links
 
 ## Current Position
 
-Phase: 01 (Fundação e núcleo de links) — READY TO EXECUTE
-Plan: 0 of TBD in current phase
+Phase: 01 (Fundação e núcleo de links) — EXECUTING
+Plan: 2 of 7
 Status: Ready to execute
-Last activity: 2026-10-06 — Roadmap criado (5 fases, 57/57 requisitos v1 mapeados)
+Last activity: 2026-10-08 — Phase 01 execution started
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -54,6 +54,11 @@ Progress: [░░░░░░░░░░] 0%
 - Trend: -
 
 *Atualizado após cada plano concluído*
+**Per-Plan Metrics:**
+
+| Plan | Duration | Tasks | Files |
+|------|----------|-------|-------|
+| Phase 01 P01 | 21min | 3 tasks | 13 files |
 
 ## Accumulated Context
 
@@ -65,6 +70,8 @@ Decisões recentes que afetam o trabalho atual:
 - [Roadmap]: Granularidade coarse — as 7 fases sugeridas pela pesquisa viraram 5: camada Valkey + pipeline de cliques numa fase só (Phase 2); k6 junto da stack local (Phase 3); GHCR/Trivy/SBOM junto do kind (Phase 4); Terraform + README como vitrine final (Phase 5)
 - [Roadmap]: Terraform depende só do contrato de runtime da Phase 3 e pode correr em paralelo à Phase 4
 - [Stack]: Spring Boot 4.1.1, Valkey 8.1 em todos os ambientes, Traefik + manifests próprios no kind, coleção normal `click_events` (ver PROJECT.md)
+- [Phase 01]: 01-01: Spring Boot 4.1.1 + Java 21; Checkstyle 14.3.0 (google adaptado, severity error) em validate e SpotBugs 4.10.4.1 Max/Medium em verify
+- [Phase 01]: 01-01: actions do CI fixadas por SHA (checkout v7.0.1, setup-java v6.0.1, upload-artifact v7.0.1) e conferidas por git ls-remote
 
 ### Pending Todos
 
@@ -88,6 +95,6 @@ Itens reconhecidos e adiados no fechamento de milestone, do mais recente para o 
 
 ## Session Continuity
 
-Last session: 2026-10-06T23:59:08.950Z
-Stopped at: Phase 1 context gathered
-Resume file: .planning/phases/01-funda-o-e-n-cleo-de-links/01-CONTEXT.md
+Last session: 2026-10-08T22:34:38.482Z
+Stopped at: Completed 01-01-PLAN.md
+Resume file: None

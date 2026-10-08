@@ -54,14 +54,14 @@ Requisitos da entrega inicial. Cada um é mapeado para uma fase do roadmap.
 - [ ] **DATA-02**: Índices do MongoDB (`{code, ts}` e TTL de retenção) criados explicitamente
 - [ ] **QUAL-01**: Testes unitários do gerador de código (Base62 + embaralhamento, ida e volta, unicidade)
 - [ ] **QUAL-02**: Testes de integração com Testcontainers (Postgres + Mongo + Valkey), cobrindo redirect, cache, rate limit, pipeline de cliques (incluindo reentrega) e stats
-- [ ] **QUAL-03**: Checkstyle e SpotBugs rodam no build e quebram em violação
+- [x] **QUAL-03**: Checkstyle e SpotBugs rodam no build e quebram em violação
 - [ ] **QUAL-04**: API documentada com OpenAPI/Swagger UI (springdoc)
 
 ### Container e ambiente local
 
 - [ ] **CONT-01**: Dockerfile multi-stage com layered jar, usuário não-root numérico e HEALTHCHECK
 - [ ] **CONT-02**: `make up` sobe via Docker Compose: app, Postgres, Mongo, Valkey, Prometheus e Grafana, com dependências por healthcheck
-- [ ] **CONT-03**: Repositório funciona em Windows (Git Bash/WSL) e Linux: `.gitattributes` com LF, `mvnw` executável, caminhos com espaço tratados, instrução de instalação do `make`
+- [x] **CONT-03**: Repositório funciona em Windows (Git Bash/WSL) e Linux: `.gitattributes` com LF, `mvnw` executável, caminhos com espaço tratados, instrução de instalação do `make`
 - [ ] **CONT-04**: Script de seed/demo gera links e cliques para popular os dashboards
 
 ### Kubernetes
@@ -73,7 +73,7 @@ Requisitos da entrega inicial. Cada um é mapeado para uma fase do roadmap.
 
 ### CI/CD
 
-- [ ] **CI-01**: GitHub Actions roda build, testes (Testcontainers), Checkstyle e SpotBugs em cada push/PR
+- [x] **CI-01**: GitHub Actions roda build, testes (Testcontainers), Checkstyle e SpotBugs em cada push/PR
 - [ ] **CI-02**: Pipeline faz build da imagem e publica no GHCR (na main)
 - [ ] **CI-03**: Imagem passa por scan do Trivy e é gerado um SBOM
 - [ ] **CI-04**: Job de verificação faz deploy em kind e roda smoke test (criar link → redirect → stats)
@@ -170,17 +170,17 @@ Rastreabilidade: quais fases cobrem quais requisitos. Preenchido na criação do
 | DATA-02 | Phase 2 | Pending |
 | QUAL-01 | Phase 1 | Pending |
 | QUAL-02 | Phase 2 | Pending |
-| QUAL-03 | Phase 1 | Pending |
+| QUAL-03 | Phase 1 | Complete |
 | QUAL-04 | Phase 1 | Pending |
 | CONT-01 | Phase 3 | Pending |
 | CONT-02 | Phase 3 | Pending |
-| CONT-03 | Phase 1 | Pending |
+| CONT-03 | Phase 1 | Complete |
 | CONT-04 | Phase 3 | Pending |
 | K8S-01 | Phase 4 | Pending |
 | K8S-02 | Phase 4 | Pending |
 | K8S-03 | Phase 4 | Pending |
 | K8S-04 | Phase 4 | Pending |
-| CI-01 | Phase 1 | Pending |
+| CI-01 | Phase 1 | Complete |
 | CI-02 | Phase 4 | Pending |
 | CI-03 | Phase 4 | Pending |
 | CI-04 | Phase 4 | Pending |
@@ -199,11 +199,13 @@ Rastreabilidade: quais fases cobrem quais requisitos. Preenchido na criação do
 | DOC-02 | Phase 5 | Pending |
 
 **Cobertura:**
+
 - Requisitos v1: 57 no total
 - Mapeados em fases: 57
 - Não mapeados: 0 ✓
 
 **Por fase:**
+
 - Phase 1: 14 requisitos
 - Phase 2: 21 requisitos
 - Phase 3: 8 requisitos
