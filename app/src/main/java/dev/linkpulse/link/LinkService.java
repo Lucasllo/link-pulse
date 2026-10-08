@@ -1,8 +1,12 @@
 package dev.linkpulse.link;
 
+import java.sql.SQLException;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.Locale;
+import org.hibernate.exception.ConstraintViolationException;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -15,8 +19,15 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class LinkService {
 
+    /** Constraint UNIQUE de {@code links.code} (changelog 001). */
+    private static final String CODE_CONSTRAINT = "uk_links_code";
+
+    /** SQLSTATE de {@code unique_violation} no PostgreSQL. */
+    private static final String UNIQUE_VIOLATION = "23505";
+
     private final LinkRepository repository;
     private final CodeGenerator codeGenerator;
+    private final AliasPolicy aliasPolicy;
     private final Clock clock;
 
     /**
@@ -24,34 +35,82 @@ public class LinkService {
      *
      * @param repository repositório dos links
      * @param codeGenerator gerador do código curto a partir do ID da sequência
+     * @param aliasPolicy regras do alias customizado (formato e reservados)
      * @param clock relógio da aplicação (base da expiração e do {@code createdAt})
      */
-    public LinkService(LinkRepository repository, CodeGenerator codeGenerator, Clock clock) {
+    public LinkService(LinkRepository repository, CodeGenerator codeGenerator,
+            AliasPolicy aliasPolicy, Clock clock) {
         this.repository = repository;
         this.codeGenerator = codeGenerator;
+        this.aliasPolicy = aliasPolicy;
         this.clock = clock;
     }
 
     /**
-     * Cria um link com código gerado.
+     * Cria um link com o alias pedido ou, sem alias, com código gerado.
      *
      * <p>O ID sai do {@code nextval('link_id_seq')} antes do INSERT, então o código existe antes
      * do commit e um único INSERT grava {@code id} e {@code code}. A transação é de escrita porque
      * o {@code nextval} não roda em transação read-only. Os instantes são truncados em
      * microssegundos, a precisão do {@code timestamptz}.
      *
+     * <p>Alias duplicado vira 409 em dois pontos: na checagem prévia e, se duas criações correm
+     * ao mesmo tempo, na violação de {@code uk_links_code} (D-08).
+     *
      * @param request URL de destino e opcionais
      * @return o link persistido
+     * @throws org.springframework.web.ErrorResponseException 400 se o alias é inválido ou
+     *     reservado, 409 se o alias já existe
      */
     @Transactional
     public Link create(CreateLinkRequest request) {
+        String alias = request.alias();
+        if (alias != null) {
+            aliasPolicy.check(alias);
+            if (repository.existsByCode(alias)) {
+                throw LinkProblems.aliasConflict(alias);
+            }
+        }
         long id = repository.nextId();
-        String code = codeGenerator.encode(id);
+        String code = alias != null ? alias : codeGenerator.encode(id);
         Instant now = clock.instant().truncatedTo(ChronoUnit.MICROS);
         Instant expiresAt = request.expiresAt() == null
                 ? null
                 : request.expiresAt().toInstant().truncatedTo(ChronoUnit.MICROS);
-        return repository.saveAndFlush(Link.create(id, code, request.url(), expiresAt, now));
+        try {
+            return repository.saveAndFlush(Link.create(id, code, request.url(), expiresAt, now));
+        } catch (DataIntegrityViolationException e) {
+            if (alias != null && isCodeConflict(e)) {
+                throw LinkProblems.aliasConflict(alias);
+            }
+            // Código gerado colidindo é impossível (D-05): se acontecer, é bug e vira 500.
+            throw e;
+        }
+    }
+
+    /**
+     * Indica se a violação veio de {@code uk_links_code}, percorrendo a cadeia de causas.
+     *
+     * @param e exceção traduzida pelo Spring
+     * @return {@code true} se a causa é a unicidade do código
+     */
+    private static boolean isCodeConflict(DataIntegrityViolationException e) {
+        for (Throwable cause = e; cause != null; cause = cause.getCause()) {
+            if (cause instanceof ConstraintViolationException violation
+                    && CODE_CONSTRAINT.equalsIgnoreCase(violation.getConstraintName())) {
+                return true;
+            }
+            if (cause instanceof SQLException sql
+                    && UNIQUE_VIOLATION.equals(sql.getSQLState())
+                    && sql.getMessage() != null
+                    && sql.getMessage().toLowerCase(Locale.ROOT).contains(CODE_CONSTRAINT)) {
+                return true;
+            }
+            if (cause.getCause() == cause) {
+                break;
+            }
+        }
+        return false;
     }
 
     /**
