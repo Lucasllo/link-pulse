@@ -102,6 +102,7 @@ Um avaliador clona o repositório, roda `make up` (compose) ou `make k8s` (kind 
 | Valkey 8.1 em todos os ambientes | Paridade com ElastiCache (Redis OSS parado na 7.1); protocolo compatível com Spring Data Redis | — Pendente |
 | Traefik + manifests próprios no kind | ingress-nginx aposentado (2026-03) e catálogo gratuito Bitnami encerrado | — Pendente |
 | Coleção Mongo normal `click_events` (não time-series) | Time-series não aceita índice único; idempotência usa `_id` = ID do stream | — Pendente |
+| Liquibase 5.0.3 (BOM do Boot 4.1.1), licença FSL-1.1-ALv2 | Versão gerenciada e testada pelo Boot 4.1; a FSL permite uso em portfólio; a alternativa Apache (4.33.0 por property) fica documentada no README | ✓ Registrada na Phase 1 |
 
 ## Evolução
 

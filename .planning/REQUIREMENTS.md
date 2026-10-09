@@ -140,14 +140,14 @@ Rastreabilidade: quais fases cobrem quais requisitos. Preenchido na criação do
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| LINK-01 | Phase 1 | Pending |
-| LINK-02 | Phase 1 | Pending |
-| LINK-03 | Phase 1 | Pending |
-| LINK-04 | Phase 1 | Pending |
-| LINK-05 | Phase 1 | Pending |
-| LINK-06 | Phase 1 | Pending |
-| REDIR-01 | Phase 1 | Pending |
-| REDIR-02 | Phase 1 | Pending |
+| LINK-01 | Phase 1 | Gaps Found |
+| LINK-02 | Phase 1 | Gaps Found |
+| LINK-03 | Phase 1 | Gaps Found |
+| LINK-04 | Phase 1 | Gaps Found |
+| LINK-05 | Phase 1 | Gaps Found |
+| LINK-06 | Phase 1 | Gaps Found |
+| REDIR-01 | Phase 1 | Gaps Found |
+| REDIR-02 | Phase 1 | Gaps Found |
 | REDIR-03 | Phase 2 | Pending |
 | REDIR-04 | Phase 2 | Pending |
 | REDIR-05 | Phase 2 | Pending |
@@ -166,21 +166,21 @@ Rastreabilidade: quais fases cobrem quais requisitos. Preenchido na criação do
 | STAT-04 | Phase 2 | Pending |
 | RATE-01 | Phase 2 | Pending |
 | RATE-02 | Phase 2 | Pending |
-| DATA-01 | Phase 1 | Pending |
+| DATA-01 | Phase 1 | Gaps Found |
 | DATA-02 | Phase 2 | Pending |
-| QUAL-01 | Phase 1 | Pending |
+| QUAL-01 | Phase 1 | Gaps Found |
 | QUAL-02 | Phase 2 | Pending |
-| QUAL-03 | Phase 1 | Pending |
-| QUAL-04 | Phase 1 | Pending |
+| QUAL-03 | Phase 1 | Gaps Found |
+| QUAL-04 | Phase 1 | Gaps Found |
 | CONT-01 | Phase 3 | Pending |
 | CONT-02 | Phase 3 | Pending |
-| CONT-03 | Phase 1 | Pending |
+| CONT-03 | Phase 1 | Gaps Found |
 | CONT-04 | Phase 3 | Pending |
 | K8S-01 | Phase 4 | Pending |
 | K8S-02 | Phase 4 | Pending |
 | K8S-03 | Phase 4 | Pending |
 | K8S-04 | Phase 4 | Pending |
-| CI-01 | Phase 1 | Pending |
+| CI-01 | Phase 1 | Gaps Found |
 | CI-02 | Phase 4 | Pending |
 | CI-03 | Phase 4 | Pending |
 | CI-04 | Phase 4 | Pending |
@@ -199,11 +199,13 @@ Rastreabilidade: quais fases cobrem quais requisitos. Preenchido na criação do
 | DOC-02 | Phase 5 | Pending |
 
 **Cobertura:**
+
 - Requisitos v1: 57 no total
 - Mapeados em fases: 57
 - Não mapeados: 0 ✓
 
 **Por fase:**
+
 - Phase 1: 14 requisitos
 - Phase 2: 21 requisitos
 - Phase 3: 8 requisitos

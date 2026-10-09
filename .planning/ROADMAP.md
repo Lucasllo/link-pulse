@@ -35,30 +35,34 @@ As fases decimais aparecem entre as inteiras vizinhas, em ordem numérica.
   4. A aplicação sobe com o schema criado pelo Liquibase (changelogs YAML, contexts dev/prod) e com o Hibernate em `ddl-auto=validate`, e a Swagger UI (springdoc) documenta os endpoints
   5. Cada push/PR roda no GitHub Actions o build, os testes unitários do gerador (ida e volta, unicidade), os testes de integração com Testcontainers, o Checkstyle e o SpotBugs, falhando em qualquer violação; o mesmo build roda no Git Bash/WSL e no Linux, mesmo com espaço no caminho (LF via `.gitattributes`, `mvnw` executável, instrução de instalação do `make`)
 
-**Plans**: 7 plans
+**Plans**: 8/8 plans executed
 
 Plans:
 **Wave 1**
 
-- [ ] 01-01-PLAN.md — Build reproduzível com gates e CI: wrapper, pom Boot 4.1.1, Checkstyle/SpotBugs, ci.yml, Dependabot e Makefile base (wave 1)
+- [x] 01-01-PLAN.md — Build reproduzível com gates e CI: wrapper, pom Boot 4.1.1, Checkstyle/SpotBugs, ci.yml, Dependabot e Makefile base (wave 1)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 01-02-PLAN.md — Redirect 302/404/410 a partir do Postgres, schema Liquibase + validate e base de ITs com Testcontainers (wave 2)
+- [x] 01-02-PLAN.md — Redirect 302/404/410 a partir do Postgres, schema Liquibase + validate e base de ITs com Testcontainers (wave 2)
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 01-03-PLAN.md — POST /links com código gerado não enumerável (permutação + Base62) e testes do gerador e de concorrência (wave 3)
+- [x] 01-03-PLAN.md — POST /links com código gerado não enumerável (permutação + Base62) e testes do gerador e de concorrência (wave 3)
 
 **Wave 4** *(blocked on Wave 3 completion)*
 
-- [ ] 01-04-PLAN.md — Alias (regex, reservados case-insensitive, 409 com corrida) com erros de alias em Problem Details (wave 4)
-- [ ] 01-05-PLAN.md — Run local com seed dev e compose.dev.yaml, alvos db-up/db-down e contexts dev/prod provados por IT (wave 4)
+- [x] 01-04-PLAN.md — Alias (regex, reservados case-insensitive, 409 com corrida) com erros de alias em Problem Details (wave 4)
+- [x] 01-05-PLAN.md — Run local com seed dev e compose.dev.yaml, alvos db-up/db-down e contexts dev/prod provados por IT (wave 4)
 
 **Wave 5** *(blocked on Wave 4 completion)*
 
-- [ ] 01-06-PLAN.md — Validação de URL/expiração e GlobalExceptionHandler: todo erro em Problem Details com errors[] (wave 5)
-- [ ] 01-07-PLAN.md — Swagger UI documentada (springdoc) e README pt-BR com make/sem make e licença do Liquibase (wave 5)
+- [x] 01-06-PLAN.md — Validação de URL/expiração e GlobalExceptionHandler: todo erro em Problem Details com errors[] (wave 5)
+- [x] 01-07-PLAN.md — Swagger UI documentada (springdoc) e README pt-BR com make/sem make e licença do Liquibase (wave 5)
+
+**Wave 6** *(gap closure; blocked on Wave 5 completion)*
+
+- [x] 01-08-PLAN.md — Fecha o gap do próprio host (CR-01/WR-01): TargetHostPolicy normaliza o host, recusa loopback e IP ofuscado sem DNS, base-url inválida derruba a subida, README com mitigação parcial por DNS (wave 6)
 
 ### Phase 2: Hot path no Valkey e pipeline de cliques
 
@@ -130,7 +134,7 @@ As fases seguem a ordem numérica: 1 → 2 → 3 → 4 → 5 (a parte Terraform 
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Fundação e núcleo de links | 0/TBD | Not started | - |
+| 1. Fundação e núcleo de links | 8/8 | In Progress|  |
 | 2. Hot path no Valkey e pipeline de cliques | 0/TBD | Not started | - |
 | 3. Stack local observável | 0/TBD | Not started | - |
 | 4. Kubernetes no kind e entrega contínua | 0/TBD | Not started | - |
