@@ -2,6 +2,7 @@ package dev.linkpulse.config;
 
 import dev.linkpulse.link.AliasPolicy;
 import dev.linkpulse.link.CodeGenerator;
+import dev.linkpulse.link.TargetHostPolicy;
 import java.time.Clock;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
@@ -45,5 +46,17 @@ public class ApplicationConfig {
     @Bean
     AliasPolicy aliasPolicy(LinkPulseProperties properties) {
         return new AliasPolicy(properties.alias().reserved());
+    }
+
+    /**
+     * Política do host de destino: o host de {@code linkpulse.base-url} e os de
+     * {@code linkpulse.self-hosts} não podem ser destino de um link (T-08-01).
+     *
+     * @param properties propriedades {@code linkpulse.*}
+     * @return a política configurada
+     */
+    @Bean
+    TargetHostPolicy targetHostPolicy(LinkPulseProperties properties) {
+        return new TargetHostPolicy(properties.baseUrl(), properties.selfHosts());
     }
 }
