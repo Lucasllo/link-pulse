@@ -128,7 +128,12 @@ O `Cache-Control: no-store, private` impede que navegador ou proxy guardem o red
   - Palavras reservadas são comparadas **sem** diferenciar maiúsculas: `links`, `actuator`, `swagger-ui`, `v3`, `api-docs`, `health`, `favicon.ico`, `robots.txt`, `admin`, `api`, `static` e `login`. `Swagger-UI` é recusado.
   - Armazenamento e lookup **diferenciam** maiúsculas: `Minha-Promo` e `minha-promo` são links diferentes.
   - Alias repetido → 409.
-- **URL**: absoluta, `http` ou `https`, com host, **sem credenciais** (`user:pass@` é recusado), com até 2048 caracteres e **sem apontar para o próprio encurtador** (o host de `LINKPULSE_BASE_URL`, o que evita loop de redirect). `ftp:`, `javascript:`, `data:`, `file:` e `mailto:` são recusados.
+- **URL**: absoluta, `http` ou `https`, com host, **sem credenciais** (`user:pass@` é recusado) e com até 2048 caracteres. `ftp:`, `javascript:`, `data:`, `file:` e `mailto:` são recusados. O host de destino passa por três regras, todas com resposta 400 no campo `url`:
+  - **Não pode ser o próprio encurtador**: o host de `LINKPULSE_BASE_URL` e os de `LINKPULSE_SELF_HOSTS`, comparados sem diferenciar maiúsculas, sem o ponto final (`localhost.` é igual a `localhost`) e em qualquer porta.
+  - **Não pode ser loopback**, em qualquer perfil: `localhost`, `*.localhost`, `127.0.0.0/8`, `0.0.0.0`, `[::1]`, `[::]` e `[::ffff:127.0.0.1]`.
+  - **Host numérico só na forma `a.b.c.d`**: `0x7f000001`, `2130706433` e `0177.0.0.1`, que o navegador lê como 127.0.0.1, são recusados.
+
+  A checagem **não resolve DNS**: um domínio de terceiros que aponte para o encurtador só é barrado se estiver em `LINKPULSE_SELF_HOSTS` (ver "Riscos conhecidos").
 - **`expiresAt`** (opcional): ISO-8601 **com offset** (`2026-12-31T23:59:59Z` ou `2026-12-31T20:59:59-03:00`) e **no futuro**. Sem offset, a resposta é 400 `malformed-request`. No passado, 400 `validation-error`. A partir do instante de expiração, o redirect responde 410.
 - A **mesma URL enviada duas vezes gera dois links** diferentes. Não há deduplicação.
 
@@ -168,7 +173,8 @@ Configuração (override por variável de ambiente, via relaxed binding do Sprin
 
 | Variável | Padrão | Observação |
 |----------|--------|------------|
-| `LINKPULSE_BASE_URL` | `http://localhost:8080` | Base da `shortUrl` e do `Location`. Nunca é lida do header `Host` nem de `X-Forwarded-*` |
+| `LINKPULSE_BASE_URL` | `http://localhost:8080` | Base da `shortUrl` e do `Location`. Nunca é lida do header `Host` nem de `X-Forwarded-*`. Precisa ser uma URL `http` ou `https` absoluta, com host e sem credenciais, query ou fragmento. Um valor inválido derruba a subida |
+| `LINKPULSE_SELF_HOSTS` | vazio | Hosts extras que também são o encurtador (DNS do load balancer ou do Ingress) e por isso não podem ser destino de um link. Lista separada por vírgula |
 | `LINKPULSE_CODE_MULTIPLIER` | `2176477521915` | Precisa ser coprimo de `62^7`. Um valor inválido derruba a subida |
 | `LINKPULSE_CODE_ALPHABET` | `0-9A-Za-z` (62 caracteres) | Alfabeto do Base62 |
 | `LINKPULSE_ALIAS_RESERVED` | lista acima | Lista separada por vírgula |
@@ -177,7 +183,8 @@ Configuração (override por variável de ambiente, via relaxed binding do Sprin
 
 ## Riscos conhecidos
 
-- **Open redirect.** Todo encurtador é, por natureza, um open redirect: qualquer pessoa pode criar um link curto que leva a um site malicioso com cara de link confiável. As mitigações são as regras de URL acima: só `http`/`https`, sem credenciais embutidas (bloqueia `https://banco.com@evil.com`), sem esquemas perigosos (`javascript:`, `data:`, `file:`) e sem apontar para o próprio encurtador. Não há lista de domínios bloqueados nem verificação de reputação.
+- **Open redirect.** Todo encurtador é, por natureza, um open redirect: qualquer pessoa pode criar um link curto que leva a um site malicioso com cara de link confiável. As mitigações são as regras de URL acima: só `http`/`https`, sem credenciais embutidas (bloqueia `https://banco.com@evil.com`), sem esquemas perigosos (`javascript:`, `data:`, `file:`) e as regras de host da seção "Regras" (próprio encurtador, loopback e IP numérico ofuscado), com a ressalva de DNS do item seguinte. Não há lista de domínios bloqueados nem verificação de reputação.
+- **Loop de redirect via DNS (mitigação parcial).** A checagem de host não resolve DNS: resolver no `POST` adicionaria latência e ainda seria contornável por DNS rebinding (o nome pode mudar entre a criação e o clique). Por isso, um domínio de terceiros que resolva para o encurtador (um DNS curinga que devolve 127.0.0.1, um CNAME para o load balancer) e não esteja em `LINKPULSE_SELF_HOSTS` ainda cria um link em loop; o navegador desiste depois de cerca de 20 saltos. Recomendação: declarar em `LINKPULSE_SELF_HOSTS` todos os hostnames conhecidos do encurtador.
 - **Enumeração.** Ver "Código curto": a ofuscação não impede quem quiser listar os links.
 - **API sem autenticação nem rate limit nesta fase.** O rate limit por IP no `POST /links` entra na Phase 2.
 
