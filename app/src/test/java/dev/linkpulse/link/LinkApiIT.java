@@ -21,6 +21,8 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestMethodOrder;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -254,6 +256,29 @@ class LinkApiIT extends AbstractIT {
 
         MvcTestResult redirect = mvc.get().uri("/loop-a").exchange();
         assertProblem(redirect, HttpStatus.NOT_FOUND, "/problems/link-not-found");
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {
+        "http://127.0.0.1:8080/x",
+        "http://[::1]:8080/x",
+        "http://0.0.0.0:8080/x",
+        "http://app.localhost:8080/x",
+        "http://0x7f000001:8080/x",
+        "http://2130706433:8080/x",
+        "http://0177.0.0.1:8080/x"
+    })
+    void loopbackOrObfuscatedHostIsValidationErrorOnUrl(String url) throws Exception {
+        MvcTestResult result = create("{\"url\":\"" + url + "\"}");
+
+        assertValidationErrorOn(result, "url");
+    }
+
+    @Test
+    void publicIpv4LiteralIsAccepted() throws Exception {
+        MvcTestResult result = create("{\"url\":\"http://93.184.215.14/artigo\"}");
+
+        assertThat(result).hasStatus(HttpStatus.CREATED);
     }
 
     @Test
