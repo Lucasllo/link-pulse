@@ -1,253 +1,175 @@
 ---
 phase: 01-funda-o-e-n-cleo-de-links
-reviewed: 2026-10-08T23:34:12Z
+reviewed: 2026-10-09T22:54:30Z
 depth: standard
-files_reviewed: 44
+files_reviewed: 9
 files_reviewed_list:
-  - .gitattributes
-  - .github/dependabot.yml
-  - .github/workflows/ci.yml
-  - .gitignore
-  - app/.mvn/wrapper/maven-wrapper.properties
-  - app/config/checkstyle/checkstyle.xml
-  - app/config/spotbugs/exclude.xml
-  - app/pom.xml
-  - app/src/main/java/dev/linkpulse/common/GlobalExceptionHandler.java
-  - app/src/main/java/dev/linkpulse/common/validation/HttpUrl.java
-  - app/src/main/java/dev/linkpulse/common/validation/HttpUrlValidator.java
+  - README.md
   - app/src/main/java/dev/linkpulse/config/ApplicationConfig.java
   - app/src/main/java/dev/linkpulse/config/LinkPulseProperties.java
-  - app/src/main/java/dev/linkpulse/config/OpenApiConfig.java
-  - app/src/main/java/dev/linkpulse/link/AliasPolicy.java
-  - app/src/main/java/dev/linkpulse/link/CodeGenerator.java
-  - app/src/main/java/dev/linkpulse/link/CreateLinkRequest.java
-  - app/src/main/java/dev/linkpulse/link/Link.java
-  - app/src/main/java/dev/linkpulse/link/LinkController.java
-  - app/src/main/java/dev/linkpulse/link/LinkProblems.java
-  - app/src/main/java/dev/linkpulse/link/LinkRepository.java
-  - app/src/main/java/dev/linkpulse/link/LinkResponse.java
   - app/src/main/java/dev/linkpulse/link/LinkService.java
-  - app/src/main/java/dev/linkpulse/link/RedirectController.java
-  - app/src/main/java/dev/linkpulse/LinkPulseApplication.java
+  - app/src/main/java/dev/linkpulse/link/TargetHostPolicy.java
   - app/src/main/resources/application.yml
-  - app/src/main/resources/application-dev.yml
-  - app/src/main/resources/application-prod.yml
-  - app/src/main/resources/db/changelog/changes/001-create-links.yaml
-  - app/src/main/resources/db/changelog/changes/002-seed-dev.yaml
-  - app/src/main/resources/db/changelog/db.changelog-master.yaml
-  - app/src/test/java/dev/linkpulse/AbstractIT.java
-  - app/src/test/java/dev/linkpulse/common/validation/HttpUrlValidatorTest.java
-  - app/src/test/java/dev/linkpulse/link/AliasPolicyTest.java
-  - app/src/test/java/dev/linkpulse/link/CodeGeneratorTest.java
-  - app/src/test/java/dev/linkpulse/link/ConcurrencyIT.java
+  - app/src/test/java/dev/linkpulse/config/LinkPulsePropertiesTest.java
   - app/src/test/java/dev/linkpulse/link/LinkApiIT.java
-  - app/src/test/java/dev/linkpulse/link/RedirectIT.java
-  - app/src/test/java/dev/linkpulse/LiquibaseContextsIT.java
-  - app/src/test/java/dev/linkpulse/OpenApiIT.java
-  - app/src/test/java/dev/linkpulse/TestcontainersConfiguration.java
-  - compose.dev.yaml
-  - Makefile
-  - README.md
+  - app/src/test/java/dev/linkpulse/link/TargetHostPolicyTest.java
 findings:
-  critical: 1
-  warning: 4
-  info: 10
-  total: 15
+  critical: 0
+  warning: 3
+  info: 6
+  total: 9
 status: issues_found
 ---
 
-# Phase 1: Code Review Report
+# Phase 1: Code Review Report (incremental, plano 01-08)
 
-**Reviewed:** 2026-10-08T23:34:12Z
+**Reviewed:** 2026-10-09T22:54:30Z
 **Depth:** standard
-**Files Reviewed:** 44
+**Files Reviewed:** 9
 **Status:** issues_found
 
 ## Narrative Findings (AI reviewer)
 
 ## Summary
 
-Revisei os 44 arquivos da Phase 1: código de produção, testes, build, CI, compose, Makefile e README. O núcleo está correto. A bijeção do `CodeGenerator` usa `BigInteger`, a corrida de alias é traduzida em 409 pelo nome da constraint, a entidade com ID atribuído implementa `Persistable`, e o handler central não vaza mensagem de exceção. Os testes cobrem bem esses pontos.
+Esta é uma revisão incremental do plano de fechamento de gaps 01-08 (diff `8fed18a..HEAD`). O plano extrai as regras de host de destino para `TargetHostPolicy`, valida `linkpulse.base-url` na subida, cria `linkpulse.self-hosts` e reescreve o README. Testei os casos de borda com o `java.net.URI` e o `InetAddress` do JDK 21.0.10, os mesmos que a aplicação usa.
 
-O problema principal é que a mitigação "URL não pode apontar para o próprio encurtador" (T-06-03) dá para contornar de forma trivial. O README e o threat model dizem que ela está fechada. Testei com `java.net.URI` real: `http://localhost.:8080/...`, com ponto no final do host, e `http://127.0.0.1:8080/...` passam na checagem. Com isso, dá para criar um link com alias que redireciona para ele mesmo, em loop.
+**Status dos achados anteriores:**
 
-Também achei estes problemas:
-- `linkpulse.base-url` não é validada na subida. Uma configuração errada desliga a checagem de host em silêncio e gera `shortUrl` relativa.
-- Um `expiresAt` muito distante, mas sintaticamente válido, devolve 500 em vez de 400.
-- `errors[].message` muda de idioma conforme o `Accept-Language` do cliente.
-- Os exemplos de `expiresAt` na Swagger UI e no README usam `2026-12-31` e começam a falhar com 400 daqui a menos de 3 meses.
+- **CR-01: resolvido, com ressalvas.** Todos os vetores citados antes agora são recusados: `localhost.`, `127.0.0.1`, `[::1]`, `0x7f000001`, `2130706433` e `0177.0.0.1`. O caso `127.0.0.1.` (ponto final em IP) chega com `getHost() == null` e cai no `@HttpUrl`. A limitação de DNS ficou documentada como "mitigação parcial" no README (linhas 136 e 187), que era a alternativa aceita no achado original. Sobraram dois desvios que não dependem de DNS: literal IPv6 com zone ID passa pela regra de loopback (WR-01), e um IP do encurtador escrito em outra forma passa pela regra de "próprio encurtador" (WR-02).
+- **WR-01: resolvido.** `LinkPulseProperties` derruba a subida quando a `base-url` não é http(s) absoluta com host, ou quando tem credenciais, query ou fragmento, e os testes cobrem isso. A nova `self-hosts` herdou o mesmo problema de configuração errada que desliga a proteção em silêncio (WR-03).
+- Os outros achados anteriores (WR-02 a WR-04 e IN-01 a IN-10) estão fora do escopo do 01-08. Em dois deles, os arquivos revisados mostram que o problema continua: IN-06 (`cause.getCause() == cause`, código morto em `LinkService.java:117-119`) e WR-04 (exemplo `2026-12-31` em `LinkController.java:56`).
 
-## Critical Issues
-
-### CR-01: A checagem "não apontar para o próprio encurtador" dá para contornar com ponto no final do host, IP ou outro hostname, o que permite criar um link em loop
-
-**File:** `app/src/main/java/dev/linkpulse/link/LinkService.java:112-115` (consumido em `:76-78`; afirmação em `README.md:131` e `README.md:180`)
-**Issue:** `pointsToShortener` compara só `URI.getHost()` com `properties.baseUrl().getHost()` usando `equalsIgnoreCase`. Confirmei com o `java.net.URI` do JDK 21:
-
-```
-http://localhost.:8080/loop-a -> host=localhost.
-http://127.0.0.1:8080/x       -> host=127.0.0.1
-http://[::1]:8080/x           -> host=[::1]
-http://0x7f000001:8080/x      -> host=0x7f000001
-```
-
-Nenhum desses hosts é igual a `localhost`, então todos são aceitos. O `@HttpUrl` também aceita todos. O alias é escolhido pelo cliente, então o loop sai num único POST:
-
-```json
-{"url":"http://localhost.:8080/loop-a","alias":"loop-a"}
-```
-
-`GET /loop-a` → 302 para `/loop-a` → 302... até o navegador desistir, perto de 20 saltos. Em prod, com `LINKPULSE_BASE_URL=https://lnk.example`, o mesmo acontece com `https://lnk.example./x` (o FQDN com ponto final resolve igual) ou com o hostname do load balancer. O impacto direto é limitado: links quebrados e cerca de 20 requisições por clique. Mas a Phase 2 vai registrar cada salto como clique, o que infla as estatísticas e multiplica a carga no Stream. E o README (linha 131) e o threat model (T-06-03 marcado como "mitigado") afirmam uma garantia que o código não entrega. O único teste (`LinkApiIT#urlPointingToTheShortenerItselfIsValidationErrorOnUrl`) cobre só a variação de caixa.
-**Fix:** normalizar o host antes de comparar e aceitar uma lista de hosts do próprio serviço, em vez de um só:
-
-```java
-private boolean pointsToShortener(String url) {
-    String host = normalizeHost(URI.create(url).getHost());
-    return host != null && properties.selfHosts().contains(host);
-}
-
-private static String normalizeHost(String host) {
-    if (host == null) {
-        return null;
-    }
-    String h = host.toLowerCase(Locale.ROOT);
-    while (h.endsWith(".")) {
-        h = h.substring(0, h.length() - 1);
-    }
-    return h;
-}
-```
-
-`selfHosts()` deve ser derivado de `baseUrl` (normalizado) mais uma lista opcional `linkpulse.self-hosts` (hostname do ALB, IPs). Em dev, `localhost`, `127.0.0.1` e `[::1]` também entram. Também vale bloquear hosts IP literais em loopback com `InetAddress`, sem resolver DNS. Acrescente casos de teste com `localhost.`, `127.0.0.1` e `[::1]`. Se a cobertura completa (outros DNS que apontam para o serviço) ficar fora de escopo, ajuste o README e o threat model para "mitigação parcial".
+Não achei nenhum problema bloqueante. A classe nova é pequena, bem documentada e testada, e a regra "termina em número" segue de fato o WHATWG URL Standard.
 
 ## Warnings
 
-### WR-01: `linkpulse.base-url` não é validada na subida: configuração errada desliga a checagem de host e gera `shortUrl` relativa
+### WR-01: Um literal IPv6 que o JDK não interpreta é aceito (fail-open), então `[::1%25lo]` passa pela regra de loopback
 
-**File:** `app/src/main/java/dev/linkpulse/config/LinkPulseProperties.java:28`
-**Issue:** a única restrição é `@NotNull URI baseUrl`. Com `LINKPULSE_BASE_URL=lnk.example.com`, sem esquema (erro comum em compose, Helm ou ECS), `URI.getHost()` devolve `null` (confirmado). Daí:
-1. `LinkService.pointsToShortener` (linha 114) compara com `null` e sempre devolve `false`, o que desliga a proteção de CR-01 sem aviso.
-2. `LinkController` (linhas 70-73) monta `shortUrl = "lnk.example.com/<code>"`, uma URL relativa, e devolve isso no `Location` do 201.
+**File:** `app/src/main/java/dev/linkpulse/link/TargetHostPolicy.java:132-140` (o teste fixa esse comportamento em `TargetHostPolicyTest.java:85`)
+**Issue:** `isLoopback` devolve `false` quando `InetAddress.getByName` lança `UnknownHostException`. Para literais com zone ID (RFC 6874), o `URI.getHost()` devolve o texto cru, com `%25`. O JDK então lê o escopo como `25lo`, uma interface que não existe em nenhuma máquina. Resultado confirmado:
 
-O projeto já valida alfabeto e multiplicador na subida (D-03), mas não valida o parâmetro do qual a URL pública inteira depende.
-**Fix:** validar no construtor compacto do record, ou num `@Bean`, e derrubar o contexto:
+```
+http://[::1%25lo]/x  -> host=[::1%25lo]  inetErr=UnknownHostException: no such interface 25lo  -> ACEITO
+http://[::1%251]/x   -> host=[::1%251]   loop=true                                            -> recusado
+```
+
+O `@HttpUrl` também aceita, porque o host não é nulo e não há userinfo. Assim, `{"url":"http://[::1%25lo]:8080/loop-b","alias":"loop-b"}` cria o link. Navegadores rejeitam zone ID, mas clientes que seguem redirect e decodificam `%25` (o `curl -L`, por exemplo) vão para `::1`. Em dev, isso é o próprio encurtador, o que gera um loop. Em prod, o destino é a máquina de quem clica, e o README (linha 133) promete "não pode ser loopback, em qualquer perfil". Na Phase 2, cada salto vira um clique registrado. O problema de fundo é a política falhar aberta: qualquer literal entre colchetes que o JDK não entende passa como destino válido.
+**Fix:** falhar fechado. Destino público nunca precisa de zone ID, então:
 
 ```java
-public LinkPulseProperties {
-    if (baseUrl != null && (!baseUrl.isAbsolute() || baseUrl.getHost() == null
-            || !("http".equalsIgnoreCase(baseUrl.getScheme())
-                 || "https".equalsIgnoreCase(baseUrl.getScheme()))
-            || baseUrl.getQuery() != null || baseUrl.getFragment() != null)) {
-        throw new IllegalArgumentException(
-                "linkpulse.base-url deve ser uma URL http(s) absoluta com host: " + baseUrl);
+if (normalizedHost.startsWith("[") && normalizedHost.endsWith("]")) {
+    if (normalizedHost.indexOf('%') >= 0) {
+        return true; // zone ID: só faz sentido em link-local/loopback; nunca é destino público
+    }
+    try {
+        InetAddress address = InetAddress.getByName(normalizedHost);
+        return address.isLoopbackAddress() || address.isAnyLocalAddress();
+    } catch (UnknownHostException e) {
+        return true; // literal que o JDK não entende: recusar em vez de aceitar
     }
 }
 ```
 
-Acrescente um caso `ApplicationContextRunner` como o do `CodeGeneratorTest#contextFailsOnStartupWhenMultiplierIsNotCoprime`.
+O melhor é criar uma regra própria ("literal IPv6 com zone ID não é aceito"), com mensagem dedicada. Troque o caso `http://[fe80::1%25en0]/x` de `acceptsOtherDestinations` para uma lista de recusados e acrescente `http://[::1%25lo]/x`.
 
-### WR-02: `expiresAt` válido para o Jackson e para `@Future`, mas fora do intervalo do `timestamptz`, devolve 500 com stack trace em ERROR
+### WR-02: A regra de "próprio encurtador" compara texto, e um IP do encurtador escrito em outra forma passa e gera loop
 
-**File:** `app/src/main/java/dev/linkpulse/link/CreateLinkRequest.java:27`, `app/src/main/java/dev/linkpulse/link/LinkService.java:89-99`
-**Issue:** `OffsetDateTime.parse("+300000-01-01T00:00:00Z")` é aceito (confirmado), e `@Future` também passa. O PostgreSQL só guarda `timestamptz` até o ano 294276, então o `saveAndFlush` falha com `22008 timestamp out of range`. O Spring traduz isso como `DataIntegrityViolationException`. Como `alias == null` (ou `isCodeConflict` dá `false`), o `catch` da linha 94 relança, e o `GlobalExceptionHandler.handleUnexpected` responde 500 `internal-error` e grava a stack completa em ERROR. É erro de entrada do cliente virando 500. Isso polui alertas (a Phase 4 terá alerta de taxa de 5xx) e deixa qualquer cliente anônimo gerar logs ERROR à vontade.
-**Fix:** limitar a expiração a um teto de domínio e responder 400 no campo:
+**File:** `app/src/main/java/dev/linkpulse/link/TargetHostPolicy.java:162` (o conjunto é montado em `:71-83`)
+**Issue:** `selfHosts.contains(host)` compara strings depois de só passar para minúsculas e tirar o ponto final. Quando o host da `base-url` ou de um item de `self-hosts` é um IP literal (cenário plausível em kind com NodePort, `http://172.18.0.2:30080`, ou em ECS com IP público), estas formas do mesmo endereço passam. Conferi com o JDK:
+
+```
+[::ffff:203.0.113.10]  -> InetAddress /203.0.113.10   (IPv4-mapped do IPv4 do encurtador)
+[2001:DB8:0::1]        -> InetAddress /2001:db8::1     (mesma IPv6, outra grafia)
+```
+
+As duas não são loopback, então nenhuma regra recusa. O navegador aceita `http://[::ffff:203.0.113.10]/x`, normaliza para `[::ffff:cb00:710a]` e conecta no IPv4 pela pilha dual-stack. Com um alias, o loop sai num único POST, sem DNS. Esse caso não está coberto pela ressalva de DNS do README.
+**Fix:** na construção, guardar à parte os endereços dos hosts que são IP literal (`InetAddress` dos itens canônicos `a.b.c.d` e dos itens entre colchetes, convertendo IPv4-mapped para IPv4). Em `check`, se o destino é literal entre colchetes ou IPv4 canônico, compare o `InetAddress`, não a string:
 
 ```java
-private static final Instant MAX_EXPIRES_AT = Instant.parse("9999-12-31T23:59:59Z");
+private final Set<InetAddress> selfAddresses; // montado no construtor, só a partir de literais
 ...
-if (expiresAt != null && expiresAt.isAfter(MAX_EXPIRES_AT)) {
-    throw LinkProblems.invalidField("expiresAt", "deve ser anterior a 9999-12-31T23:59:59Z");
+InetAddress literal = parseLiteral(host); // null para nomes; nunca resolve DNS
+if (selfHosts.contains(host) || (literal != null && selfAddresses.contains(literal))) {
+    throw LinkProblems.invalidField("url", SELF_MESSAGE);
 }
 ```
 
-Também dá para criar uma constraint própria (`@FutureBefore`) no DTO, para o erro entrar no mesmo `errors[]` do Bean Validation. Acrescente um IT com `+300000-01-01T00:00:00Z` esperando 400.
+Em `Inet4Address`/`Inet6Address`, o `equals` compara bytes, e o JDK já devolve `Inet4Address` para IPv4-mapped. Acrescente casos de teste com base `http://203.0.113.10` e destinos `[::ffff:203.0.113.10]` e `[::ffff:cb00:710a]`.
 
-### WR-03: `errors[].message` muda de idioma conforme o `Accept-Language`, e o contrato fica misturando pt-BR e outros idiomas
+### WR-03: Um item mal escrito em `linkpulse.self-hosts` nunca casa, e a proteção some em silêncio (o mesmo defeito do WR-01 anterior, agora na propriedade nova)
 
-**File:** `app/src/main/java/dev/linkpulse/common/GlobalExceptionHandler.java:55-61`, `app/src/main/java/dev/linkpulse/link/CreateLinkRequest.java:21,27`
-**Issue:** `@NotBlank`, `@Size` e `@Future` usam as mensagens padrão do Hibernate Validator. Não existe `ValidationMessages.properties` em `src/main/resources`. O `LocalValidatorFactoryBean` do Spring interpola com `LocaleContextHolder`, ou seja, com o locale da requisição. Conferi no jar do HV 9.1.3: com `Accept-Language: en`, o retorno é `"must not be blank"` / `"size must be between 0 and 2048"`; com `pt-BR`, `"não deve estar em branco"`; com `de`, alemão. Já `@HttpUrl` (mensagem literal) e as regras de alias e de host próprio (`LinkProblems.invalidField`) respondem sempre em pt-BR. Assim, uma mesma resposta 400 pode trazer `errors[]` com dois idiomas, e o texto depende do cliente e do locale da JVM (CI em Linux `en` contra máquina Windows `pt-BR`). O resto do contrato é fixo em pt-BR (detail e title).
-**Fix:** fixar as mensagens no próprio DTO, ou criar `src/main/resources/ValidationMessages.properties` com as chaves usadas:
+**File:** `app/src/main/java/dev/linkpulse/config/LinkPulseProperties.java:55-61`, `app/src/main/java/dev/linkpulse/link/TargetHostPolicy.java:76-82`
+**Issue:** os itens só passam por `strip`, minúsculas e remoção do ponto final. Estes erros comuns de configuração (em compose, Helm ou ECS) são aceitos e nunca casam com nada, porque o `check` compara contra `URI.getHost()`, que não tem esquema, porta nem path e que põe colchetes no IPv6:
+
+- `LINKPULSE_SELF_HOSTS=https://lnk.example.com` (esquema)
+- `lb.example.com:443` (porta)
+- `lb.example.com/` (barra)
+- `*.example.com` (curinga, que alguém pode tentar depois de ler a nota sobre DNS curinga no README)
+- `2001:db8::1` (IPv6 sem colchetes)
+
+A subida segue normal, e o operador acredita que o hostname do load balancer está protegido. É exatamente o defeito que o 01-08 corrigiu para a `base-url` ("configuração errada desliga a checagem em silêncio").
+**Fix:** validar cada item no construtor compacto e derrubar a subida, sem ecoar o valor:
 
 ```java
-@NotBlank(message = "é obrigatória")
-@Size(max = 2048, message = "deve ter no máximo 2048 caracteres")
-@HttpUrl String url,
-...
-@Future(message = "deve estar no futuro") OffsetDateTime expiresAt
+private static final String SELF_HOSTS_ERROR =
+        "linkpulse.self-hosts deve conter só hosts, sem esquema, porta, path ou curinga";
+
+private static void requireBareHost(String entry) {
+    try {
+        URI probe = new URI("http://" + entry.strip() + "/");
+        if (probe.getHost() == null || probe.getPort() != -1 || !"/".equals(probe.getRawPath())
+                || probe.getUserInfo() != null) {
+            throw new IllegalArgumentException(SELF_HOSTS_ERROR);
+        }
+    } catch (URISyntaxException e) {
+        throw new IllegalArgumentException(SELF_HOSTS_ERROR);
+    }
+}
 ```
 
-Acrescente um IT com `Accept-Language: en` que confira a mensagem em pt-BR.
-
-### WR-04: Exemplos de `expiresAt` com data fixa `2026-12-31` vão falhar com 400 em menos de 3 meses (Swagger UI "Try it out" e README)
-
-**File:** `app/src/main/java/dev/linkpulse/link/CreateLinkRequest.java:26`, `app/src/main/java/dev/linkpulse/link/LinkController.java:56`, `README.md:96`, `README.md:132`
-**Issue:** o `@Schema(example = "2026-12-31T23:59:59Z")` vira o corpo padrão do "Try it out" na Swagger UI. A partir de 2027-01-01, o avaliador que clicar em "Execute" com o exemplo recebe 400 `validation-error` em `expiresAt` (`@Future`). O curl do README (linha 96) quebra da mesma forma. O público-alvo do projeto (recrutadores) vai abrir o repositório meses depois da entrega, e o primeiro contato com a API seria um erro. O exemplo também usa `alias: "minha-promo"`, então a segunda execução do exemplo padrão responde 409.
-**Fix:** usar uma data distante nos exemplos (`2099-12-31T23:59:59Z`, a mesma do `LinkApiIT`) e, no `@Schema` do alias, um texto que deixe claro que o valor é ilustrativo. O formato citado no detail do `GlobalExceptionHandler.java:79` pode continuar com qualquer data, porque ali ela só mostra o formato.
+Itens em branco podem continuar sendo descartados, como hoje. `*.example.com`, `https://...`, `host:443`, `host/` e IPv6 sem colchetes caem na validação: o host vem nulo, a porta é diferente de -1 ou o path não é `/`. Acrescente um caso parametrizado ao `LinkPulsePropertiesTest`, no mesmo formato do `contextFailsOnStartupWhenBaseUrlIsInvalid`.
 
 ## Info
 
-### IN-01: 10 das 12 palavras reservadas nunca são alcançáveis pela regex do alias
+### IN-01: A promessa "a mensagem nunca ecoa o valor" da `base-url` só vale quando a URL é sintaticamente válida
 
-**File:** `app/src/main/resources/application.yml:38-50`, `README.md:128`
-**Issue:** `links`, `actuator`, `v3`, `health`, `admin`, `api`, `static` e `login` não têm `-` nem `_`. `favicon.ico` e `robots.txt` têm `.`. A `ALIAS_REGEX` rejeita todas antes da checagem de reservados, então só `swagger-ui` e `api-docs` têm efeito. O README apresenta a lista inteira como regra ativa.
-**Fix:** deixar na lista só nomes que casam com a regex (`swagger-ui`, `api-docs` e eventuais rotas futuras com hífen) ou documentar que a lista vale como defesa contra uma mudança futura da regex.
+**File:** `app/src/main/java/dev/linkpulse/config/LinkPulseProperties.java:44`
+**Issue:** a mensagem do construtor compacto é fixa. Mas, quando a string nem vira `URI` (por exemplo, `http://user:senha@lnk.example.com/a b`, com espaço), a falha acontece na conversão do binder, antes do construtor. Nesse caminho, o `BindFailureAnalyzer` do Boot 4.1.1 imprime `Property: linkpulse.base-url` / `Value: "..."` (confirmei a string no jar). O teste `startupFailureDoesNotEchoTheBaseUrl` cobre só o caso parseável.
+**Fix:** tirar o "nunca" do Javadoc ("o construtor não ecoa o valor") ou fazer o binding como `String` e converter para `URI` dentro do construtor, tratando a `URISyntaxException` com mensagem fixa.
 
-### IN-02: README promete `type` `/problems/<slug>` para "todo erro", mas os erros do framework saem com `about:blank`
+### IN-02: A `base-url` padrão `http://localhost:8080` vale também em prod, então esquecer `LINKPULSE_BASE_URL` passa sem aviso
 
-**File:** `README.md:137`, `app/src/main/java/dev/linkpulse/common/GlobalExceptionHandler.java:25-28`
-**Issue:** 404 de rota inexistente (`/favicon.ico`, `/a/b`), 405 (`PUT /links`), 415 (Content-Type errado) e 406 passam pelos handlers herdados do `ResponseEntityExceptionHandler`, com `type: about:blank`. O comportamento é aceitável pela RFC 9457, mas contradiz a frase do README.
-**Fix:** ajustar o README ("erros de domínio usam `/problems/<slug>`; erros genéricos de HTTP usam `about:blank`") ou sobrescrever `createProblemDetail`/`handleExceptionInternal` para preencher um `type` próprio.
+**File:** `app/src/main/resources/application.yml:30`
+**Issue:** a validação nova aceita o default. Em prod, sem a env, a `shortUrl` e o `Location` saem com `http://localhost:8080/...`, e a regra de "próprio encurtador" protege só `localhost`, que já era recusado por loopback. O `application-prod.yml` não sobrescreve esse valor.
+**Fix:** no `application-prod.yml`, usar `linkpulse.base-url: ${LINKPULSE_BASE_URL}` sem default, para a subida falhar quando a env não existe.
 
-### IN-03: `GET /links` cai no redirect (404 `link-not-found` com `code: "links"`) e o `{code}` não tem limite de tamanho
+### IN-03: O IT de loopback e host ofuscado não confere qual regra recusou
 
-**File:** `app/src/main/java/dev/linkpulse/link/RedirectController.java:45`
-**Issue:** `/{code:[A-Za-z0-9_-]+}` casa com `links`. Num GET, o mapeamento POST de `/links` não serve, então o Spring escolhe o redirect e responde 404 "Nenhum link com o código 'links'", quando o esperado seria 405. A regex também não limita o tamanho, e qualquer segmento de até cerca de 8 KB (limite do Tomcat) vira consulta ao banco, apesar de a coluna ter só 32 caracteres.
-**Fix:** `@GetMapping("/{code:[A-Za-z0-9_-]{1,32}}")`. Para `/links`, tanto faz aceitar o 404 quanto declarar um `@GetMapping("/links")` que responda 405.
+**File:** `app/src/test/java/dev/linkpulse/link/LinkApiIT.java:261-275`
+**Issue:** `assertValidationErrorOn(result, "url")` passa com qualquer 400 no campo `url`. Se a ordem das regras mudar, ou se o `@HttpUrl` passar a recusar algum desses casos antes, o teste continua verde sem exercitar o `TargetHostPolicy` no fluxo HTTP.
+**Fix:** parametrizar com a mensagem esperada (`@CsvSource`) e conferir `$.errors[0].message`, como já faz `trailingDotOnTheShortenerHostIsRejectedAndNoLoopIsCreated`.
 
-### IN-04: Alias validado só no service, então `errors[]` não junta erros de URL e de alias, e a spec não publica pattern nem maxLength
+### IN-04: O `check` deixa passar host nulo e depende do `@HttpUrl` da borda HTTP
 
-**File:** `app/src/main/java/dev/linkpulse/link/CreateLinkRequest.java:22-24`, `app/src/main/java/dev/linkpulse/link/LinkService.java:79-81`
-**Issue:** com URL e alias inválidos ao mesmo tempo, o cliente recebe só o erro de `url`. O de `alias` aparece só depois que a URL é corrigida. Na OpenAPI, `alias` sai como string livre, sem `pattern` nem `maxLength`.
-**Fix:** `@Pattern(regexp = AliasPolicy.ALIAS_REGEX, message = ...)` no componente `alias`. A checagem de reservados continua no service. Acrescente `@Schema(pattern = ..., maxLength = 32)`.
+**File:** `app/src/main/java/dev/linkpulse/link/TargetHostPolicy.java:155-158`
+**Issue:** `http://127.0.0.1./x` e `http://127.1/x` chegam com `getHost() == null` (confirmado) e só são barrados pelo `@HttpUrl`. Quem chama `LinkService.create` direto (como o próprio `LinkApiIT` faz na linha 176, ou um futuro consumer ou job) pula essa barreira. Com `url` nula ou mal formada, `URI.create` lança NPE ou `IllegalArgumentException`, o que vira 500.
+**Fix:** falhar fechado também aqui. Se `host == null`, lance `LinkProblems.invalidField("url", "deve ser uma URL http ou https com host")`, e capture a `IllegalArgumentException` do `URI.create`.
 
-### IN-05: `@Future` usa o relógio do sistema, não o bean `Clock` declarado como "único ponto de obtenção do tempo"
+### IN-05: Javadoc desatualizado: diz "o próprio encurtador", mas agora são três regras
 
-**File:** `app/src/main/java/dev/linkpulse/link/CreateLinkRequest.java:27`, `app/src/main/java/dev/linkpulse/config/ApplicationConfig.java:17-25`
-**Issue:** o Hibernate Validator usa o `ClockProvider` padrão (system clock). Um teste que troque o `Clock` por um relógio fixo vê `@Future` e `LinkService.resolve` divergirem.
-**Fix:** registrar um `ClockProvider` com o bean `Clock` via `ValidationConfigurationCustomizer` (`configuration.clockProvider(() -> clock)`).
+**File:** `app/src/main/java/dev/linkpulse/link/LinkService.java:40-41,64-65`, `app/src/main/java/dev/linkpulse/config/ApplicationConfig.java:51-53`
+**Issue:** os comentários ainda descrevem só a regra de "próprio encurtador". Loopback e host numérico não canônico não aparecem.
+**Fix:** citar as três regras ou só apontar para o Javadoc de `TargetHostPolicy`.
 
-### IN-06: Checagem `cause.getCause() == cause` é código morto, e um ciclo maior na cadeia de causas não é detectado
+### IN-06: Uma `base-url` com esquema ou host em maiúsculas é aceita e repetida assim na `shortUrl`
 
-**File:** `app/src/main/java/dev/linkpulse/link/LinkService.java:135-137`
-**Issue:** `Throwable.getCause()` nunca devolve `this` (devolve `null` quando a causa é ela mesma), então o `break` nunca roda. Uma cadeia cíclica A→B→A deixaria o laço infinito.
-**Fix:** guardar as causas já vistas num `Set` (`Collections.newSetFromMap(new IdentityHashMap<>())`) ou limitar a profundidade, por exemplo a 16.
-
-### IN-07: SpotBugs desliga EI_EXPOSE_REP/EI_EXPOSE_REP2 no projeto inteiro, com justificativa que cita classes inexistentes
-
-**File:** `app/config/spotbugs/exclude.xml:16-27`
-**Issue:** o próprio arquivo proíbe "excluir por pacote inteiro", mas exclui os dois padrões globalmente, o que é ainda mais amplo. A justificativa cita `StringRedisTemplate` e `MeterRegistry`, que não existem na base. Um array ou coleção mutável exposto por engano em código de domínio passaria sem alerta.
-**Fix:** restringir com `<Or><Class name="~.*Properties.*"/>...</Or>` ou `<Field type=...>` aos casos reais (records de configuração, beans injetados) e atualizar o comentário.
-
-### IN-08: `cancel-in-progress: true` também vale para pushes na `main`
-
-**File:** `.github/workflows/ci.yml:12-14`
-**Issue:** dois pushes seguidos na `main` cancelam o build do primeiro commit, que fica sem resultado de CI.
-**Fix:** `cancel-in-progress: ${{ github.event_name == 'pull_request' }}`.
-
-### IN-09: Dependabot não acompanha as imagens Docker fixadas
-
-**File:** `.github/dependabot.yml:1-14`
-**Issue:** `postgres:18.6`, em `compose.dev.yaml:6` e `TestcontainersConfiguration.java:21`, não recebe PRs de atualização (patches de segurança do Postgres).
-**Fix:** acrescentar `package-ecosystem: docker-compose` (diretório `/`). A string no Testcontainers continua manual, então vale pô-la numa constante comentada.
-
-### IN-10: `ConcurrencyIT` usa o número mágico `8` em vez de `THREADS`
-
-**File:** `app/src/test/java/dev/linkpulse/link/ConcurrencyIT.java:39`
-**Issue:** `Executors.newFixedThreadPool(8)` duplica a constante. Se `THREADS` subir, o pool fica menor que o número de tarefas, e o latch não libera todas ao mesmo tempo, o que enfraquece o teste de concorrência sem nenhum aviso.
-**Fix:** `Executors.newFixedThreadPool(THREADS)`.
+**File:** `app/src/main/java/dev/linkpulse/config/LinkPulseProperties.java:63-72` (o teste aceita isso de propósito em `LinkPulsePropertiesTest.java:79`)
+**Issue:** `HTTPS://LNK.EXAMPLE.COM/` passa na validação, e o `LinkController` monta `HTTPS://LNK.EXAMPLE.COM/<code>` com `UriComponentsBuilder.fromUri`. A URL funciona, mas a resposta fica feia e inconsistente com os exemplos do README.
+**Fix:** no construtor compacto, normalizar o esquema e o host para minúsculas, reconstruindo a `URI`.
 
 ---
 
-_Reviewed: 2026-10-08T23:34:12Z_
+_Reviewed: 2026-10-09T22:54:30Z_
 _Reviewer: Claude (gsd-code-reviewer)_
 _Depth: standard_
