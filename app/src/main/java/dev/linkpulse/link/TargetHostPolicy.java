@@ -27,6 +27,12 @@ public final class TargetHostPolicy {
     /** Motivo da recusa quando o destino é o próprio encurtador. */
     static final String SELF_MESSAGE = "não pode apontar para o próprio encurtador";
 
+    /** Motivo da recusa quando o destino é um endereço de loopback. */
+    static final String LOOPBACK_MESSAGE = "não pode apontar para endereço de loopback";
+
+    /** Motivo da recusa quando o host numérico não está na forma canônica. */
+    static final String NUMERIC_HOST_MESSAGE = "host numérico deve estar na forma a.b.c.d";
+
     private final Set<String> selfHosts;
 
     /**
