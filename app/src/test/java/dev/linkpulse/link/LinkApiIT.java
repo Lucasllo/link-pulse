@@ -243,6 +243,20 @@ class LinkApiIT extends AbstractIT {
     }
 
     @Test
+    void trailingDotOnTheShortenerHostIsRejectedAndNoLoopIsCreated() throws Exception {
+        MvcTestResult result = create(
+                "{\"url\":\"http://localhost.:8080/loop-a\",\"alias\":\"loop-a\"}");
+
+        assertValidationErrorOn(result, "url");
+        String raw = result.getResponse().getContentAsString();
+        assertThat((String) JsonPath.read(raw, "$.errors[0].message"))
+                .isEqualTo("não pode apontar para o próprio encurtador");
+
+        MvcTestResult redirect = mvc.get().uri("/loop-a").exchange();
+        assertProblem(redirect, HttpStatus.NOT_FOUND, "/problems/link-not-found");
+    }
+
+    @Test
     void expiresAtInThePastIsValidationErrorOnExpiresAt() throws Exception {
         MvcTestResult result = create("{\"url\":\"https://example.com/passado\","
                 + "\"expiresAt\":\"2020-01-01T00:00:00Z\"}");
