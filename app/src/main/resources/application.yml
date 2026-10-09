@@ -22,10 +22,15 @@ server:
   port: 8080
 
 # Override por env via relaxed binding: LINKPULSE_BASE_URL, LINKPULSE_CODE_ALPHABET,
-# LINKPULSE_CODE_MULTIPLIER, LINKPULSE_ALIAS_RESERVED (lista separada por vírgula).
+# LINKPULSE_CODE_MULTIPLIER, LINKPULSE_ALIAS_RESERVED (lista separada por vírgula),
+# LINKPULSE_SELF_HOSTS (lista separada por vírgula).
 linkpulse:
-  # Base da shortUrl (D-12); compose/kind/ECS sobrescrevem por env.
+  # Base da shortUrl (D-12); compose/kind/ECS sobrescrevem por env. Precisa ser uma URL http ou
+  # https absoluta, com host e sem credenciais, query ou fragmento: valor inválido derruba a subida.
   base-url: http://localhost:8080
+  # self-hosts (sem chave aqui; vazio por padrão): hosts extras que também são o próprio
+  # encurtador, por exemplo o DNS do load balancer ou do Ingress. Um link não pode apontar para
+  # eles nem para o host da base-url. Loopback (localhost, 127.0.0.0/8, [::1]) já é sempre recusado.
   code:
     # Alfabeto e multiplicador definem todos os códigos publicados: trocar quebra links (D-01).
     # O multiplicador precisa ser coprimo de 62^7 (validado na subida). É ofuscação, não segurança.
