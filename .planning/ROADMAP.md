@@ -13,7 +13,7 @@ O Link Pulse é construído de dentro para fora. Primeiro vem a verdade do link 
 
 As fases decimais aparecem entre as inteiras vizinhas, em ordem numérica.
 
-- [ ] **Phase 1: Fundação e núcleo de links** - Criar e redirecionar links a partir do Postgres, com Liquibase, qualidade estática e CI verdes desde o início
+- [x] **Phase 1: Fundação e núcleo de links** - Criar e redirecionar links a partir do Postgres, com Liquibase, qualidade estática e CI verdes desde o início (completed 2026-10-09)
 - [ ] **Phase 2: Hot path no Valkey e pipeline de cliques** - Cache-aside com fail-open, rate limit por IP, cliques assíncronos via Redis Streams → MongoDB e endpoint de estatísticas
 - [ ] **Phase 3: Stack local observável** - Imagem do app, `make up` com os 6 serviços, dashboards e alertas versionados, seed de demonstração e teste de carga k6
 - [ ] **Phase 4: Kubernetes no kind e entrega contínua** - Helm chart, `make k8s` com Traefik e kube-prometheus-stack, publicação no GHCR com Trivy/SBOM e smoke test em kind no CI
@@ -134,7 +134,7 @@ As fases seguem a ordem numérica: 1 → 2 → 3 → 4 → 5 (a parte Terraform 
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Fundação e núcleo de links | 8/8 | In Progress|  |
+| 1. Fundação e núcleo de links | 8/8 | Complete    | 2026-10-09 |
 | 2. Hot path no Valkey e pipeline de cliques | 0/TBD | Not started | - |
 | 3. Stack local observável | 0/TBD | Not started | - |
 | 4. Kubernetes no kind e entrega contínua | 0/TBD | Not started | - |

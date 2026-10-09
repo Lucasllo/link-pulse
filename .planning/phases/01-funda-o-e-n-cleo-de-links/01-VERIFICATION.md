@@ -1,9 +1,10 @@
 ---
 phase: 01-funda-o-e-n-cleo-de-links
 verified: 2026-10-09T23:41:48Z
-status: human_needed
+status: passed
 score: 53/55 must-haves verified (SC do roadmap 5/5; truths dos planos 01-01 a 01-07 41/43; truths da 01-08 7/7)
 covered_files:
+
   - .gitattributes
   - .github/dependabot.yml
   - .github/workflows/ci.yml
@@ -70,6 +71,7 @@ covered_files:
   - app/src/test/java/dev/linkpulse/link/RedirectIT.java
   - app/src/test/java/dev/linkpulse/link/TargetHostPolicyTest.java
   - compose.dev.yaml
+
 covered_digest: "v1:sha256:d77a2903f9b56419481b55031d7b833c7c78fbff51e2df6c3133ed8379548653"
 behavior_unverified: 0
 overrides_applied: 0
@@ -82,6 +84,7 @@ re_verification:
   gaps_remaining: []
   regressions: []
 human_verification:
+
   - test: "Com o Docker ligado, no Windows: instalar o GNU make (winget install ezwinports.make ou scoop install make) e rodar make run no Git Bash (ou, sem make, docker compose -f compose.dev.yaml up -d --wait e depois cd app && ./mvnw spring-boot:run -Dspring-boot.run.profiles=dev). Depois: curl -i http://localhost:8080/demo-link; curl http://localhost:8081/actuator/health; curl -i http://localhost:8080/actuator/health; make db-down"
     expected: "demo-link responde 302 para https://example.com/ com Cache-Control no-store, private; o health na 8081 responde UP; a 8080 não expõe /actuator (404); db-down para o container e mantém o volume pgdata"
     why_human: "Exige subir o servidor e o Postgres do compose (truth 2 da 01-01, truth 1 da 01-05). O CI prova o build e o make help no Linux, mas não o runtime nem a porta de management, e o make no Git Bash nunca foi observado"
@@ -281,6 +284,7 @@ Dois itens da rodada anterior saíram desta lista. O "CI no GitHub" e o "verify 
 ### Resumo
 
 Não há gaps. O bloqueio do SC5/CI-01 foi resolvido pela opção (a): a branch padrão do remoto agora é `main`, e o `ci.yml` (sem mudança) casa com ela. Conferi pela API pública do GitHub e pelo `gh`:
+
 - o PR #1 rodou o CI em `pull_request` (run `38005181081`, success);
 - o PR foi mergeado como `8b57425`;
 - o push na `main` rodou o CI (run `38005385906`, success).
