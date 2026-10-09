@@ -2,17 +2,17 @@
 gsd_state_version: "1.0"
 current_phase: 01
 current_phase_name: Fundação e núcleo de links
-status: executing
-stopped_at: Completed 01-07-PLAN.md
-last_updated: "2026-10-09T00:26:58.675Z"
+status: verifying
+stopped_at: Completed 01-08-PLAN.md
+last_updated: "2026-10-09T01:26:16.747Z"
 last_activity: 2026-10-08
 last_activity_desc: Phase 01 execution started
-state_head: f1c10b29d26ab87cded0103e23cd6a51a142e85b
+state_head: 662a5579e42003886a49916750b494936f2aafb3
 progress:
   total_phases: 5
   completed_phases: 0
   total_plans: 8
-  completed_plans: 7
+  completed_plans: 8
   percent: 0
 ---
 
@@ -28,8 +28,8 @@ See: .planning/PROJECT.md (updated 2026-10-06)
 ## Current Position
 
 Phase: 01 (Fundação e núcleo de links) — READY TO EXECUTE
-Plan: 7 of 7
-Status: Ready to execute
+Plan: 8 of 8
+Status: Phase complete — ready for verification
 Last activity: 2026-10-08 — Phase 01 execution started
 
 Progress: [░░░░░░░░░░] 0%
@@ -65,6 +65,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 01 P05 | 4min | 1 tasks | 7 files |
 | Phase 01 P06 | 8min | 2 tasks | 8 files |
 | Phase 01 P07 | 7min | 2 tasks | 6 files |
+| Phase 01 P08 | 14 min | 3 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -91,6 +92,10 @@ Decisões recentes que afetam o trabalho atual:
 - [Phase 01]: 01-06: GlobalExceptionHandler próprio substitui o handler de Problem Details do Boot; 500 genérico /problems/internal-error sem detalhe interno
 - [Phase 01]: Swagger UI/OpenAPI por anotações nos controllers; springdoc publica o redirect como /{code}
 - [Phase 01]: Liquibase 5.0.3 (FSL-1.1-ALv2) mantido e registrado no README e no PROJECT.md; alternativa Apache 4.33.0 documentada
+- [Phase 01]: 01-08: loopback (127/8, 0.0.0.0, [::1], [::], IPv4-mapped, localhost, *.localhost) é recusado como destino em qualquer perfil, não só em dev
+- [Phase 01]: 01-08: host numérico só é aceito na forma canônica a.b.c.d (regra WHATWG ends-in-a-number); TargetHostPolicy nunca resolve DNS
+- [Phase 01]: 01-08: LINKPULSE_SELF_HOSTS (linkpulse.self-hosts) vira contrato de configuração das Phases 3-5; binding com underscore confirmado no Boot 4.1.1
+- [Phase 01]: 01-08: linkpulse.base-url inválida derruba a subida (mensagem fixa, sem ecoar o valor); T-06-03 substituído por T-08-01 e T-08-06 (mitigação parcial por DNS)
 
 ### Pending Todos
 
@@ -113,6 +118,6 @@ Itens reconhecidos e adiados no fechamento de milestone, do mais recente para o 
 
 ## Session Continuity
 
-Last session: 2026-10-08T23:28:54.050Z
-Stopped at: Completed 01-07-PLAN.md
+Last session: 2026-10-09T01:26:16.707Z
+Stopped at: Completed 01-08-PLAN.md
 Resume file: None
