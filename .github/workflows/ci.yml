@@ -1,0 +1,58 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# O token do workflow só lê o repositório; nenhum secret é usado nesta fase.
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        # Checkout num caminho com espaço: prova a cada push que o build aguenta "projeto 4" no Windows.
+        working-directory: "link pulse/app"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: "link pulse"
+
+      - name: Java 21 (Temurin)
+        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+          cache-dependency-path: "link pulse/app/pom.xml"
+
+      - name: mvnw é executável e LF
+        run: test -x mvnw && ! grep -q $'\r' mvnw
+
+      - name: Makefile parseia no Linux
+        working-directory: "link pulse"
+        run: make -n verify && make help
+
+      - name: Build, Checkstyle, testes unitários + Testcontainers, SpotBugs
+        run: ./mvnw -B -ntp verify
+
+      - name: Relatórios em caso de falha
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: reports
+          path: |
+            link pulse/app/target/surefire-reports
+            link pulse/app/target/failsafe-reports
+            link pulse/app/target/spotbugsXml.xml
+            link pulse/app/target/checkstyle-result.xml
+          if-no-files-found: ignore

@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Exclusões do SpotBugs do Link Pulse.
+  Regra: toda exclusão precisa de um comentário com a justificativa. Nada de excluir por pacote inteiro.
+-->
+<FindBugsFilter
+        xmlns="https://github.com/spotbugs/filter/3.0.0"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="https://github.com/spotbugs/filter/3.0.0 https://raw.githubusercontent.com/spotbugs/spotbugs/3.1.0/spotbugs/etc/findbugsfilter.xsd">
+
+    <!--
+      EI_EXPOSE_REP: getters de records e de beans Spring devolvem a referência do objeto
+      guardado (por exemplo, um bean injetado ou uma lista imutável). Isso é intencional: os
+      componentes são singletons gerenciados pelo container e os records são portadores de dados.
+    -->
+    <Match>
+        <Bug pattern="EI_EXPOSE_REP"/>
+    </Match>
+
+    <!--
+      EI_EXPOSE_REP2: construtores com injeção de dependência guardam a referência recebida do
+      container Spring (StringRedisTemplate, MeterRegistry, repositórios). Copiar esses objetos
+      não faz sentido; a injeção por construtor é o padrão do projeto.
+    -->
+    <Match>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+</FindBugsFilter>

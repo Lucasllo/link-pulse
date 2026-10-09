@@ -1,0 +1,9 @@
+# Profile dev: Postgres do compose.dev.yaml (credenciais só de desenvolvimento local).
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/linkpulse
+    username: linkpulse
+    password: linkpulse
+  liquibase:
+    # Ativa os changesets com contextFilter: dev (seed demo-link).
+    contexts: dev
