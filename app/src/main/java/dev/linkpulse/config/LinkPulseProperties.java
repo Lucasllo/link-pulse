@@ -19,7 +19,8 @@ import org.springframework.validation.annotation.Validated;
  * {@code LINKPULSE_SELF_HOSTS}).
  *
  * @param baseUrl base da URL curta devolvida na criação (D-12); nunca derivada de {@code Host}
- *     nem de {@code X-Forwarded-*}
+ *     nem de {@code X-Forwarded-*}. Precisa ser URL {@code http} ou {@code https} absoluta, com
+ *     host e sem credenciais, query ou fragmento: valor inválido derruba a subida (WR-01)
  * @param code parâmetros do gerador de códigos curtos
  * @param alias regras do alias customizado; sem configuração, a lista de reservados fica vazia
  * @param selfHosts hosts extras que também são o próprio encurtador (por exemplo, o DNS do load
@@ -35,15 +36,39 @@ public record LinkPulseProperties(
         List<String> selfHosts) {
 
     /**
-     * Normaliza {@code selfHosts}: {@code null} vira lista vazia e o conteúdo é copiado (imutável).
+     * Valida {@code baseUrl} e normaliza {@code selfHosts}.
+     *
+     * <p>Uma {@code baseUrl} que não seja URL {@code http} ou {@code https} absoluta, com host e
+     * sem credenciais, query ou fragmento, derruba a subida (D-12, WR-01): sem isso, um valor sem
+     * esquema desligaria em silêncio a checagem do próprio encurtador e geraria {@code shortUrl}
+     * relativa. A mensagem é fixa e nunca ecoa o valor, que pode conter credenciais. {@code null}
+     * fica a cargo do {@code @NotNull}.
+     *
+     * <p>{@code selfHosts} nulo vira lista vazia; o conteúdo é copiado (imutável).
      *
      * @param baseUrl base da URL curta
      * @param code parâmetros do gerador
      * @param alias regras do alias
      * @param selfHosts hosts extras do próprio encurtador
+     * @throws IllegalArgumentException se {@code baseUrl} é inválida
      */
     public LinkPulseProperties {
+        if (baseUrl != null && !isValidBaseUrl(baseUrl)) {
+            throw new IllegalArgumentException("linkpulse.base-url deve ser uma URL http ou https "
+                    + "absoluta, com host e sem credenciais, query ou fragmento");
+        }
         selfHosts = selfHosts == null ? List.of() : List.copyOf(selfHosts);
+    }
+
+    private static boolean isValidBaseUrl(URI baseUrl) {
+        String scheme = baseUrl.getScheme();
+        String host = baseUrl.getHost();
+        return baseUrl.isAbsolute()
+                && ("http".equalsIgnoreCase(scheme) || "https".equalsIgnoreCase(scheme))
+                && host != null && !host.isBlank()
+                && baseUrl.getUserInfo() == null
+                && baseUrl.getQuery() == null
+                && baseUrl.getFragment() == null;
     }
 
     /**
