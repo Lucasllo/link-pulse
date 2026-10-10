@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-09)
 Phase: 2 — Hot path no Valkey e pipeline de cliques
 Plan: Not started
 Status: Ready to plan
-Last activity: 2026-10-09 — Phase 1 complete, transitioned to Phase 2
+Last activity: 2026-10-09 - Completed quick task 261009-tdc: Criar pasta estudos com material didático sobre estrutura e tecnologias
 
 Progress: [██░░░░░░░░] 20%
 
@@ -108,6 +108,12 @@ None yet.
 - [Phase 2]: Pesquisar a API do Spring Data Redis na versão do Boot 4.1 (`cancelOnError`, `BLOCK` com Lettuce, `XAUTOCLAIM`) e o desenho dos testes de reentrega; `maxmemory-policy volatile-lru` em todos os ambientes
 - [Phase 4]: Pesquisar versões atuais dos charts Traefik, kube-prometheus-stack e metrics-server, seletores (`*SelectorNilUsesHelmValues`) e sidecar de dashboards
 - [Phase 5]: Spike do token do LocalStack Hobby e do `mock_provider`; sem token, a validação fica nas camadas lint + `terraform test`
+
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 261009-tdc | Criar pasta estudos com material didático sobre estrutura e tecnologias | 2026-10-09 | 4d759c6 | [261009-tdc-criar-pasta-estudos-com-material-did-tic](./quick/261009-tdc-criar-pasta-estudos-com-material-did-tic/) |
 
 ## Deferred Items
 
