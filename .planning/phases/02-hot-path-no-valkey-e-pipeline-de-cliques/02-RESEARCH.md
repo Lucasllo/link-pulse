@@ -642,9 +642,12 @@ linkpulse:
     publisher: { threads: 2, queue-capacity: 10000 }
     consumer: { enabled: true, batch-size: 500, block: 2s, reclaim-interval: 30s, min-idle: 60s }
     retention: 90d
-    ip-hash-key: ${LINKPULSE_CLICKS_IP_HASH_KEY:}   # obrigatório fora de dev/test (ver Open Questions)
+  # ip-hash-key: chave de topo (linkpulse.ip-hash-key), porque cliques (02-02) e rate limit (02-09) usam o mesmo IpHasher.
+  # Sem valor no application.yml: vem de LINKPULSE_IP_HASH_KEY (obrigatória fora do dev, >= 16 caracteres);
+  # o application-dev.yml traz uma chave fixa só de desenvolvimento (Open Question 1, RESOLVED).
   ratelimit: { enabled: true, limit: 20, window: 1m }
-  stats: { default-days: 30, max-days: 366, top-size: 10 }
+  # stats: 30 dias padrão, 366 dias no máximo e 10 itens por top viraram constantes do contrato público
+  # (StatsPeriod.DEFAULT_DAYS/MAX_DAYS e StatsService.TOP_SIZE, plano 02-07), não configuração.
 ```
 Propriedades verificadas no metadata 4.1.1: `spring.data.redis.timeout`, `spring.data.redis.connect-timeout`, `spring.data.redis.repositories.enabled`, `spring.data.mongodb.repositories.type`, `spring.mongodb.database`/`uri`, `management.metrics.distribution.percentiles-histogram`, `server.tomcat.remoteip.internal-proxies`, `server.forward-headers-strategy`, `server.shutdown`. Que o `spring.mongodb.database` prevaleça sobre a connection string do `@ServiceConnection` é [ASSUMED]; um IT confirma lendo `mongo.getDb().getName()`.
 
@@ -669,7 +672,7 @@ Guardar a referência forte do objeto da gauge: o `MeterRegistry.gauge` mantém 
 
 ## Desenho dos testes de integração (QUAL-02)
 
-**Base:** `TestcontainersConfiguration` ganha `valkey()` e `mongo()` (acima). `AbstractIT` ganha `properties = {"linkpulse.ratelimit.limit=100000", "linkpulse.clicks.consumer.block=200ms", "linkpulse.clicks.consumer.reclaim-interval=1s", "linkpulse.clicks.consumer.min-idle=1s", "linkpulse.cache.bypass-cooldown=200ms", "linkpulse.clicks.ip-hash-key=test-key"}`. Contextos diferentes iniciam containers diferentes (são beans), então o número de contextos novos deve ficar no mínimo.
+**Base:** `TestcontainersConfiguration` ganha `valkey()` e `mongo()` (acima). `AbstractIT` ganha `properties = {"linkpulse.ratelimit.limit=100000", "linkpulse.clicks.consumer.block=200ms", "linkpulse.clicks.consumer.reclaim-interval=1s", "linkpulse.clicks.consumer.min-idle=1s", "linkpulse.cache.bypass-cooldown=200ms", "linkpulse.ip-hash-key=test-ip-hash-key-0123456789"}` (a chave precisa de pelo menos 16 caracteres). Contextos diferentes iniciam containers diferentes (são beans), então o número de contextos novos deve ficar no mínimo.
 
 | Cenário | Contexto | Como provar |
 |---|---|---|
@@ -719,22 +722,24 @@ Detalhes: o MockMvc **não** passa pelo `RemoteIpValve` (é um valve do Tomcat),
 | A12 | Yauaa é pesado em memória e startup | Alternatives | Nenhum (não recomendado) |
 | A13 | `server.shutdown=graceful` virou default no Boot 3.4 | State of the Art | Nenhum: o 4.1.1 verificado já é `graceful` |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **Chave do HMAC do IP em prod/compose**
-   - What we know: `linkpulse.clicks.ip-hash-key` precisa existir; dev e test usam um valor fixo.
-   - What's unclear: falhar a subida sem a chave (como `base-url`) ou gerar uma aleatória por boot (hash não comparável entre réplicas e reinícios)?
-   - Recommendation: obrigatória fora do profile dev, com validação no record, igual ao padrão da Phase 1. O compose da Phase 3 passa `LINKPULSE_CLICKS_IP_HASH_KEY` e o Helm passa via Secret. Usar `HMAC(key, diaUTC + "|" + ip)`: rotação diária sem estado, e permite "visitantes únicos por dia" depois.
-2. **`curl`/`wget`/clientes HTTP e UA vazio contam como bot?**
-   - Recommendation: sim (`curl`, `wget`, `python-requests`, `Go-http-client`, `k6`, `Java-http-client`, `okhttp` não, UA vazio sim), com lista versionada e teste unitário. Avisar a Phase 3 (seed) e a Phase 4 (smoke) para usar UA de navegador ou `includeBots=true`.
-3. **Health com Redis/Mongo no classpath**
+Todas as perguntas abaixo foram fechadas no planejamento. Cada item traz a decisão que os planos adotaram e onde ela é implementada.
+
+1. **Chave do HMAC do IP em prod/compose** — RESOLVED
+   - What we know: a chave do HMAC precisa existir; dev e test usam um valor fixo.
+   - What's unclear (na pesquisa): falhar a subida sem a chave (como `base-url`) ou gerar uma aleatória por boot (hash não comparável entre réplicas e reinícios)?
+   - **Decisão (02-02, 02-03, 02-09):** a propriedade é **`linkpulse.ip-hash-key`**, de topo e não dentro de `linkpulse.clicks`, porque cliques (02-02) e rate limit (02-09) usam o mesmo `IpHasher`. A variável de ambiente é **`LINKPULSE_IP_HASH_KEY`**. Ela é obrigatória fora do profile dev: o construtor do `IpHasher` (bean do `ClickConfig`) lança `IllegalArgumentException` de mensagem fixa, sem ecoar o valor, se a chave for nula, em branco ou tiver menos de 16 caracteres, e a aplicação não sobe. O `application.yml` não traz valor; o `application-dev.yml` traz uma chave fixa só de desenvolvimento, e os ITs usam `linkpulse.ip-hash-key=test-ip-hash-key-0123456789` no `AbstractIT`. O hash é `HMAC-SHA256(key, "<dia UTC>|<ip>")`, com rotação diária sem estado. O `toString()` de `LinkPulseProperties` mascara a chave (`ipHashKey=****`, 02-03). O compose da Phase 3 passa `LINKPULSE_IP_HASH_KEY` e o Helm passa via Secret.
+2. **`curl`/`wget`/clientes HTTP e UA vazio contam como bot?** — RESOLVED
+   - **Decisão (02-05, `UserAgentClassifier`):** sim. `curl`, `wget`, `python-requests`, `python-urllib`, `aiohttp`, `Go-http-client`, `Java-http-client`, `k6` e outros clientes de linha de comando contam como bot, assim como crawlers, previews de link, `HeadlessChrome` e UA vazio ou em branco. `okhttp` não conta (apps Android usam essa lib). A lista é versionada em `BOT_TOKENS` e coberta pelo `UserAgentClassifierTest`. A Phase 3 (seed) e a Phase 4 (smoke) usam UA de navegador ou `includeBots=true`; o README e o OpenAPI do `/stats` (02-07) avisam que o `curl` conta como bot.
+3. **Health com Redis/Mongo no classpath** — RESOLVED
    - What we know: os starters registram health indicators; com o Valkey parado, o `/actuator/health` agregado pode ir a DOWN.
-   - What's unclear: o K8S-02 pede readiness com Valkey, o que contradiz o fail-open.
-   - Recommendation: nesta fase, não mexer nos grupos; registrar para a Phase 3/4 decidir (liveness sem dependências; readiness talvez só com Postgres).
-4. **Referrer não parseável** (`android-app://...`, lixo)
-   - Recommendation: host quando `URI.getHost()` existir (inclui `android-app://com.google.android.gm` → `com.google.android.gm`); senão, `"(direct)"`. Minúsculas, sem `www.` removido (mantém fiel), truncado em 255.
-5. **Stats com o Mongo fora**
-   - Recommendation: mapear `DataAccessResourceFailureException`/timeout para 503 `/problems/stats-unavailable` no `GlobalExceptionHandler`, em vez do 500 genérico.
+   - What's unclear (na pesquisa): o K8S-02 pede readiness com Valkey, o que contradiz o fail-open.
+   - **Decisão:** nesta fase nenhum plano mexe em `management.endpoint.health.group.*`; o health agregado continua o default do Boot. Os smokes de dev esperam o `/actuator/health` antes de derrubar o Valkey (02-03), então o DOWN agregado com o Valkey parado não quebra nenhuma verificação. A separação liveness (sem dependências) × readiness (provavelmente só Postgres, coerente com o fail-open) fica para a Phase 3 (imagem e `HEALTHCHECK`) e a Phase 4 (probes do Helm, K8S-02).
+4. **Referrer não parseável** (`android-app://...`, lixo) — RESOLVED
+   - **Decisão (02-02, `ReferrerNormalizer.toHost`):** host quando `new URI(referer.strip()).getHost()` existir (inclui `android-app://com.google.android.gm` → `com.google.android.gm`); senão, `"(direct)"`. Também viram `"(direct)"`: nulo, em branco, `URISyntaxException` e entrada com mais de 2048 caracteres. O host sai em minúsculas (`Locale.ROOT`), sem pontos finais, sem `www.` removido (mantém fiel) e truncado em 255; userinfo, porta, path, query e fragmento nunca saem. A normalização acontece na ingestão (o stream e o Mongo só guardam o host).
+5. **Stats com o Mongo fora** — RESOLVED
+   - **Decisão (02-07):** o `StatsService` envolve a ida ao Mongo num `catch (DataAccessException e)` (cobre `DataAccessResourceFailureException` e os timeouts traduzidos) e lança `StatsProblems.unavailable()`: 503 `/problems/stats-unavailable` em Problem Details, com detail fixo e sem logar código nem período. A tradução fica no serviço, e não no `GlobalExceptionHandler`, para que só o `/stats` vire 503 e as outras rotas mantenham o 500 genérico. Os timeouts curtos do driver (`MongoConfig`, 02-05) limitam a espera; `StatsIT#mongoOutageIsServiceUnavailable` prova o 503 em menos de 15 s.
 
 ## Environment Availability
 
