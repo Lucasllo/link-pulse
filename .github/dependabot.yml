@@ -12,3 +12,8 @@ updates:
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
+    ignore:
+      # Maven Wrapper fixado em 3.9.16: a 3.10.0 (2026-10-01) é recente demais
+      # e a 4.0 ainda está em RC. Reavaliar quando a 3.10.x amadurecer.
+      - dependency-name: "org.apache.maven:apache-maven"
+        versions: [">= 3.10.0"]
