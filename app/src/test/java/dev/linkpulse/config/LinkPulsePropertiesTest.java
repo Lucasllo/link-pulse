@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import dev.linkpulse.link.TargetHostPolicy;
 import java.net.URI;
+import java.time.Duration;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -165,5 +166,28 @@ class LinkPulsePropertiesTest {
                     assertThat(text).contains("ipHashKey=****");
                     assertThat(text).contains("baseUrl=http://localhost:8080");
                 });
+    }
+
+    @Test
+    void rateLimitDefaultsBindWithoutConfiguration() {
+        contextRunner.run(context -> {
+            assertThat(context).hasNotFailed();
+            LinkPulseProperties.RateLimit ratelimit =
+                    context.getBean(LinkPulseProperties.class).ratelimit();
+            assertThat(ratelimit.enabled()).isTrue();
+            assertThat(ratelimit.limit()).isEqualTo(20);
+            assertThat(ratelimit.window()).isEqualTo(Duration.ofMinutes(1));
+        });
+    }
+
+    @Test
+    void zeroWindowFailsStartup() {
+        contextRunner.withPropertyValues("linkpulse.ratelimit.window=0s").run(context -> {
+            assertThat(context).hasFailed();
+            assertThat(context.getStartupFailure())
+                    .rootCause()
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("linkpulse.ratelimit.window");
+        });
     }
 }
