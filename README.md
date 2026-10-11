@@ -141,6 +141,46 @@ curl -i http://localhost:8080/minha-promo
 
 O `Cache-Control: no-store, private` impede que navegador ou proxy guardem o redirect. Assim, um link expirado para de redirecionar na hora.
 
+### Ver estatísticas: `GET /links/{code}/stats`
+
+```bash
+curl -s 'http://localhost:8080/links/minha-promo/stats?from=2026-10-01&to=2026-10-03&includeBots=true'
+```
+
+```json
+{
+  "code": "minha-promo",
+  "from": "2026-10-01",
+  "to": "2026-10-03",
+  "includeBots": true,
+  "total": 5,
+  "daily": [
+    { "date": "2026-10-01", "clicks": 3 },
+    { "date": "2026-10-02", "clicks": 0 },
+    { "date": "2026-10-03", "clicks": 2 }
+  ],
+  "topReferrers": [
+    { "value": "news.example.com", "clicks": 3 },
+    { "value": "(direct)", "clicks": 2 }
+  ],
+  "topBrowsers": [
+    { "value": "Firefox", "clicks": 3 },
+    { "value": "Other", "clicks": 2 }
+  ],
+  "topOs": [
+    { "value": "Linux", "clicks": 3 },
+    { "value": "Other", "clicks": 2 }
+  ]
+}
+```
+
+- **Período**: `from` e `to` são datas `YYYY-MM-DD`, inclusivas e agrupadas em **UTC**. Sem os dois, o período é os últimos 30 dias (`to` = hoje em UTC). Com só `from`, `to` é hoje; com só `to`, `from` é `to` menos 29 dias. O máximo é 366 dias. A resposta sempre ecoa o `from` e o `to` efetivos, e total, série e tops usam o mesmo período.
+- **Série diária**: contínua do `from` ao `to`, com `0` nos dias sem clique. Um link sem cliques devolve `total: 0` e tops vazios.
+- **Tops**: até 10 itens por dimensão, ordenados por cliques e, no empate, pelo valor. O referrer é o host de origem, ou `(direct)` quando não houve `Referer`. Navegador e SO são famílias, sem versão (`Other` quando não reconhecidos).
+- **Bots**: crawlers, previews de link, navegadores headless e clientes de linha de comando ou de biblioteca (`curl`, `wget`, `k6`, `python-requests`...) ficam fora por padrão. **O próprio `curl` conta como bot**: quem testa pelo terminal deve consultar com `includeBots=true` (ou mandar um `User-Agent` de navegador no redirect).
+- Os cliques chegam ao MongoDB de forma assíncrona: logo depois do redirect, o total pode levar alguns instantes para subir.
+- Link expirado continua com estatísticas (o 410 é só do redirect). A resposta só traz agregados, nunca o hash do IP nem outro dado por visitante.
+
 ## Regras
 
 - **Alias** (opcional): casa com `^(?=.*[-_])[A-Za-z0-9_-]{4,32}$`, ou seja, de 4 a 32 caracteres entre letras, dígitos, `-` e `_`, com **pelo menos um `-` ou `_`**. Os códigos gerados são só alfanuméricos, então um alias nunca colide com um código que a sequência ainda vai gerar.
@@ -165,9 +205,12 @@ Todo erro sai como `application/problem+json`. O `type` é uma URI relativa no f
 | `/problems/validation-error` | 400 | Campo inválido: URL, alias (formato ou reservado) ou `expiresAt` no passado | `errors[{field, message}]` |
 | `/problems/malformed-request` | 400 | Corpo que não é JSON válido ou campo em formato errado (por exemplo, `expiresAt` sem offset) | — |
 | `/problems/alias-conflict` | 409 | O alias pedido já existe | `alias` |
-| `/problems/link-not-found` | 404 | `GET /{code}` de um código inexistente | `code` |
+| `/problems/invalid-period` | 400 | `/stats` com `from` depois de `to` ou período acima de 366 dias | `from`, `to`, `maxDays` |
+| `/problems/invalid-parameter` | 400 | Parâmetro em formato inválido, como `from=2026-13-01` ou `includeBots=talvez` (o valor recebido não é ecoado) | `parameter` |
+| `/problems/link-not-found` | 404 | `GET /{code}` ou `GET /links/{code}/stats` de um código inexistente | `code` |
 | `/problems/link-expired` | 410 | `GET /{code}` de um link expirado | `code`, `expiredAt` |
 | `/problems/internal-error` | 500 | Erro inesperado (detail genérico; o detalhe fica só no log) | — |
+| `/problems/stats-unavailable` | 503 | `/stats` com o MongoDB indisponível; tente de novo em instantes | — |
 
 Exemplo:
 
