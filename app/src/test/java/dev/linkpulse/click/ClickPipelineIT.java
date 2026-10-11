@@ -1,6 +1,7 @@
 package dev.linkpulse.click;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatNoException;
 import static org.awaitility.Awaitility.await;
 
 import dev.linkpulse.AbstractIT;
@@ -11,7 +12,9 @@ import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -48,6 +51,8 @@ class ClickPipelineIT extends AbstractIT {
     private static final String COLLECTION = "click_events";
     private static final String GROUP = "click-writers";
     private static final String CURL = "curl/8.5.0";
+    private static final long NINETY_DAYS_SECONDS = 7_776_000L;
+    private static final long THIRTY_DAYS_SECONDS = 2_592_000L;
     private static final Set<String> DOCUMENT_KEYS = Set.of("_id", "_class", "code", "ts",
             "referrer", "browser", "os", "isBot", "ipHash");
     private static final String CLIENT_IP = "198.51.100.9";
@@ -126,6 +131,21 @@ class ClickPipelineIT extends AbstractIT {
                 "ref", "(direct)",
                 "ua", FIREFOX,
                 "iph", "b".repeat(64));
+    }
+
+    private Map<String, Document> indexesOf(String collection) {
+        List<Document> indexes = mongo.getCollection(collection).listIndexes()
+                .into(new ArrayList<>());
+        Map<String, Document> byName = new HashMap<>();
+        indexes.forEach(index -> byName.put(index.getString("name"), index));
+        return byName;
+    }
+
+    private static long expireAfterSeconds(Document index) {
+        Object value = index.get("expireAfterSeconds");
+        assertThat(value).as("expireAfterSeconds de %s", index.get("name"))
+                .isInstanceOf(Number.class);
+        return ((Number) value).longValue();
     }
 
     private double invalidCount() {
@@ -259,6 +279,50 @@ class ClickPipelineIT extends AbstractIT {
         } finally {
             consumer.stop();
             redis.delete(stream);
+            mongo.dropCollection(collection);
+        }
+    }
+
+    @Test
+    void clickEventsHasCodeTsAndTtlIndexes() {
+        saveLink("pipe-idx1", "https://example.com/idx");
+        click("pipe-idx1", FIREFOX);
+        awaitDocuments("pipe-idx1", 1);
+
+        await().atMost(WAIT).pollInterval(Duration.ofMillis(200)).untilAsserted(() -> {
+            Map<String, Document> indexes = indexesOf(COLLECTION);
+            assertThat(indexes).containsKeys(ClickIndexes.CODE_TS, ClickIndexes.TS_TTL);
+            assertThat(indexes.get(ClickIndexes.CODE_TS).get("key", Document.class))
+                    .isEqualTo(new Document("code", 1).append("ts", -1));
+            Document ttl = indexes.get(ClickIndexes.TS_TTL);
+            assertThat(ttl.get("key", Document.class)).isEqualTo(new Document("ts", 1));
+            assertThat(expireAfterSeconds(ttl)).isEqualTo(NINETY_DAYS_SECONDS);
+        });
+    }
+
+    @Test
+    void retentionChangeUpdatesTtlWithCollMod() {
+        String collection = "click_events_idx_" + UUID.randomUUID();
+        try {
+            ClickIndexes ninetyDays = new ClickIndexes(mongo, collection, Duration.ofDays(90));
+            assertThatNoException().isThrownBy(() -> {
+                ninetyDays.ensure();
+                ninetyDays.ensure();
+            });
+            Map<String, Document> before = indexesOf(collection);
+            assertThat(before).containsKeys(ClickIndexes.CODE_TS, ClickIndexes.TS_TTL);
+            assertThat(expireAfterSeconds(before.get(ClickIndexes.TS_TTL)))
+                    .isEqualTo(NINETY_DAYS_SECONDS);
+
+            new ClickIndexes(mongo, collection, Duration.ofDays(30)).ensure();
+
+            Map<String, Document> after = indexesOf(collection);
+            assertThat(expireAfterSeconds(after.get(ClickIndexes.TS_TTL)))
+                    .isEqualTo(THIRTY_DAYS_SECONDS);
+            assertThat(after.get(ClickIndexes.CODE_TS)).as("code_ts intacto")
+                    .isEqualTo(before.get(ClickIndexes.CODE_TS));
+            assertThat(after).hasSameSizeAs(before);
+        } finally {
             mongo.dropCollection(collection);
         }
     }
