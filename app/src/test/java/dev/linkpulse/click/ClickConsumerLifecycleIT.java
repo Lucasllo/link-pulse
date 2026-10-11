@@ -158,6 +158,43 @@ class ClickConsumerLifecycleIT extends AbstractIT {
         }
     }
 
+    /**
+     * O Spring Framework 7 pausa os contextos de teste em cache (stop dos beans de ciclo de vida)
+     * e os retoma (start) quando voltam a ser usados; um {@code stop} seguido de {@code start}
+     * também é o que um {@code ConfigurableApplicationContext.stop()/start()} faz. O consumer
+     * precisa voltar a gravar depois disso, com a mesma fábrica de conexões.
+     */
+    @Test
+    void consumerResumesAfterStopAndStart() {
+        Fixture fixture = Fixture.create();
+        String code = "life-restart1";
+        ClickStreamConsumer consumer = newConsumer(fixture,
+                new MongoClickEventWriter(mongo, fixture.collection()), Duration.ofHours(1),
+                new SimpleMeterRegistry());
+        try {
+            consumer.start();
+            addClick(fixture.stream(), code, 0);
+            await().atMost(WAIT).pollInterval(POLL)
+                    .until(() -> count(fixture.collection(), code) == 1);
+            consumer.stop();
+            assertThat(consumer.isRunning()).isFalse();
+
+            consumer.start();
+            assertThat(consumer.isRunning()).isTrue();
+            addClick(fixture.stream(), code, 1);
+
+            await().atMost(WAIT).pollInterval(POLL).untilAsserted(() -> {
+                assertThat(count(fixture.collection(), code))
+                        .as("documentos depois do restart").isEqualTo(2);
+                assertThat(pending(fixture.stream(), fixture.group())).isZero();
+            });
+        } finally {
+            consumer.stop();
+            consumer.destroy();
+            cleanUp(fixture);
+        }
+    }
+
     @Test
     void pendingLagAndLengthGaugesFollowTheGroup() {
         Fixture fixture = Fixture.create();

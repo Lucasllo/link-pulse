@@ -157,6 +157,25 @@ class ClickPublisherTest {
         verify(redis, never()).opsForStream();
     }
 
+    /**
+     * Stop seguido de start (pausa e retomada de contexto no Spring Framework 7) volta a
+     * publicar, com um executor novo no lugar do que o stop desligou.
+     */
+    @Test
+    @SuppressWarnings("unchecked")
+    void publishesAgainAfterStopAndStart() {
+        start(1, 10);
+        publisher.stop();
+        publisher.start();
+
+        publishOnce();
+
+        verify(stream, timeout(5000)).add(any(MapRecord.class), any(XAddOptions.class));
+        await().atMost(Duration.ofSeconds(5))
+                .untilAsserted(() -> assertThat(count("published")).isEqualTo(1.0));
+        assertThat(count("rejected")).isZero();
+    }
+
     @Test
     @SuppressWarnings("unchecked")
     void xaddTrimsTheStreamApproximatelyToMaxLen() {

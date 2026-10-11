@@ -12,13 +12,13 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.DisposableBean;
 import org.springframework.boot.data.redis.autoconfigure.DataRedisConnectionDetails;
+import org.springframework.context.Lifecycle;
 import org.springframework.context.SmartLifecycle;
 import org.springframework.data.domain.Range;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
@@ -112,8 +112,10 @@ import org.springframework.data.redis.core.StringRedisTemplate;
  * já gravado e confirmado. Interromper no meio do {@code write} perderia o {@code XACK} e faria
  * o lote ser reentregue; a espera fica limitada pelo {@code BLOCK} da leitura somado ao timeout
  * de escrita do MongoDB, abaixo do {@code spring.lifecycle.timeout-per-shutdown-phase} (30 s).
- * O consumer é dono da fábrica de conexões recebida e a destrói ao parar, só depois de o loop
- * sair; por isso não pode ser reiniciado depois do stop.
+ * O consumer é dono da fábrica de conexões recebida: para a fábrica (fecha as conexões) só
+ * depois de o loop sair, abre-a de novo no {@code start} e só a destrói no {@code destroy} do
+ * bean. Assim um stop seguido de start funciona, como na pausa e retomada dos contextos em
+ * cache dos testes do Spring Framework 7.
  */
 public class ClickStreamConsumer implements SmartLifecycle, DisposableBean {
 
@@ -146,7 +148,6 @@ public class ClickStreamConsumer implements SmartLifecycle, DisposableBean {
     private final AtomicLong streamLength = new AtomicLong();
     private final AtomicLong lagBits = new AtomicLong(Double.doubleToLongBits(Double.NaN));
     private final AtomicReference<Runnable> stopCallback = new AtomicReference<>();
-    private final AtomicBoolean factoryReleased = new AtomicBoolean();
     private volatile boolean running;
     private volatile boolean loopDone = true;
     private volatile boolean groupReady;
@@ -279,9 +280,15 @@ public class ClickStreamConsumer implements SmartLifecycle, DisposableBean {
      * ({@code synchronized}) prende a thread carregadora (pinning, resolvido só no JEP 491 do
      * Java 24). Por isso o loop só usa campos {@code volatile} e atômicos, sem
      * {@code synchronized}.
+     *
+     * <p>Depois de um stop, a fábrica de conexões está parada; ela é aberta de novo aqui antes
+     * de a thread subir. Numa fábrica já aberta, o {@code start} dela não faz nada.
      */
     @Override
     public void start() {
+        if (connectionFactory instanceof Lifecycle lifecycle) {
+            lifecycle.start();
+        }
         loopDone = false;
         running = true;
         worker = Thread.ofVirtual().name("click-consumer").start(this::loop);
@@ -611,8 +618,9 @@ public class ClickStreamConsumer implements SmartLifecycle, DisposableBean {
     }
 
     /**
-     * Baixa a flag e devolve na hora. Quando o loop sai, depois do lote corrente, a fábrica de
-     * conexões é destruída e o {@code callback} roda. Se a thread nunca subiu, isso acontece já.
+     * Baixa a flag e devolve na hora. Quando o loop sai, depois do lote corrente (gravado e
+     * confirmado), a fábrica de conexões é parada e o {@code callback} roda. Se a thread nunca
+     * subiu, isso acontece já.
      *
      * @param callback aviso ao Spring de que o consumer parou
      */
@@ -633,26 +641,37 @@ public class ClickStreamConsumer implements SmartLifecycle, DisposableBean {
         }
         Runnable callback = stopCallback.getAndSet(null);
         if (callback != null) {
-            releaseFactory();
+            stopFactory();
             callback.run();
         }
     }
 
     /**
-     * Destrói a fábrica de conexões se o consumer for destruído sem ter subido.
+     * Fecha as conexões e o cliente Lettuce da fábrica, que pode ser aberta de novo no
+     * {@link #start()}.
+     */
+    private void stopFactory() {
+        if (connectionFactory instanceof Lifecycle lifecycle) {
+            try {
+                lifecycle.stop();
+            } catch (RuntimeException e) {
+                LOG.warn("Falha ao fechar a conexão do consumer de cliques: {}",
+                        e.getClass().getName());
+            }
+        }
+    }
+
+    /**
+     * Destrói a fábrica de conexões no fim da vida do bean (depois do stop, ou sem ele, se o
+     * consumer nunca subiu). Destruir de novo uma fábrica já destruída não tem efeito.
      */
     @Override
     public void destroy() {
-        releaseFactory();
-    }
-
-    private void releaseFactory() {
-        if (factoryReleased.compareAndSet(false, true)
-                && connectionFactory instanceof DisposableBean disposable) {
+        if (connectionFactory instanceof DisposableBean disposable) {
             try {
                 disposable.destroy();
             } catch (Exception e) {
-                LOG.warn("Falha ao fechar a conexão do consumer de cliques: {}",
+                LOG.warn("Falha ao destruir a conexão do consumer de cliques: {}",
                         e.getClass().getName());
             }
         }

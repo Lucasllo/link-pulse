@@ -51,7 +51,9 @@ import org.springframework.data.redis.core.StringRedisTemplate;
  *
  * <p>Fase do ciclo de vida: {@code DEFAULT_PHASE - 4096}. O publisher para depois do web server
  * (que para de aceitar requests antes) e antes da conexão Lettuce (fase 0), então a fila é
- * esvaziada com o Valkey ainda conectado.
+ * esvaziada com o Valkey ainda conectado. O {@code stop} desliga o executor; um {@code start}
+ * depois dele cria um executor novo, então o publisher pode ser parado e reiniciado (como na
+ * pausa e retomada dos contextos em cache dos testes do Spring Framework 7).
  */
 public class ClickPublisher implements SmartLifecycle {
 
@@ -89,8 +91,8 @@ public class ClickPublisher implements SmartLifecycle {
     private final Counter published;
     private final Counter rejected;
     private final Counter failed;
-    /** Referência forte: a gauge da fila guarda o executor só por referência fraca. */
-    private final ThreadPoolExecutor executor;
+    /** Executor corrente; trocado por um novo no {@link #start()} depois de um stop. */
+    private volatile ThreadPoolExecutor executor;
     private volatile boolean running;
 
     /**
@@ -114,14 +116,20 @@ public class ClickPublisher implements SmartLifecycle {
         this.published = publishCounter(registry, "published");
         this.rejected = publishCounter(registry, "rejected");
         this.failed = publishCounter(registry, "failed");
+        this.executor = newExecutor();
+        // A gauge lê o executor corrente pelo publisher, que o contexto (ou o teste) mantém vivo:
+        // o registry guarda o objeto da gauge só por referência fraca.
+        Gauge.builder(QUEUE_METRIC, this, publisher -> publisher.executor.getQueue().size())
+                .description("Cliques na fila do publisher esperando o XADD")
+                .register(registry);
+    }
+
+    private ThreadPoolExecutor newExecutor() {
         int threads = clicks.publisher().threads();
-        this.executor = new ThreadPoolExecutor(threads, threads, 0, TimeUnit.MILLISECONDS,
+        return new ThreadPoolExecutor(threads, threads, 0, TimeUnit.MILLISECONDS,
                 new ArrayBlockingQueue<>(clicks.publisher().queueCapacity()),
                 Thread.ofPlatform().name("click-publisher-", 0).daemon(true).factory(),
                 (task, pool) -> rejected.increment());
-        Gauge.builder(QUEUE_METRIC, executor, pool -> pool.getQueue().size())
-                .description("Cliques na fila do publisher esperando o XADD")
-                .register(registry);
     }
 
     private static Counter publishCounter(MeterRegistry registry, String result) {
@@ -185,8 +193,15 @@ public class ClickPublisher implements SmartLifecycle {
                 : userAgent;
     }
 
+    /**
+     * Passa a aceitar cliques. Depois de um {@link #stop()}, que desligou o executor, cria um
+     * executor novo antes.
+     */
     @Override
     public void start() {
+        if (executor.isShutdown()) {
+            executor = newExecutor();
+        }
         running = true;
     }
 
@@ -198,19 +213,20 @@ public class ClickPublisher implements SmartLifecycle {
     @Override
     public void stop() {
         running = false;
-        executor.shutdown();
+        ThreadPoolExecutor current = executor;
+        current.shutdown();
         try {
-            if (!executor.awaitTermination(STOP_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
-                dropPending();
+            if (!current.awaitTermination(STOP_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
+                dropPending(current);
             }
         } catch (InterruptedException e) {
-            dropPending();
+            dropPending(current);
             Thread.currentThread().interrupt();
         }
     }
 
-    private void dropPending() {
-        List<Runnable> pending = executor.shutdownNow();
+    private void dropPending(ThreadPoolExecutor current) {
+        List<Runnable> pending = current.shutdownNow();
         rejected.increment(pending.size());
     }
 
