@@ -5,6 +5,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import java.net.URI;
+import java.time.Duration;
 import java.util.List;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.bind.DefaultValue;
@@ -16,7 +17,7 @@ import org.springframework.validation.annotation.Validated;
  * <p>Os defaults ficam no {@code application.yml} e podem ser sobrescritos por variável de
  * ambiente via relaxed binding ({@code LINKPULSE_BASE_URL}, {@code LINKPULSE_CODE_ALPHABET},
  * {@code LINKPULSE_CODE_MULTIPLIER}, {@code LINKPULSE_ALIAS_RESERVED},
- * {@code LINKPULSE_SELF_HOSTS}).
+ * {@code LINKPULSE_SELF_HOSTS}, {@code LINKPULSE_CACHE_DEFAULT_TTL} etc.).
  *
  * @param baseUrl base da URL curta devolvida na criação (D-12); nunca derivada de {@code Host}
  *     nem de {@code X-Forwarded-*}. Precisa ser URL {@code http} ou {@code https} absoluta, com
@@ -26,6 +27,8 @@ import org.springframework.validation.annotation.Validated;
  * @param selfHosts hosts extras que também são o próprio encurtador (por exemplo, o DNS do load
  *     balancer ou do Ingress); env {@code LINKPULSE_SELF_HOSTS}, separada por vírgula; vazia por
  *     padrão
+ * @param cache TTLs do cache do redirect no Valkey ({@code linkpulse.cache.*}); os defaults ficam
+ *     nas anotações, então o bloco é opcional
  */
 @ConfigurationProperties("linkpulse")
 @Validated
@@ -33,7 +36,8 @@ public record LinkPulseProperties(
         @NotNull URI baseUrl,
         @NotNull @Valid Code code,
         @DefaultValue Alias alias,
-        List<String> selfHosts) {
+        List<String> selfHosts,
+        @Valid @DefaultValue Cache cache) {
 
     /**
      * Valida {@code baseUrl} e normaliza {@code selfHosts}.
@@ -50,6 +54,7 @@ public record LinkPulseProperties(
      * @param code parâmetros do gerador
      * @param alias regras do alias
      * @param selfHosts hosts extras do próprio encurtador
+     * @param cache TTLs do cache do redirect
      * @throws IllegalArgumentException se {@code baseUrl} é inválida
      */
     public LinkPulseProperties {
@@ -96,6 +101,46 @@ public record LinkPulseProperties(
          */
         public Alias {
             reserved = reserved == null ? List.of() : List.copyOf(reserved);
+        }
+    }
+
+    /**
+     * TTLs do cache do redirect ({@code lp:link:{code}} no Valkey, D-06).
+     *
+     * @param defaultTtl TTL de um link válido sem expiração; com expiração, o TTL é o menor entre
+     *     este valor e o tempo até expirar. Env {@code LINKPULSE_CACHE_DEFAULT_TTL}; padrão 24h
+     * @param negativeTtl TTL do negative cache de código inexistente (404). Curto porque a criação
+     *     do alias invalida a chave e uma corrida residual fica limitada a ele. Env
+     *     {@code LINKPULSE_CACHE_NEGATIVE_TTL}; padrão 60s
+     * @param goneTtl TTL do registro de link expirado (410); um link expirado nunca volta a valer.
+     *     Env {@code LINKPULSE_CACHE_GONE_TTL}; padrão 24h
+     * @param bypassCooldown tempo em que o cache fica desviado depois de uma falha do Valkey; só é
+     *     lido pelo gate de disponibilidade do plano 02-03. Env
+     *     {@code LINKPULSE_CACHE_BYPASS_COOLDOWN}; padrão 2s
+     */
+    public record Cache(
+            @DefaultValue("24h") Duration defaultTtl,
+            @DefaultValue("60s") Duration negativeTtl,
+            @DefaultValue("24h") Duration goneTtl,
+            @DefaultValue("2s") Duration bypassCooldown) {
+
+        /**
+         * Exige durações positivas; a mensagem é fixa e não ecoa o valor.
+         *
+         * @param defaultTtl TTL de link válido
+         * @param negativeTtl TTL do negative cache
+         * @param goneTtl TTL de link expirado
+         * @param bypassCooldown cooldown do desvio do cache
+         * @throws IllegalArgumentException se algum valor é nulo, zero ou negativo
+         */
+        public Cache {
+            Duration[] values = {defaultTtl, negativeTtl, goneTtl, bypassCooldown};
+            for (Duration value : values) {
+                if (value == null || value.isNegative() || value.isZero()) {
+                    throw new IllegalArgumentException(
+                            "linkpulse.cache.* deve ser uma duração positiva");
+                }
+            }
         }
     }
 }

@@ -22,15 +22,15 @@ import org.springframework.web.bind.annotation.RestController;
 @Tag(name = "Redirect", description = "Redirecionamento do código curto para a URL original")
 public class RedirectController {
 
-    private final LinkService linkService;
+    private final RedirectService redirectService;
 
     /**
      * Cria o controller.
      *
-     * @param linkService service que resolve o código
+     * @param redirectService service que resolve o código (cache e, no miss, Postgres)
      */
-    public RedirectController(LinkService linkService) {
-        this.linkService = linkService;
+    public RedirectController(RedirectService redirectService) {
+        this.redirectService = redirectService;
     }
 
     /**
@@ -59,7 +59,7 @@ public class RedirectController {
             content = @Content(mediaType = "application/problem+json",
                     schema = @Schema(implementation = ProblemDetail.class)))
     public ResponseEntity<Void> redirect(@PathVariable String code) {
-        String target = linkService.resolve(code);
+        String target = redirectService.resolve(code);
         return ResponseEntity.status(HttpStatus.FOUND)
                 .location(URI.create(target))
                 .cacheControl(CacheControl.noStore().cachePrivate())

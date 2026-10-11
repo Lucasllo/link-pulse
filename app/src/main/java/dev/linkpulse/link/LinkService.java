@@ -5,6 +5,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Locale;
+import java.util.Optional;
 import org.hibernate.exception.ConstraintViolationException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
@@ -122,19 +123,16 @@ public class LinkService {
     }
 
     /**
-     * Resolve o código curto na URL de destino.
+     * Busca o link pelo código curto, numa transação read-only.
+     *
+     * <p>Só o miss do cache chega aqui; as respostas 404/410 do redirect ficam no
+     * {@link RedirectService}.
      *
      * @param code código curto (case-sensitive)
-     * @return a URL de destino
-     * @throws org.springframework.web.ErrorResponseException 404 se o código não existe, 410 se
-     *     o link expirou
+     * @return o link, ou vazio se o código não existe
      */
     @Transactional(readOnly = true)
-    public String resolve(String code) {
-        Link link = repository.findByCode(code).orElseThrow(() -> LinkProblems.notFound(code));
-        if (link.isExpiredAt(clock.instant())) {
-            throw LinkProblems.expired(code, link.getExpiresAt());
-        }
-        return link.getTargetUrl();
+    public Optional<Link> find(String code) {
+        return repository.findByCode(code);
     }
 }
