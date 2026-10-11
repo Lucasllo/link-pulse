@@ -19,6 +19,7 @@ Os guias 01 a 09 descrevem só o que existe hoje no repositório. O que ainda va
 
 | Nº | Guia | O que você aprende |
 |----|------|--------------------|
+| 00 | [00 · Visão geral do projeto](00-visao-geral-do-projeto.md) | Para iniciantes: o que o Link Pulse faz e qual tecnologia entra em cada momento do fluxo (criar, redirecionar, gravar cliques, estatísticas) e por quê |
 | 01 | [01 · Estrutura e fluxo](01-estrutura-e-fluxo-de-requisicoes.md) | Mapa do repositório, pacotes `dev.linkpulse.*` e o caminho de `POST /links` e `GET /{code}` até o Postgres |
 | 02 | [02 · Spring Boot e Java 21](02-spring-boot-e-java-21.md) | Starters do Boot 4, auto-configuração, profiles, `@ConfigurationProperties`, Actuator na 8081, records e virtual threads |
 | 03 | [03 · Postgres, JPA e Liquibase](03-postgres-jpa-e-liquibase.md) | Entidade `Link`, Spring Data JPA, sequência `link_id_seq`, changelogs YAML e contexts dev/prod |
@@ -32,6 +33,7 @@ Os guias 01 a 09 descrevem só o que existe hoje no repositório. O que ainda va
 
 ## Trilhas de leitura
 
+- **Estou começando:** leia o 00 antes de qualquer trilha.
 - **Quero entender a aplicação:** 01 → 02 → 03 → 04 → 05.
 - **Quero rodar e entregar:** 09 → 07 → 06 → 08.
 - Depois de qualquer trilha, o 10 mostra para onde o projeto vai.
