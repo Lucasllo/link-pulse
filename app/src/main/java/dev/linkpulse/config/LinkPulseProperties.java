@@ -17,7 +17,10 @@ import org.springframework.validation.annotation.Validated;
  * <p>Os defaults ficam no {@code application.yml} e podem ser sobrescritos por variável de
  * ambiente via relaxed binding ({@code LINKPULSE_BASE_URL}, {@code LINKPULSE_CODE_ALPHABET},
  * {@code LINKPULSE_CODE_MULTIPLIER}, {@code LINKPULSE_ALIAS_RESERVED},
- * {@code LINKPULSE_SELF_HOSTS}, {@code LINKPULSE_CACHE_DEFAULT_TTL} etc.).
+ * {@code LINKPULSE_SELF_HOSTS}, {@code LINKPULSE_CACHE_DEFAULT_TTL}, {@code LINKPULSE_IP_HASH_KEY},
+ * {@code LINKPULSE_CLICKS_STREAM_KEY}, {@code LINKPULSE_CLICKS_MAX_LEN},
+ * {@code LINKPULSE_CLICKS_PUBLISHER_THREADS}, {@code LINKPULSE_CLICKS_PUBLISHER_QUEUE_CAPACITY}
+ * etc.).
  *
  * @param baseUrl base da URL curta devolvida na criação (D-12); nunca derivada de {@code Host}
  *     nem de {@code X-Forwarded-*}. Precisa ser URL {@code http} ou {@code https} absoluta, com
@@ -29,6 +32,12 @@ import org.springframework.validation.annotation.Validated;
  *     padrão
  * @param cache TTLs do cache do redirect no Valkey ({@code linkpulse.cache.*}); os defaults ficam
  *     nas anotações, então o bloco é opcional
+ * @param ipHashKey chave do HMAC que transforma o IP do cliente em hash antes de qualquer
+ *     publicação ({@code linkpulse.ip-hash-key}). Obrigatória fora do dev (env
+ *     {@code LINKPULSE_IP_HASH_KEY}); ausente ou com menos de 16 caracteres, o {@code IpHasher}
+ *     derruba a subida. É chave de topo porque o rate limit também a usa
+ * @param clicks publicação dos cliques no stream do Valkey ({@code linkpulse.clicks.*}); os
+ *     defaults ficam nas anotações, então o bloco é opcional
  */
 @ConfigurationProperties("linkpulse")
 @Validated
@@ -37,7 +46,9 @@ public record LinkPulseProperties(
         @NotNull @Valid Code code,
         @DefaultValue Alias alias,
         List<String> selfHosts,
-        @Valid @DefaultValue Cache cache) {
+        @Valid @DefaultValue Cache cache,
+        String ipHashKey,
+        @Valid @DefaultValue Clicks clicks) {
 
     /**
      * Valida {@code baseUrl} e normaliza {@code selfHosts}.
@@ -55,6 +66,8 @@ public record LinkPulseProperties(
      * @param alias regras do alias
      * @param selfHosts hosts extras do próprio encurtador
      * @param cache TTLs do cache do redirect
+     * @param ipHashKey chave do HMAC do IP (validada pelo {@code IpHasher})
+     * @param clicks publicação dos cliques no stream
      * @throws IllegalArgumentException se {@code baseUrl} é inválida
      */
     public LinkPulseProperties {
@@ -141,6 +154,38 @@ public record LinkPulseProperties(
                             "linkpulse.cache.* deve ser uma duração positiva");
                 }
             }
+        }
+    }
+
+    /**
+     * Publicação dos cliques no Redis Stream (CLICK-01).
+     *
+     * <p>O nome {@code PublisherSettings} evita colisão com o {@code Consumer} do Spring Data
+     * Redis.
+     *
+     * @param streamKey chave do stream. Env {@code LINKPULSE_CLICKS_STREAM_KEY}; padrão
+     *     {@code lp:clicks}
+     * @param maxLen limite aproximado de entradas ({@code XADD MAXLEN ~}), para o stream não
+     *     crescer sem limite. Env {@code LINKPULSE_CLICKS_MAX_LEN}; padrão 100000
+     * @param publisher executor da publicação
+     */
+    public record Clicks(
+            @DefaultValue("lp:clicks") @NotBlank String streamKey,
+            @DefaultValue("100000") @Positive long maxLen,
+            @Valid @DefaultValue PublisherSettings publisher) {
+
+        /**
+         * Executor limitado da publicação: threads fixas e fila com capacidade fixa; o que não
+         * cabe na fila é descartado e contado, nunca espera.
+         *
+         * @param threads threads de plataforma do executor. Env
+         *     {@code LINKPULSE_CLICKS_PUBLISHER_THREADS}; padrão 2
+         * @param queueCapacity capacidade da fila. Env
+         *     {@code LINKPULSE_CLICKS_PUBLISHER_QUEUE_CAPACITY}; padrão 10000
+         */
+        public record PublisherSettings(
+                @DefaultValue("2") @Positive int threads,
+                @DefaultValue("10000") @Positive int queueCapacity) {
         }
     }
 }

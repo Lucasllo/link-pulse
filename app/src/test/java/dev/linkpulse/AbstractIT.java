@@ -11,8 +11,10 @@ import org.springframework.test.web.servlet.assertj.MockMvcTester;
  *
  * <p>Todos os ITs que estendem esta classe compartilham o mesmo contexto (e o mesmo banco),
  * então cada teste deve usar dados próprios, como códigos únicos.
+ *
+ * <p>{@code linkpulse.ip-hash-key} é obrigatória; os ITs usam uma chave fixa de teste.
  */
-@SpringBootTest
+@SpringBootTest(properties = {"linkpulse.ip-hash-key=test-ip-hash-key-0123456789"})
 @AutoConfigureMockMvc
 @Import(TestcontainersConfiguration.class)
 public abstract class AbstractIT {
