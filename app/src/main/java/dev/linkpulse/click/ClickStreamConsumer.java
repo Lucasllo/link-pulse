@@ -71,7 +71,8 @@ import org.springframework.data.redis.core.StringRedisTemplate;
  * {@code linkpulse.clicks.consumer.errors} e espera um backoff de 500 ms, que dobra até 10 s e
  * volta a zero no primeiro ciclo bem-sucedido. {@code NOGROUP} (stream apagado ou expulso da
  * memória) faz o grupo ser recriado no ciclo seguinte. O log de erro leva só a classe da
- * exceção e o nome do stream, nunca o conteúdo das entradas.
+ * exceção e o nome do stream, nunca o conteúdo das entradas: WARN na primeira falha de uma
+ * sequência e INFO, com o número de falhas, no primeiro ciclo bem-sucedido depois dela.
  *
  * <p>Métricas (sem tags de alta cardinalidade, D-10):
  * <ul>
@@ -250,9 +251,19 @@ public class ClickStreamConsumer implements SmartLifecycle, DisposableBean {
         worker = Thread.ofVirtual().name("click-consumer").start(this::loop);
     }
 
+    /**
+     * Corpo da thread do consumer. Todo o ciclo (índices, grupo, reclaim, leitura e gravação)
+     * fica dentro de um único {@code catch (RuntimeException)}: uma falha do Valkey ou do MongoDB
+     * conta em {@code linkpulse.clicks.consumer.errors}, dorme o backoff em fatias (o stop não
+     * espera o backoff inteiro) e tenta de novo. Só a primeira falha de uma sequência vai para o
+     * log em WARN, e o primeiro ciclo bem-sucedido depois dela registra em INFO quantas falhas
+     * houve: uma queda longa do MongoDB não inunda o log. Os logs levam só o nome do stream e a
+     * classe da exceção; a mensagem pode trazer conteúdo das entradas.
+     */
     private void loop() {
         try {
             long backoffMillis = 0;
+            long consecutiveFailures = 0;
             while (running) {
                 try {
                     ensureIndexes();
@@ -262,14 +273,22 @@ public class ClickStreamConsumer implements SmartLifecycle, DisposableBean {
                     if (batch != null && !batch.isEmpty()) {
                         process(batch);
                     }
+                    if (consecutiveFailures > 0) {
+                        LOG.info("Consumer de cliques do stream {} recuperado depois de {} "
+                                + "falhas seguidas", settings.streamKey(), consecutiveFailures);
+                    }
+                    consecutiveFailures = 0;
                     backoffMillis = 0;
                 } catch (RuntimeException e) {
                     errors.increment();
                     if (causeContains(e, "NOGROUP")) {
                         groupReady = false;
                     }
-                    LOG.warn("Falha no consumer de cliques do stream {}: {}",
-                            settings.streamKey(), e.getClass().getName());
+                    if (consecutiveFailures == 0) {
+                        LOG.warn("Falha no consumer de cliques do stream {}: {}; tentando de novo "
+                                + "com backoff", settings.streamKey(), e.getClass().getName());
+                    }
+                    consecutiveFailures++;
                     backoffMillis = backoffMillis == 0
                             ? INITIAL_BACKOFF_MILLIS
                             : Math.min(backoffMillis * 2, MAX_BACKOFF_MILLIS);

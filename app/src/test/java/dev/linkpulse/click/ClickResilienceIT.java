@@ -69,11 +69,6 @@ class ClickResilienceIT extends AbstractIT {
         mongoContainer.getDockerClient().pauseContainerCmd(mongoContainer.getContainerId()).exec();
     }
 
-    private void unpauseMongo() {
-        mongoContainer.getDockerClient().unpauseContainerCmd(mongoContainer.getContainerId())
-                .exec();
-    }
-
     @Test
     void consumerSurvivesMongoOutageAndCatchesUp() {
         saveLink("resil-1", "https://example.com/resilience");
@@ -93,7 +88,8 @@ class ClickResilienceIT extends AbstractIT {
                             .as("erros do consumer com o MongoDB pausado")
                             .isGreaterThan(errorsBefore));
         } finally {
-            unpauseMongo();
+            mongoContainer.getDockerClient()
+                    .unpauseContainerCmd(mongoContainer.getContainerId()).exec();
         }
         long unpausedAt = System.nanoTime();
         System.out.println("ClickResilienceIT: MongoDB pausado por (ms) = "
