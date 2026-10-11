@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import dev.linkpulse.link.TargetHostPolicy;
 import java.net.URI;
+import java.time.Duration;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -18,8 +19,9 @@ import org.springframework.web.ErrorResponseException;
 /**
  * Testes unitários do {@link LinkPulseProperties} (D-12, WR-01, T-08-04, T-08-05): uma
  * {@code linkpulse.base-url} inválida derruba a subida sem ecoar o valor, e
- * {@code linkpulse.self-hosts} faz binding por propriedade e por variável de ambiente. Rodam sem
- * Docker.
+ * {@code linkpulse.self-hosts} faz binding por propriedade e por variável de ambiente. Também
+ * cobrem os defaults de {@code linkpulse.clicks.*}, o binding de {@code LINKPULSE_IP_HASH_KEY} e a
+ * chave do HMAC mascarada no {@code toString()} (T-02-44). Rodam sem Docker.
  */
 class LinkPulsePropertiesTest {
 
@@ -123,5 +125,69 @@ class LinkPulsePropertiesTest {
                     assertThat(properties.selfHosts())
                             .containsExactly("lb.example.com", "alias.example.com");
                 });
+    }
+
+    @Test
+    void clicksDefaultsBindWithoutConfiguration() {
+        contextRunner.run(context -> {
+            assertThat(context).hasNotFailed();
+            LinkPulseProperties.Clicks clicks =
+                    context.getBean(LinkPulseProperties.class).clicks();
+            assertThat(clicks.streamKey()).isEqualTo("lp:clicks");
+            assertThat(clicks.maxLen()).isEqualTo(100_000L);
+            assertThat(clicks.publisher().threads()).isEqualTo(2);
+            assertThat(clicks.publisher().queueCapacity()).isEqualTo(10_000);
+        });
+    }
+
+    @Test
+    void ipHashKeyBindsFromEnvironmentVariable() {
+        Map<String, Object> env = Map.of(
+                "LINKPULSE_BASE_URL", "https://lnk.example.com",
+                "LINKPULSE_IP_HASH_KEY", "env-ip-hash-key-0123456789");
+        baseRunner.withInitializer(context -> context.getEnvironment().getPropertySources()
+                        .addFirst(new SystemEnvironmentPropertySource(
+                                StandardEnvironment.SYSTEM_ENVIRONMENT_PROPERTY_SOURCE_NAME,
+                                env)))
+                .run(context -> {
+                    assertThat(context).hasNotFailed();
+                    assertThat(context.getBean(LinkPulseProperties.class).ipHashKey())
+                            .isEqualTo("env-ip-hash-key-0123456789");
+                });
+    }
+
+    @Test
+    void toStringDoesNotExposeIpHashKey() {
+        contextRunner.withPropertyValues("linkpulse.ip-hash-key=super-secret-hmac-key-0123456789")
+                .run(context -> {
+                    assertThat(context).hasNotFailed();
+                    String text = context.getBean(LinkPulseProperties.class).toString();
+                    assertThat(text).doesNotContain("super-secret-hmac-key");
+                    assertThat(text).contains("ipHashKey=****");
+                    assertThat(text).contains("baseUrl=http://localhost:8080");
+                });
+    }
+
+    @Test
+    void rateLimitDefaultsBindWithoutConfiguration() {
+        contextRunner.run(context -> {
+            assertThat(context).hasNotFailed();
+            LinkPulseProperties.RateLimit ratelimit =
+                    context.getBean(LinkPulseProperties.class).ratelimit();
+            assertThat(ratelimit.enabled()).isTrue();
+            assertThat(ratelimit.limit()).isEqualTo(20);
+            assertThat(ratelimit.window()).isEqualTo(Duration.ofMinutes(1));
+        });
+    }
+
+    @Test
+    void zeroWindowFailsStartup() {
+        contextRunner.withPropertyValues("linkpulse.ratelimit.window=0s").run(context -> {
+            assertThat(context).hasFailed();
+            assertThat(context.getStartupFailure())
+                    .rootCause()
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("linkpulse.ratelimit.window");
+        });
     }
 }

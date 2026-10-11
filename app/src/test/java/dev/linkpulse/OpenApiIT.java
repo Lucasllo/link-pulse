@@ -31,9 +31,13 @@ class OpenApiIT extends AbstractIT {
         assertThat(result).hasStatus(HttpStatus.OK);
         assertThat(result).bodyJson().extractingPath("$.paths['/links'].post.responses")
                 .asMap()
-                .containsKeys("201", "400", "409");
+                .containsKeys("201", "400", "409", "429");
         assertThat(result).bodyJson()
                 .extractingPath("$.paths['/links'].post.responses['409'].content")
+                .asMap()
+                .containsKey("application/problem+json");
+        assertThat(result).bodyJson()
+                .extractingPath("$.paths['/links'].post.responses['429'].content")
                 .asMap()
                 .containsKey("application/problem+json");
     }
@@ -48,6 +52,21 @@ class OpenApiIT extends AbstractIT {
                 .containsKeys("302", "404", "410");
         assertThat(result).bodyJson()
                 .extractingPath("$.paths['/{code}'].get.responses['410'].content")
+                .asMap()
+                .containsKey("application/problem+json");
+    }
+
+    @Test
+    void statsDocumentsSuccessAndErrors() {
+        MvcTestResult result = apiDocs();
+
+        assertThat(result).hasStatus(HttpStatus.OK);
+        assertThat(result).bodyJson()
+                .extractingPath("$.paths['/links/{code}/stats'].get.responses")
+                .asMap()
+                .containsKeys("200", "400", "404", "503");
+        assertThat(result).bodyJson()
+                .extractingPath("$.paths['/links/{code}/stats'].get.responses['400'].content")
                 .asMap()
                 .containsKey("application/problem+json");
     }

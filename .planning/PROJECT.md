@@ -24,21 +24,17 @@ Um avaliador clona o repositório, roda `make up` (compose) ou `make k8s` (kind 
 - ✓ PostgreSQL com Liquibase: changelogs YAML versionados e contexts (dev/prod) — Phase 1
 - ✓ Testes unitários do gerador de código (Base62) — Phase 1
 - ✓ Análise estática com Checkstyle e SpotBugs no build — Phase 1
+- ✓ `GET /{code}` responde 302 com cache-aside no Valkey (negative cache, hit/miss em métrica, fail-open com Valkey fora) — Phase 2
+- ✓ TTL do cache respeita a expiração do link — Phase 2
+- ✓ Clique assíncrono: redirect publica no stream `lp:clicks` (IP em HMAC diário, referrer reduzido ao host) e o consumer grava no MongoDB em lote, com reclaim, idempotência e shutdown ordenado — Phase 2
+- ✓ `GET /links/{code}/stats` com total, cliques por dia, top referrers e famílias de navegador/SO (aggregation do MongoDB, bots excluídos por padrão) — Phase 2
+- ✓ Rate limit por IP em `POST /links` (script Lua no Valkey, 429 + `Retry-After`, fail-open documentado) — Phase 2
+- ✓ MongoDB para eventos de clique (TTL de retenção); Valkey para cache, stream e rate limit — Phase 2
+- ✓ Testes de integração com Testcontainers (Postgres + Mongo + Valkey) — Phases 1-2
 
 ### Ativos
 
-**API**
-- [ ] `GET /{code}` responde 302 para a URL original, com lookup via cache Redis (hit/miss medido em métrica) — 302 a partir do Postgres entregue na Phase 1; cache na Phase 2
-- [ ] TTL do cache respeita a expiração (Phase 2)
-- [ ] Clique registrado de forma assíncrona: o redirect publica evento em Redis Stream e um consumer grava no MongoDB em lote, sem atrasar o redirect
-- [ ] `GET /links/{code}/stats` retorna total de cliques, cliques por dia e top referrers/user-agents (aggregation pipeline do MongoDB)
-- [ ] Rate limiting simples por IP em `POST /links` (Redis), retornando 429
-
-**Dados**
-- [ ] MongoDB para eventos de clique; Redis para cache, stream e rate limit
-
 **Qualidade**
-- [ ] Testes de integração com Testcontainers (Postgres + Mongo + Redis) — Postgres entregue na Phase 1
 - [ ] Teste de carga com k6 e resultados documentados no README
 
 **Container e Kubernetes**
@@ -52,7 +48,7 @@ Um avaliador clona o repositório, roda `make up` (compose) ou `make k8s` (kind 
 - [ ] Job de verificação que faz deploy em kind e roda smoke test
 
 **Observabilidade**
-- [ ] Micrometer + Prometheus expondo métricas da aplicação (requisições, latência, cache hit/miss, cliques)
+- [ ] Micrometer + Prometheus expondo métricas da aplicação (requisições, latência, cache hit/miss, cliques) — métricas da app e `/actuator/prometheus` na 8081 entregues na Phase 2; scrape e dashboards na Phase 3
 - [ ] Dashboards Grafana versionados em JSON: taxa de requisições, latência p95/p99, cache hit ratio, cliques/min
 - [ ] Alertas básicos no Prometheus (ex.: taxa de erro 5xx, latência p99 alta, lag do consumer)
 
@@ -92,18 +88,21 @@ Um avaliador clona o repositório, roda `make up` (compose) ou `make k8s` (kind 
 | Decisão | Justificativa | Resultado |
 |---------|---------------|-----------|
 | Base62 do ID da sequência do Postgres | Sem colisão, determinístico e simples de testar | ✓ Phase 1 (com permutação mod 62^7 para ofuscar a ordem) |
-| Redis Streams para eventos de clique | Assíncrono e durável sem infra nova; demonstra backpressure/lag | — Pendente |
+| Redis Streams para eventos de clique | Assíncrono e durável sem infra nova; demonstra backpressure/lag | ✓ Phase 2 (consumer próprio em lote, XCLAIM só confirma IDs ausentes do stream) |
 | Helm chart (com values dev/prod) | Padrão de mercado; integra com kube-prometheus-stack | — Pendente |
 | ECS Fargate como alvo AWS | Terraform mais leve que EKS (o LocalStack gratuito não cobre ECS nem EKS) | — Pendente |
 | Terraform validado em camadas (lint + `terraform test` com mock + LocalStack Hobby parcial) | LocalStack gratuito não inclui ECS/RDS/ElastiCache/ECR desde 2026-03; custo zero | — Pendente |
 | Imagem publicada no GHCR | Grátis, sem secrets AWS no CI | — Pendente |
 | 404 para inexistente, 410 para expirado | Semântica HTTP correta | ✓ Phase 1 |
 | Spring Boot 4.1.1 | Linha 3.x sem suporte OSS desde 2026-06-30; 4.1 suportado até 2027-07 | ✓ Phase 1 |
-| Valkey 8.1 em todos os ambientes | Paridade com ElastiCache (Redis OSS parado na 7.1); protocolo compatível com Spring Data Redis | — Pendente |
+| Valkey 8.1 em todos os ambientes | Paridade com ElastiCache (Redis OSS parado na 7.1); protocolo compatível com Spring Data Redis | ✓ Phase 2 (compose e Testcontainers) |
 | Traefik + manifests próprios no kind | ingress-nginx aposentado (2026-03) e catálogo gratuito Bitnami encerrado | — Pendente |
-| Coleção Mongo normal `click_events` (não time-series) | Time-series não aceita índice único; idempotência usa `_id` = ID do stream | — Pendente |
+| Coleção Mongo normal `click_events` (não time-series) | Time-series não aceita índice único; idempotência usa `_id` = ID do stream | ✓ Phase 2 |
 | Liquibase 5.0.3 (BOM do Boot 4.1.1), licença FSL-1.1-ALv2 | Versão gerenciada e testada pelo Boot 4.1; a FSL permite uso em portfólio; a alternativa Apache (4.33.0 por property) fica documentada no README | ✓ Registrada na Phase 1 |
 | Checagem de host de destino sem DNS (`TargetHostPolicy`) + `LINKPULSE_SELF_HOSTS` | Resolver DNS no POST custa latência e é contornável por rebinding; loop via DNS fica como mitigação parcial documentada | ✓ Phase 1 |
+| IP do clique como HMAC-SHA256 com chave + dia UTC | Sem PII crua no stream, no Mongo nem nas chaves de rate limit; rotação diária limita correlação | ✓ Phase 2 |
+| Rate limit e cache em fail-open com Valkey fora (D-08) | Disponibilidade do redirect/criação vale mais que o limite; queda visível em métricas e no README | ✓ Phase 2 (limitação WR-01 aceita na UAT) |
+| Sem limite de reentregas no consumer | Inválidas são confirmadas na conversão; falha de infraestrutura espera no PEL | ✓ Phase 2 |
 
 ## Evolução
 
@@ -123,4 +122,4 @@ Este documento evolui nas transições de fase e nos fechamentos de milestone.
 4. Atualizar Contexto com o estado atual
 
 ---
-*Última atualização: 2026-10-09 após a Phase 1*
+*Última atualização: 2026-10-11 após a Phase 2*

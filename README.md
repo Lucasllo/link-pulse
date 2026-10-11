@@ -30,9 +30,9 @@ Rode da raiz do repositório.
 | `make build` | `cd app && ./mvnw -B -ntp -DskipTests package` | Empacota o jar sem rodar testes |
 | `make test` | `cd app && ./mvnw -B -ntp test` | Só os testes unitários (não precisa de Docker) |
 | `make verify` | `cd app && ./mvnw -B -ntp verify` | Checkstyle, unitários, ITs com Testcontainers e SpotBugs (precisa de Docker) |
-| `make db-up` | `docker compose -f compose.dev.yaml up -d --wait` | Sobe o Postgres 18 local e espera o healthcheck |
-| `make db-down` | `docker compose -f compose.dev.yaml down` | Para o Postgres local (mantém o volume `pgdata`) |
-| `make run` | `docker compose -f compose.dev.yaml up -d --wait` e depois `cd app && ./mvnw -B -ntp spring-boot:run -Dspring-boot.run.profiles=dev` | Sobe o Postgres e a API com o profile `dev` |
+| `make db-up` | `docker compose -f compose.dev.yaml up -d --wait` | Sobe as dependências locais do `compose.dev.yaml` (Postgres, Valkey e Mongo) e espera os healthchecks |
+| `make db-down` | `docker compose -f compose.dev.yaml down` | Para as dependências locais do `compose.dev.yaml` (Postgres, Valkey e Mongo; mantém os volumes `pgdata` e `mongodata`) |
+| `make run` | `docker compose -f compose.dev.yaml up -d --wait` e depois `cd app && ./mvnw -B -ntp spring-boot:run -Dspring-boot.run.profiles=dev` | Sobe as dependências locais do `compose.dev.yaml` (Postgres, Valkey e Mongo) e a API com o profile `dev` |
 
 No **PowerShell**, use o `mvnw.cmd`:
 
@@ -48,7 +48,7 @@ Para apagar também os dados locais: `docker compose -f compose.dev.yaml down -v
 make run
 ```
 
-O profile `dev` aponta para o Postgres do `compose.dev.yaml` (`localhost:5432`, banco/usuário/senha `linkpulse`, só no loopback) e aplica o changeset de seed `demo-link`, que existe **só no profile dev**. Em outro terminal:
+O profile `dev` aponta para o Postgres do `compose.dev.yaml` (`localhost:5432`, banco/usuário/senha `linkpulse`, só no loopback) e para o Valkey do mesmo arquivo (`127.0.0.1:6379`), e aplica o changeset de seed `demo-link`, que existe **só no profile dev**. Em outro terminal:
 
 ```bash
 curl -i http://localhost:8080/demo-link
@@ -57,10 +57,29 @@ curl -i http://localhost:8080/demo-link
 # Cache-Control: no-store, private
 ```
 
-- Swagger UI: <http://localhost:8080/swagger-ui.html> (spec em <http://localhost:8080/v3/api-docs>)
-- Health: <http://localhost:8081/actuator/health>. O Actuator fica numa porta separada (8081) e expõe só `health` e `info`.
+Cada redirect vira um clique: a API publica o evento no stream `lp:clicks` do Valkey sem esperar, e um consumer group lê o stream em lote e grava cada clique como um documento na coleção `click_events` do Mongo do `compose.dev.yaml` (`127.0.0.1:27017`, banco `linkpulse`). O documento guarda o código, o instante, o host do `Referer` e o hash do IP; o IP em claro e o user-agent cru não são gravados. Para ver os cliques chegando:
 
-Fora do profile dev, o datasource vem por variável de ambiente (`SPRING_DATASOURCE_URL`, `SPRING_DATASOURCE_USERNAME`, `SPRING_DATASOURCE_PASSWORD`). As credenciais `linkpulse` valem só para o Postgres local de desenvolvimento.
+```bash
+docker compose -f compose.dev.yaml exec mongo mongosh linkpulse --eval 'db.click_events.find().limit(3)'
+```
+
+- Swagger UI: <http://localhost:8080/swagger-ui.html> (spec em <http://localhost:8080/v3/api-docs>)
+- Health: <http://localhost:8081/actuator/health>. O Actuator fica numa porta separada (8081) e expõe `health`, `info` e `prometheus` (<http://localhost:8081/actuator/prometheus>, com hit/miss do cache em `linkpulse_cache_requests_total` e o histograma de latência em `http_server_requests_seconds_bucket`).
+
+### Demonstração: o redirect sem o Valkey
+
+O Valkey é só cache e fila de cliques; o Postgres continua sendo a fonte da verdade. Com a API rodando, pare o Valkey:
+
+```bash
+docker compose -f compose.dev.yaml stop valkey
+curl -i http://localhost:8080/demo-link
+# HTTP/1.1 302
+# Location: https://example.com/
+```
+
+O redirect continua respondendo 302 pelo Postgres, sem atraso perceptível: o Lettuce tem timeout de comando de 150 ms e de conexão de 250 ms, rejeita comandos na hora com a conexão caída e, depois de uma falha, o cache fica desviado por 2 s (`linkpulse.cache.bypass-cooldown`). A falha aparece em `curl -s http://localhost:8081/actuator/prometheus | grep linkpulse_cache` (`result="error"` e `result="bypass"`) e em `linkpulse_valkey_unavailable_total`. Para voltar: `docker compose -f compose.dev.yaml start valkey`.
+
+Fora do profile dev, as conexões vêm por variável de ambiente: o datasource (`SPRING_DATASOURCE_URL`, `SPRING_DATASOURCE_USERNAME`, `SPRING_DATASOURCE_PASSWORD`), o Valkey (`SPRING_DATA_REDIS_HOST`, `SPRING_DATA_REDIS_PORT`) e o MongoDB (`SPRING_MONGODB_URI`; o banco continua `linkpulse`, fixado em `spring.mongodb.database`). As credenciais `linkpulse` valem só para o Postgres local de desenvolvimento.
 
 ## API
 
@@ -122,6 +141,46 @@ curl -i http://localhost:8080/minha-promo
 
 O `Cache-Control: no-store, private` impede que navegador ou proxy guardem o redirect. Assim, um link expirado para de redirecionar na hora.
 
+### Ver estatísticas: `GET /links/{code}/stats`
+
+```bash
+curl -s 'http://localhost:8080/links/minha-promo/stats?from=2026-10-01&to=2026-10-03&includeBots=true'
+```
+
+```json
+{
+  "code": "minha-promo",
+  "from": "2026-10-01",
+  "to": "2026-10-03",
+  "includeBots": true,
+  "total": 5,
+  "daily": [
+    { "date": "2026-10-01", "clicks": 3 },
+    { "date": "2026-10-02", "clicks": 0 },
+    { "date": "2026-10-03", "clicks": 2 }
+  ],
+  "topReferrers": [
+    { "value": "news.example.com", "clicks": 3 },
+    { "value": "(direct)", "clicks": 2 }
+  ],
+  "topBrowsers": [
+    { "value": "Firefox", "clicks": 3 },
+    { "value": "Other", "clicks": 2 }
+  ],
+  "topOs": [
+    { "value": "Linux", "clicks": 3 },
+    { "value": "Other", "clicks": 2 }
+  ]
+}
+```
+
+- **Período**: `from` e `to` são datas `YYYY-MM-DD`, inclusivas e agrupadas em **UTC**. Sem os dois, o período é os últimos 30 dias (`to` = hoje em UTC). Com só `from`, `to` é hoje; com só `to`, `from` é `to` menos 29 dias. O máximo é 366 dias. A resposta sempre ecoa o `from` e o `to` efetivos, e total, série e tops usam o mesmo período.
+- **Série diária**: contínua do `from` ao `to`, com `0` nos dias sem clique. Um link sem cliques devolve `total: 0` e tops vazios.
+- **Tops**: até 10 itens por dimensão, ordenados por cliques e, no empate, pelo valor. O referrer é o host de origem, ou `(direct)` quando não houve `Referer`. Navegador e SO são famílias, sem versão (`Other` quando não reconhecidos).
+- **Bots**: crawlers, previews de link, navegadores headless e clientes de linha de comando ou de biblioteca (`curl`, `wget`, `k6`, `python-requests`...) ficam fora por padrão. **O próprio `curl` conta como bot**: quem testa pelo terminal deve consultar com `includeBots=true` (ou mandar um `User-Agent` de navegador no redirect).
+- Os cliques chegam ao MongoDB de forma assíncrona: logo depois do redirect, o total pode levar alguns instantes para subir.
+- Link expirado continua com estatísticas (o 410 é só do redirect). A resposta só traz agregados, nunca o hash do IP nem outro dado por visitante.
+
 ## Regras
 
 - **Alias** (opcional): casa com `^(?=.*[-_])[A-Za-z0-9_-]{4,32}$`, ou seja, de 4 a 32 caracteres entre letras, dígitos, `-` e `_`, com **pelo menos um `-` ou `_`**. Os códigos gerados são só alfanuméricos, então um alias nunca colide com um código que a sequência ainda vai gerar.
@@ -136,6 +195,7 @@ O `Cache-Control: no-store, private` impede que navegador ou proxy guardem o red
   A checagem **não resolve DNS**: um domínio de terceiros que aponte para o encurtador só é barrado se estiver em `LINKPULSE_SELF_HOSTS` (ver "Riscos conhecidos").
 - **`expiresAt`** (opcional): ISO-8601 **com offset** (`2026-12-31T23:59:59Z` ou `2026-12-31T20:59:59-03:00`) e **no futuro**. Sem offset, a resposta é 400 `malformed-request`. No passado, 400 `validation-error`. A partir do instante de expiração, o redirect responde 410.
 - A **mesma URL enviada duas vezes gera dois links** diferentes. Não há deduplicação.
+- **Rate limit**: o `POST /links` aceita **20 criações por minuto por IP**, em janela fixa (o contador zera no início de cada minuto). Acima disso a resposta é 429 `rate-limited` com o header `Retry-After` (segundos até a próxima janela). O redirect (`GET /{code}`), o `HEAD` e o `/stats` não têm limite. Com o Valkey fora, o limite é desligado (fail-open): a criação continua funcionando e a queda aparece em `linkpulse_ratelimit_requests_total{result="error"}`. O IP vem do socket; o `X-Forwarded-For` só vale quando chega de um proxy listado em `SERVER_TOMCAT_REMOTEIP_INTERNAL_PROXIES` (vazio por padrão, ou seja, o header é ignorado). O IP nunca vai em claro para o Valkey: a chave usa o mesmo HMAC de `LINKPULSE_IP_HASH_KEY`.
 
 ## Erros (Problem Details, RFC 9457)
 
@@ -146,9 +206,13 @@ Todo erro sai como `application/problem+json`. O `type` é uma URI relativa no f
 | `/problems/validation-error` | 400 | Campo inválido: URL, alias (formato ou reservado) ou `expiresAt` no passado | `errors[{field, message}]` |
 | `/problems/malformed-request` | 400 | Corpo que não é JSON válido ou campo em formato errado (por exemplo, `expiresAt` sem offset) | — |
 | `/problems/alias-conflict` | 409 | O alias pedido já existe | `alias` |
-| `/problems/link-not-found` | 404 | `GET /{code}` de um código inexistente | `code` |
+| `/problems/invalid-period` | 400 | `/stats` com `from` depois de `to` ou período acima de 366 dias | `from`, `to`, `maxDays` |
+| `/problems/invalid-parameter` | 400 | Parâmetro em formato inválido, como `from=2026-13-01` ou `includeBots=talvez` (o valor recebido não é ecoado) | `parameter` |
+| `/problems/link-not-found` | 404 | `GET /{code}` ou `GET /links/{code}/stats` de um código inexistente | `code` |
 | `/problems/link-expired` | 410 | `GET /{code}` de um link expirado | `code`, `expiredAt` |
+| `/problems/rate-limited` | 429 | Acima do limite de criações por IP no `POST /links` | `retryAfterSeconds` (e o header `Retry-After`) |
 | `/problems/internal-error` | 500 | Erro inesperado (detail genérico; o detalhe fica só no log) | — |
+| `/problems/stats-unavailable` | 503 | `/stats` com o MongoDB indisponível; tente de novo em instantes | — |
 
 Exemplo:
 
@@ -178,15 +242,20 @@ Configuração (override por variável de ambiente, via relaxed binding do Sprin
 | `LINKPULSE_CODE_MULTIPLIER` | `2176477521915` | Precisa ser coprimo de `62^7`. Um valor inválido derruba a subida |
 | `LINKPULSE_CODE_ALPHABET` | `0-9A-Za-z` (62 caracteres) | Alfabeto do Base62 |
 | `LINKPULSE_ALIAS_RESERVED` | lista acima | Lista separada por vírgula |
+| `LINKPULSE_RATELIMIT_LIMIT` | `20` | Criações de link aceitas por IP em cada janela; a seguinte responde 429 |
+| `LINKPULSE_RATELIMIT_WINDOW` | `1m` | Tamanho da janela fixa do rate limit. Precisa ser positiva; zero derruba a subida |
+| `LINKPULSE_RATELIMIT_ENABLED` | `true` | Liga o rate limit do `POST /links` |
+| `SERVER_TOMCAT_REMOTEIP_INTERNAL_PROXIES` | vazio | Proxies confiáveis, em CIDR, cujo `X-Forwarded-For` define o IP do cliente. Vazio: nenhum proxy confiável e o header é ignorado. No kind, o CIDR dos pods do Traefik (Phase 4). Não deixe o default do Boot, que confia nas redes privadas e na bridge do Docker |
+| `LINKPULSE_IP_HASH_KEY` | nenhum fora do profile `dev` | **Obrigatória**, com pelo menos 16 caracteres. Chave do HMAC que transforma o IP do cliente em hash antes de publicar o clique; o IP nunca é guardado em claro. Sem ela a aplicação não sobe. O valor nunca aparece no `toString` das propriedades nem em mensagem de erro |
 
 **Trocar `M` ou o alfabeto muda o código de todos os links já publicados**, e os links antigos deixam de funcionar. Escolha uma vez, antes de publicar.
 
 ## Riscos conhecidos
 
 - **Open redirect.** Todo encurtador é, por natureza, um open redirect: qualquer pessoa pode criar um link curto que leva a um site malicioso com cara de link confiável. As mitigações são as regras de URL acima: só `http`/`https`, sem credenciais embutidas (bloqueia `https://banco.com@evil.com`), sem esquemas perigosos (`javascript:`, `data:`, `file:`) e as regras de host da seção "Regras" (próprio encurtador, loopback e IP numérico ofuscado), com a ressalva de DNS do item seguinte. Não há lista de domínios bloqueados nem verificação de reputação.
-- **Loop de redirect via DNS (mitigação parcial).** A checagem de host não resolve DNS: resolver no `POST` adicionaria latência e ainda seria contornável por DNS rebinding (o nome pode mudar entre a criação e o clique). Por isso, um domínio de terceiros que resolva para o encurtador (um DNS curinga que devolve 127.0.0.1, um CNAME para o load balancer) e não esteja em `LINKPULSE_SELF_HOSTS` ainda cria um link em loop; o navegador desiste depois de cerca de 20 saltos. Recomendação: declarar em `LINKPULSE_SELF_HOSTS` todos os hostnames conhecidos do encurtador.
+- **Loop de redirect via DNS (mitigação parcial).** A checagem de host não resolve DNS: resolver no `POST` adicionaria latência e ainda seria contornável por DNS rebinding (o nome pode mudar entre a criação e o clique). Por isso, um domínio de terceiros que resolva para o encurtador (um DNS curinga que devolve 127.0.0.1, um CNAME para o load balancer) e não esteja em `LINKPULSE_SELF_HOSTS` ainda cria um link em loop; o navegador desiste depois de cerca de 20 saltos. Recomendação: declarar em `LINKPULSE_SELF_HOSTS` todos os hostnames conhecidos do encurtador. O rate limit por IP no `POST /links` reduz a escala desse abuso: cada IP cria no máximo 20 links por minuto.
 - **Enumeração.** Ver "Código curto": a ofuscação não impede quem quiser listar os links.
-- **API sem autenticação nem rate limit nesta fase.** O rate limit por IP no `POST /links` entra na Phase 2.
+- **API sem autenticação.** Qualquer cliente cria links. O rate limit por IP no `POST /links` (20 por minuto) é parte da mitigação da criação em massa e do loop via DNS, com dois limites conscientes: é **fail-open** (com o Valkey fora, ninguém é limitado, e a queda fica visível em `linkpulse_ratelimit_requests_total{result="error"}` e `linkpulse_valkey_unavailable_total`) e **não vale para o redirect**, que fica sem custo extra. Um atacante com muitos IPs ainda cria links em escala.
 
 ## Qualidade e CI
 

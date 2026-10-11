@@ -1,6 +1,7 @@
-# Postgres 18 para rodar a API localmente (make db-up / make run).
-# Sem make: docker compose -f compose.dev.yaml up -d --wait
-# Credenciais fixas só para desenvolvimento local; prod recebe SPRING_DATASOURCE_* por env.
+# Dependências para rodar a API localmente (make db-up / make run): Postgres 18, Valkey 8.1 e
+# MongoDB 8.0. Sem make: docker compose -f compose.dev.yaml up -d --wait
+# Credenciais fixas só para desenvolvimento local; prod recebe SPRING_DATASOURCE_*,
+# SPRING_DATA_REDIS_HOST/SPRING_DATA_REDIS_PORT e SPRING_MONGODB_URI por env.
 services:
   postgres:
     image: postgres:18.6
@@ -20,5 +21,34 @@ services:
       timeout: 3s
       retries: 10
 
+  # Cache do redirect (Redis-compatível). volatile-lru só despeja chaves com TTL, como no ElastiCache.
+  valkey:
+    image: valkey/valkey:8.1
+    command: ["valkey-server", "--maxmemory", "256mb", "--maxmemory-policy", "volatile-lru"]
+    # Só no loopback, como o Postgres.
+    ports:
+      - "127.0.0.1:6379:6379"
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # Eventos de clique (coleção click_events do banco linkpulse), gravados pelo consumer do stream.
+  # Sem autenticação: só para desenvolvimento local.
+  mongo:
+    image: mongo:8.0
+    # Só no loopback, como o Postgres e o Valkey.
+    ports:
+      - "127.0.0.1:27017:27017"
+    volumes:
+      - mongodata:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping')"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
 volumes:
   pgdata: {}
+  mongodata: {}

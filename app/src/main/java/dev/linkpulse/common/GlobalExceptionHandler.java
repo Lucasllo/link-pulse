@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.TypeMismatchException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
@@ -39,6 +40,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     private static final URI VALIDATION_ERROR = URI.create("/problems/validation-error");
     private static final URI MALFORMED_REQUEST = URI.create("/problems/malformed-request");
     private static final URI INTERNAL_ERROR = URI.create("/problems/internal-error");
+    private static final URI INVALID_PARAMETER = URI.create("/problems/invalid-parameter");
 
     /**
      * Erros de Bean Validation no corpo viram {@code /problems/validation-error} com
@@ -80,6 +82,27 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         body.setType(MALFORMED_REQUEST);
         body.setTitle("Corpo da requisição inválido");
         return handleExceptionInternal(ex, body, headers, status, request);
+    }
+
+    /**
+     * Parâmetro de query ou de path em formato inválido (por exemplo {@code from=2026-13-01} ou
+     * {@code includeBots=talvez}) vira {@code /problems/invalid-parameter} com a propriedade
+     * {@code parameter}.
+     *
+     * <p>O {@code detail} é fixo e só cita o nome do parâmetro: o valor recebido nunca vai para o
+     * corpo, porque o padrão do Spring o ecoaria junto com o tipo Java esperado.
+     */
+    @Override
+    protected ResponseEntity<Object> handleTypeMismatch(
+            TypeMismatchException ex, HttpHeaders headers, HttpStatusCode status,
+            WebRequest request) {
+        String parameter = String.valueOf(ex.getPropertyName());
+        ProblemDetail body = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST,
+                "O parâmetro '" + parameter + "' tem formato inválido.");
+        body.setType(INVALID_PARAMETER);
+        body.setTitle("Parâmetro inválido");
+        body.setProperty("parameter", parameter);
+        return handleExceptionInternal(ex, body, headers, HttpStatus.BAD_REQUEST, request);
     }
 
     /**

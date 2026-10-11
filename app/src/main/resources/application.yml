@@ -17,13 +17,74 @@ spring:
     contexts: prod
     # O Liquibase OSS envia analytics anônimos por padrão.
     analytics-enabled: false
+  # Valkey (cliente Lettuce). Sem host aqui: o default é localhost:6379; fora do dev, override
+  # por env SPRING_DATA_REDIS_HOST e SPRING_DATA_REDIS_PORT. Os ITs usam @ServiceConnection.
+  data:
+    redis:
+      # Timeout de comando curto: com o Valkey lento ou sem resposta, o cache falha em até 150 ms
+      # e o redirect segue pelo Postgres (fail-open sem fail-slow, Pitfall P1).
+      timeout: 150ms
+      # Timeout de conexão curto: uma (re)conexão não segura o request pelo default de 10 s.
+      connect-timeout: 250ms
+      repositories:
+        # Só o JPA usa repositórios; o Valkey é acessado direto pelo StringRedisTemplate.
+        enabled: false
+    mongodb:
+      repositories:
+        # O MongoDB é acessado pelo MongoTemplate (bulk do consumer e agregações do /stats).
+        type: none
+  # MongoDB dos cliques (coleção click_events). Boot 4: prefixo spring.mongodb.*. Sem host aqui:
+  # o default é localhost:27017 (compose.dev.yaml); fora do dev, override por env
+  # SPRING_MONGODB_URI. O nome do banco fica fixo e prevalece sobre o da connection string do
+  # @ServiceConnection dos ITs.
+  mongodb:
+    database: linkpulse
+  lifecycle:
+    # Cada fase do shutdown espera até 30 s: acima do BLOCK do consumer (2 s) somado ao tempo de
+    # gravação do último lote no MongoDB (Pitfall P14).
+    timeout-per-shutdown-phase: 30s
 
 server:
   port: 8080
+  # Já é o default no Boot 4.1; explícito para documentar: o web server para de aceitar requests
+  # antes de o publisher esvaziar a fila e de o consumer gravar o último lote.
+  shutdown: graceful
+  # IP real do cliente pelo RemoteIpValve do Tomcat (RATE-02, D-08). O código só lê
+  # getRemoteAddr(); é o valve que decide se o X-Forwarded-For vale.
+  forward-headers-strategy: native
+  tomcat:
+    remoteip:
+      # Vazio = nenhum proxy confiável: o X-Forwarded-For é ignorado e o IP vem do socket. Explícito
+      # de propósito: o default do Boot confiaria na rede bridge do Docker (10/8, 172.16/12,
+      # 192.168/16, 127/8) e qualquer cliente burlaria o rate limit com um header forjado
+      # (Pitfall P5). Override por env SERVER_TOMCAT_REMOTEIP_INTERNAL_PROXIES; no kind, o CIDR dos
+      # pods do Traefik (Phase 4). Use CIDR: regex é deprecated no Tomcat 11.
+      internal-proxies: ""
 
 # Override por env via relaxed binding: LINKPULSE_BASE_URL, LINKPULSE_CODE_ALPHABET,
 # LINKPULSE_CODE_MULTIPLIER, LINKPULSE_ALIAS_RESERVED (lista separada por vírgula),
-# LINKPULSE_SELF_HOSTS (lista separada por vírgula).
+# LINKPULSE_SELF_HOSTS (lista separada por vírgula) e LINKPULSE_IP_HASH_KEY (chave do HMAC do IP;
+# obrigatória fora do profile dev, pelo menos 16 caracteres; sem default aqui de propósito).
+#
+# Publicação dos cliques no stream (sem chave aqui; os defaults ficam no LinkPulseProperties):
+#   linkpulse.clicks.stream-key=lp:clicks          (LINKPULSE_CLICKS_STREAM_KEY)
+#   linkpulse.clicks.max-len=100000                (LINKPULSE_CLICKS_MAX_LEN, XADD MAXLEN ~)
+#   linkpulse.clicks.publisher.threads=2           (LINKPULSE_CLICKS_PUBLISHER_THREADS)
+#   linkpulse.clicks.publisher.queue-capacity=10000 (LINKPULSE_CLICKS_PUBLISHER_QUEUE_CAPACITY)
+#
+# Consumo do stream pelo consumer group que grava em click_events no MongoDB:
+#   linkpulse.clicks.group=click-writers           (LINKPULSE_CLICKS_GROUP)
+#   linkpulse.clicks.retention=90d                 (LINKPULSE_CLICKS_RETENTION, índice TTL)
+#   linkpulse.clicks.consumer.enabled=true         (LINKPULSE_CLICKS_CONSUMER_ENABLED)
+#   linkpulse.clicks.consumer.batch-size=500       (LINKPULSE_CLICKS_CONSUMER_BATCH_SIZE, COUNT)
+#   linkpulse.clicks.consumer.block=2s             (LINKPULSE_CLICKS_CONSUMER_BLOCK, BLOCK)
+#   linkpulse.clicks.consumer.reclaim-interval=30s (LINKPULSE_CLICKS_CONSUMER_RECLAIM_INTERVAL)
+#   linkpulse.clicks.consumer.min-idle=60s         (LINKPULSE_CLICKS_CONSUMER_MIN_IDLE, XPENDING IDLE)
+#
+# Rate limit do POST /links por IP, em janela fixa no Valkey (D-08):
+#   linkpulse.ratelimit.enabled=true               (LINKPULSE_RATELIMIT_ENABLED)
+#   linkpulse.ratelimit.limit=20                   (LINKPULSE_RATELIMIT_LIMIT, criações por janela)
+#   linkpulse.ratelimit.window=1m                  (LINKPULSE_RATELIMIT_WINDOW)
 linkpulse:
   # Base da shortUrl (D-12); compose/kind/ECS sobrescrevem por env. Precisa ser uma URL http ou
   # https absoluta, com host e sem credenciais, query ou fragmento: valor inválido derruba a subida.
@@ -60,4 +121,10 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info
+        # prometheus: /actuator/prometheus na porta de gerenciamento (8081), raspado pelo Prometheus.
+        include: health,info,prometheus
+  metrics:
+    distribution:
+      percentiles-histogram:
+        # Histograma de http.server.requests: p95/p99 via histogram_quantile no Prometheus.
+        http.server.requests: true

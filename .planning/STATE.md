@@ -1,44 +1,44 @@
 ---
 gsd_state_version: "1.0"
-current_phase: 02
-current_phase_name: hot-path-no-valkey-e-pipeline-de-cliques
-status: executing
-stopped_at: Phase 2 context gathered
-last_updated: "2026-10-10T15:26:34.285Z"
-last_activity: 2026-10-09
-last_activity_desc: Phase 1 complete, transitioned to Phase 2
-state_head: dd3268dc567d5492a3cacff118db82d130794acb
+current_phase: 3
+current_phase_name: Stack local observável
+status: planning
+stopped_at: Phase 02 complete, ready to plan Phase 3
+last_updated: "2026-10-11T22:19:45.853Z"
+last_activity: 2026-10-11
+last_activity_desc: Phase 02 complete, transitioned to Phase 3
+state_head: 214f4dc1e197e05668199e108c2b28410717b310
 progress:
   total_phases: 5
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 17
-  completed_plans: 8
-  percent: 20
+  completed_plans: 17
+  percent: 40
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-10-09)
+See: .planning/PROJECT.md (updated 2026-10-11)
 
 **Core value:** Um avaliador clona o repositório, roda `make up` (compose) ou `make k8s` (kind + Prometheus/Grafana) e vê um encurtador funcionando de ponta a ponta, com redirect rápido via cache e métricas reais nos dashboards versionados.
-**Current focus:** Phase 2 — Hot path no Valkey e pipeline de cliques
+**Current focus:** Phase 3 — Stack local observável
 
 ## Current Position
 
-Phase: 02 (hot-path-no-valkey-e-pipeline-de-cliques) — READY TO EXECUTE
+Phase: 3 — Stack local observável
 Plan: Not started
-Status: Ready to execute
-Last activity: 2026-10-09 - Completed quick task 261009-tdc: Criar pasta estudos com material didático sobre estrutura e tecnologias
+Status: Ready to plan
+Last activity: 2026-10-11 — Phase 02 complete, transitioned to Phase 3
 
-Progress: [██░░░░░░░░] 20%
+Progress: [████░░░░░░] 40%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 8
+- Total plans completed: 17
 - Average duration: -
 - Total execution time: 0.0 hours
 
@@ -47,6 +47,7 @@ Progress: [██░░░░░░░░] 20%
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 1 | 8 | - | - |
+| 02 | 9 | - | - |
 
 **Recent Trend:**
 
@@ -66,6 +67,15 @@ Progress: [██░░░░░░░░] 20%
 | Phase 01 P06 | 8min | 2 tasks | 8 files |
 | Phase 01 P07 | 7min | 2 tasks | 6 files |
 | Phase 01 P08 | 14 min | 3 tasks | 9 files |
+| Phase 02 P01 | 14min | 2 tasks | 12 files |
+| Phase 02 P02 | 13min | 2 tasks | 11 files |
+| Phase 02 P03 | 22 min | 2 tasks | 13 files |
+| Phase 02 P04 | 15 min | 2 tasks | 14 files |
+| Phase 02 P05 | 13 min | 2 tasks | 9 files |
+| Phase 02 P06 | 13 min | 2 tasks | 8 files |
+| Phase 02 P07 | 18min | 3 tasks | 10 files |
+| Phase 02 P08 | 28min | 3 tasks | 6 files |
+| Phase 02 P09 | 21 min | 3 tasks | 14 files |
 
 ## Accumulated Context
 
@@ -96,6 +106,31 @@ Decisões recentes que afetam o trabalho atual:
 - [Phase 01]: 01-08: host numérico só é aceito na forma canônica a.b.c.d (regra WHATWG ends-in-a-number); TargetHostPolicy nunca resolve DNS
 - [Phase 01]: 01-08: LINKPULSE_SELF_HOSTS (linkpulse.self-hosts) vira contrato de configuração das Phases 3-5; binding com underscore confirmado no Boot 4.1.1
 - [Phase 01]: 01-08: linkpulse.base-url inválida derruba a subida (mensagem fixa, sem ecoar o valor); T-06-03 substituído por T-08-01 e T-08-06 (mitigação parcial por DNS)
+- [Phase 02]: 02-01: valores de lp:link:{code} são L|<ISO-8601 ou ->|<url>, N e G|<ISO-8601>; instantes em Instant.toString(), nunca epoch; formato fora do padrão = miss
+- [Phase 02]: 02-01: LinkService.resolve saiu; RedirectService (sem transação) consulta o cache e só chama LinkService.find (read-only) no miss
+- [Phase 02]: 02-01: construtor do LinkCache = (StringRedisTemplate, LinkPulseProperties, Clock, MeterRegistry); a 02-03 insere ValkeyAvailability como segundo parâmetro
+- [Phase 02]: 02-01: LinkService.create apaga lp:link:{code} no afterCommit (record EvictAfterCommit), sempre; janela residual limitada ao negative-ttl
+- [Phase 02]: 02-02: stream lp:clicks com campos code, ts (epoch ms em texto), ref (host ou (direct)), ua (até 512, vazio se ausente) e iph (HMAC hex de 64); contrato lido pelo consumer da 02-04
+- [Phase 02]: 02-02: iph = HMAC-SHA256(linkpulse.ip-hash-key, '<dia UTC>|<ip>'); LINKPULSE_IP_HASH_KEY (>= 16 caracteres) é obrigatória fora do dev e vira contrato de configuração das Phases 3-5; o rate limit da 02-09 reusa a chave
+- [Phase 02]: 02-02: construtor do ClickPublisher = (StringRedisTemplate, IpHasher, LinkPulseProperties.Clicks, Clock, MeterRegistry); a 02-03 insere ValkeyAvailability como segundo parâmetro
+- [Phase 02]: 02-02: RedirectController publica só depois do resolve e só em GET (HttpMethod.GET.matches); Referer normalizado ao host na ingestão, (direct) quando não há host
+- [Phase 02]: 02-04: click_events nesta fase = _id (ID do stream), code, ts (Date), referrer, ipHash; a 02-05 acrescenta browser, os e isBot
+- [Phase 02]: 02-04: assumption A8 confirmada (spring.mongodb.database=linkpulse prevalece sobre o @ServiceConnection)
+- [Phase 02]: 02-04: bean do container Mongo dos ITs = mongoContainer (mongo já é o MongoClient do Boot)
+- [Phase 02]: 02-04: consumer com fábrica Lettuce dedicada (timeout block + 3 s), XACK só depois do bulk UNORDERED
+- [Phase 02]: 02-05: clientes HTTP de linha de comando (curl, wget, python-requests, Go/Java http client, k6) e UA vazio contam como bot; okhttp não. Seed (Phase 3) e smoke (Phase 4) precisam de UA de navegador ou includeBots=true
+- [Phase 02]: 02-05: índices code_ts e ts_ttl criados pelo consumer no loop (com backoff), nunca na subida; mudança de retenção usa collMod
+- [Phase 02]: 02-05: driver do Mongo com server selection 3 s, connect 2 s e read 5 s (MongoConfig); contingência A4 não foi necessária
+- [Phase 02]: [02-06] Reclaim por XPENDING IDLE + XCLAIM tipados (sem XAUTOCLAIM), a cada reclaim-interval (30s) para pendentes parados há min-idle (60s), paginado até 20 páginas; ClickStreamConsumer recebe Clock no construtor (a 02-08 depende dele)
+- [Phase 02]: [02-06] Sem limite de reentregas: só saem do PEL sem documento as entradas que não existem mais no stream (XRANGE id id vazio), confirmadas e contadas em linkpulse.clicks.lost; A5 confirmada (XCLAIM do Valkey 8.1 já remove do PEL as apagadas)
+- [Phase 02]: 02-07: contrato JSON do /stats travado ({code, from, to, includeBots, total, daily[{date, clicks}], topReferrers/topBrowsers/topOs[{value, clicks}]}, datas YYYY-MM-DD); documentos sem isBot contam como humanos e valores nulos nos tops viram (unknown)
+- [Phase 02]: 02-07: Mongo fora no /stats vira 503 /problems/stats-unavailable (~8 s com os timeouts do driver); parâmetro malformado vira /problems/invalid-parameter sem ecoar o valor
+- [Phase 02]: 02-08: ClickStreamConsumer e ClickPublisher são reiniciáveis (stop libera fábrica/executor, start recria, destroy é terminal): o Spring Framework 7 pausa e retoma contextos de teste em cache
+- [Phase 02]: 02-08: gauges linkpulse_clicks_stream_pending/lag/length são do grupo; dashboards e alerta de lag usam max(), lag NaN = indefinido
+- [Phase 02]: 02-08: spring-boot-micrometer-metrics-test dispensado; /actuator/prometheus responde em @SpringBootTest RANDOM_PORT no Boot 4.1.1 sem @AutoConfigureMetrics
+- [Phase 02]: Rate limit do POST /links: script Lua de janela fixa (INCR + PEXPIRE quando sem TTL), chave lp:rl:{hmac}:{janela}, fail-open pelo ValkeyAvailability e linkpulse.ratelimit.requests{result}
+- [Phase 02]: IP real só via RemoteIpValve: forward-headers-strategy native e internal-proxies vazio por padrão; SERVER_TOMCAT_REMOTEIP_INTERNAL_PROXIES (forma com _) faz binding; Phase 4 usa o CIDR dos pods do Traefik
+- [Phase 02]: A2 confirmada: ErrorResponseException no preHandle vira 429 problem+json com Retry-After pelo GlobalExceptionHandler
 
 ### Pending Todos
 
@@ -104,8 +139,9 @@ None yet.
 ### Blockers/Concerns
 
 - [Phase 1 → todas]: `linkpulse.code.alphabet`/`multiplier` são contrato one-way: mudar depois altera os códigos já emitidos
-- [Phase 1 → 2]: Loop de redirect via DNS segue como mitigação parcial (T-08-06); o rate limit por IP da Phase 2 (RATE-01) é parte da mitigação
-- [Phase 2]: Pesquisar a API do Spring Data Redis na versão do Boot 4.1 (`cancelOnError`, `BLOCK` com Lettuce, `XAUTOCLAIM`) e o desenho dos testes de reentrega; `maxmemory-policy volatile-lru` em todos os ambientes
+- [Phase 1]: Loop de redirect via DNS segue como mitigação parcial (T-08-06), agora reforçada pelo rate limit por IP entregue na Phase 2
+- [Phase 2 → 3]: `maxmemory-policy volatile-lru` precisa ir para o Valkey do `make up` (e do kind na Phase 4); `LINKPULSE_IP_HASH_KEY` obrigatória fora do dev; seed/k6 precisam de UA de navegador ou `includeBots=true`
+- [Phase 2]: WR-01 aceito na UAT: com Valkey pausado/particionado, requisições concorrentes no fim da janela de bypass pagam ~150 ms (limitação conhecida, documentada)
 - [Phase 4]: Pesquisar versões atuais dos charts Traefik, kube-prometheus-stack e metrics-server, seletores (`*SelectorNilUsesHelmValues`) e sidecar de dashboards
 - [Phase 5]: Spike do token do LocalStack Hobby e do `mock_provider`; sem token, a validação fica nas camadas lint + `terraform test`
 
@@ -114,6 +150,7 @@ None yet.
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
 | 261009-tdc | Criar pasta estudos com material didático sobre estrutura e tecnologias | 2026-10-09 | 4d759c6 | [261009-tdc-criar-pasta-estudos-com-material-did-tic](./quick/261009-tdc-criar-pasta-estudos-com-material-did-tic/) |
+| 2 | Configurar Dependabot para ignorar apache-maven 3.10.x e fechar o PR #2 | 2026-10-11 | 9e5adc5 | — |
 
 ## Deferred Items
 
@@ -125,6 +162,6 @@ Itens reconhecidos e adiados no fechamento de milestone, do mais recente para o 
 
 ## Session Continuity
 
-Last session: 2026-10-10T13:32:51.589Z
-Stopped at: Phase 2 context gathered
-Resume file: .planning/phases/02-hot-path-no-valkey-e-pipeline-de-cliques/02-CONTEXT.md
+Last session: 2026-10-11T22:20:00Z
+Stopped at: Phase 02 complete, ready to plan Phase 3
+Resume file: None

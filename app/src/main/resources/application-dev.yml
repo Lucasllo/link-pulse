@@ -7,3 +7,8 @@ spring:
   liquibase:
     # Ativa os changesets com contextFilter: dev (seed demo-link).
     contexts: dev
+
+linkpulse:
+  # Chave do HMAC do IP válida só para desenvolvimento local; não é segredo. Fora do dev a chave
+  # vem de LINKPULSE_IP_HASH_KEY (obrigatória, pelo menos 16 caracteres).
+  ip-hash-key: dev-only-ip-hash-key-not-a-secret
