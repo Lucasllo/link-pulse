@@ -23,7 +23,7 @@ Requisitos da entrega inicial. Cada um é mapeado para uma fase do roadmap.
 - [x] **REDIR-03**: Lookup usa cache-aside no Valkey com TTL = min(padrão, tempo até expirar), com negative caching (404/410) invalidado na criação do link
 - [ ] **REDIR-04**: Hit/miss do cache é medido em métrica
 - [ ] **REDIR-05**: Com o Valkey indisponível, o redirect continua funcionando via Postgres (fail-open) e o problema aparece em métrica
-- [ ] **REDIR-06**: Requisições HEAD não contam clique
+- [x] **REDIR-06**: Requisições HEAD não contam clique
 
 ### Cliques (pipeline assíncrono)
 
@@ -151,7 +151,7 @@ Rastreabilidade: quais fases cobrem quais requisitos. Preenchido na criação do
 | REDIR-03 | Phase 2 | Complete |
 | REDIR-04 | Phase 2 | Pending |
 | REDIR-05 | Phase 2 | Pending |
-| REDIR-06 | Phase 2 | Pending |
+| REDIR-06 | Phase 2 | Complete |
 | CLICK-01 | Phase 2 | Pending |
 | CLICK-02 | Phase 2 | Pending |
 | CLICK-03 | Phase 2 | Pending |

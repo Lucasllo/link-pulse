@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 02
 current_phase_name: Hot path no Valkey e pipeline de cliques
 status: executing
-stopped_at: Completed 02-01-PLAN.md
-last_updated: "2026-10-11T15:15:53.837Z"
+stopped_at: Completed 02-02-PLAN.md
+last_updated: "2026-10-11T15:32:57.923Z"
 last_activity: 2026-10-11
 last_activity_desc: Phase 02 execution started
-state_head: dfa6ffda4df84b7a4f53af2c46b8ecbce6851fd6
+state_head: a5f6be7e8cf701979219dea387fccdda8ee7b33b
 progress:
   total_phases: 5
   completed_phases: 1
   total_plans: 17
-  completed_plans: 9
+  completed_plans: 10
   percent: 20
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-10-09)
 ## Current Position
 
 Phase: 02 (Hot path no Valkey e pipeline de cliques) — EXECUTING
-Plan: 2 of 9
+Plan: 3 of 9
 Status: Ready to execute
 Last activity: 2026-10-11 — Phase 02 execution started
 
@@ -67,6 +67,7 @@ Progress: [██░░░░░░░░] 20%
 | Phase 01 P07 | 7min | 2 tasks | 6 files |
 | Phase 01 P08 | 14 min | 3 tasks | 9 files |
 | Phase 02 P01 | 14min | 2 tasks | 12 files |
+| Phase 02 P02 | 13min | 2 tasks | 11 files |
 
 ## Accumulated Context
 
@@ -101,6 +102,10 @@ Decisões recentes que afetam o trabalho atual:
 - [Phase 02]: 02-01: LinkService.resolve saiu; RedirectService (sem transação) consulta o cache e só chama LinkService.find (read-only) no miss
 - [Phase 02]: 02-01: construtor do LinkCache = (StringRedisTemplate, LinkPulseProperties, Clock, MeterRegistry); a 02-03 insere ValkeyAvailability como segundo parâmetro
 - [Phase 02]: 02-01: LinkService.create apaga lp:link:{code} no afterCommit (record EvictAfterCommit), sempre; janela residual limitada ao negative-ttl
+- [Phase 02]: 02-02: stream lp:clicks com campos code, ts (epoch ms em texto), ref (host ou (direct)), ua (até 512, vazio se ausente) e iph (HMAC hex de 64); contrato lido pelo consumer da 02-04
+- [Phase 02]: 02-02: iph = HMAC-SHA256(linkpulse.ip-hash-key, '<dia UTC>|<ip>'); LINKPULSE_IP_HASH_KEY (>= 16 caracteres) é obrigatória fora do dev e vira contrato de configuração das Phases 3-5; o rate limit da 02-09 reusa a chave
+- [Phase 02]: 02-02: construtor do ClickPublisher = (StringRedisTemplate, IpHasher, LinkPulseProperties.Clicks, Clock, MeterRegistry); a 02-03 insere ValkeyAvailability como segundo parâmetro
+- [Phase 02]: 02-02: RedirectController publica só depois do resolve e só em GET (HttpMethod.GET.matches); Referer normalizado ao host na ingestão, (direct) quando não há host
 
 ### Pending Todos
 
@@ -131,6 +136,6 @@ Itens reconhecidos e adiados no fechamento de milestone, do mais recente para o 
 
 ## Session Continuity
 
-Last session: 2026-10-11T15:15:53.739Z
-Stopped at: Completed 02-01-PLAN.md
+Last session: 2026-10-11T15:32:26.334Z
+Stopped at: Completed 02-02-PLAN.md
 Resume file: None
