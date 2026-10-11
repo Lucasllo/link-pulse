@@ -9,8 +9,10 @@ import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.time.Clock;
 import java.time.Duration;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import org.bson.Document;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.redis.autoconfigure.DataRedisConnectionDetails;
@@ -18,7 +20,11 @@ import org.springframework.dao.DataAccessResourceFailureException;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
+import org.springframework.data.redis.connection.stream.Consumer;
 import org.springframework.data.redis.connection.stream.MapRecord;
+import org.springframework.data.redis.connection.stream.ReadOffset;
+import org.springframework.data.redis.connection.stream.StreamOffset;
+import org.springframework.data.redis.connection.stream.StreamReadOptions;
 import org.springframework.data.redis.core.StringRedisTemplate;
 
 /**
@@ -99,6 +105,26 @@ class ClickRedeliveryIT extends AbstractIT {
         return counter == null ? 0 : counter.count();
     }
 
+    /**
+     * Simula um consumer que leu entradas e morreu antes do {@code XACK}: cria o grupo do início
+     * do stream e lê tudo como {@code dead-1}, sem confirmar. A leitura não usa {@code BLOCK},
+     * então o template do contexto (timeout curto) serve.
+     *
+     * @param fixture stream e grupo do teste
+     * @return as entradas que ficaram pendentes com {@code dead-1}
+     */
+    // O read recebe StreamOffset<K>... (varargs genérico): o aviso é só da criação do array.
+    @SuppressWarnings("unchecked")
+    private List<MapRecord<String, Object, Object>> readAsDeadConsumer(Fixture fixture) {
+        redis.opsForStream().createGroup(fixture.stream(), ReadOffset.from("0"), fixture.group());
+        List<MapRecord<String, Object, Object>> read = redis.opsForStream().read(
+                Consumer.from(fixture.group(), "dead-1"),
+                StreamReadOptions.empty().count(10),
+                StreamOffset.create(fixture.stream(), ReadOffset.lastConsumed()));
+        assertThat(read).isNotNull();
+        return read;
+    }
+
     private void cleanUp(Fixture fixture) {
         redis.delete(fixture.stream());
         mongo.dropCollection(fixture.collection());
@@ -144,6 +170,88 @@ class ClickRedeliveryIT extends AbstractIT {
             if (healthy != null) {
                 healthy.stop();
             }
+            cleanUp(fixture);
+        }
+    }
+
+    @Test
+    void deadConsumerPendingIsReprocessedWithoutDuplicates() {
+        Fixture fixture = Fixture.create();
+        String code = "redeliv-b1";
+        for (int i = 0; i < 6; i++) {
+            addClick(fixture.stream(), code, i);
+        }
+        List<MapRecord<String, Object, Object>> read = readAsDeadConsumer(fixture);
+        assertThat(read).hasSize(6);
+        assertThat(pending(fixture.stream(), fixture.group())).isEqualTo(6);
+
+        // Crash entre o insert e o XACK: as entradas 0, 2 e 4 (intercaladas no lote) já foram
+        // gravadas, e nenhuma foi confirmada.
+        for (int i = 0; i < 6; i += 2) {
+            MapRecord<String, Object, Object> entry = read.get(i);
+            ClickDocument document = ClickDocument
+                    .fromStream(entry.getId().getValue(), entry.getValue())
+                    .orElseThrow();
+            mongo.insert(document, fixture.collection());
+        }
+        assertThat(count(fixture.collection(), code)).isEqualTo(3);
+
+        MeterRegistry registry = new SimpleMeterRegistry();
+        ClickStreamConsumer alive = newConsumer(fixture, "it-alive",
+                new MongoClickEventWriter(mongo, fixture.collection()), Duration.ofMillis(200),
+                registry);
+        try {
+            alive.start();
+
+            await().atMost(WAIT).pollInterval(POLL).ignoreExceptions().untilAsserted(() -> {
+                assertThat(pending(fixture.stream(), fixture.group())).isZero();
+                assertThat(count(fixture.collection(), code)).isEqualTo(6);
+            });
+            List<Object> ids = mongo.find(Query.query(Criteria.where("code").is(code)),
+                    Document.class, fixture.collection()).stream()
+                    .map(document -> document.get("_id"))
+                    .toList();
+            assertThat(ids).containsExactlyInAnyOrderElementsOf(
+                    read.stream().map(entry -> (Object) entry.getId().getValue()).toList());
+            assertThat(counter(registry, "linkpulse.clicks.duplicates"))
+                    .as("linkpulse.clicks.duplicates").isGreaterThanOrEqualTo(3);
+            assertThat(counter(registry, "linkpulse.clicks.claimed"))
+                    .as("linkpulse.clicks.claimed").isGreaterThanOrEqualTo(6);
+        } finally {
+            alive.stop();
+            cleanUp(fixture);
+        }
+    }
+
+    @Test
+    void trimmedPendingEntriesAreAcknowledgedAndCountedAsLost() {
+        Fixture fixture = Fixture.create();
+        String code = "redeliv-c1";
+        for (int i = 0; i < 4; i++) {
+            addClick(fixture.stream(), code, i);
+        }
+        assertThat(readAsDeadConsumer(fixture)).hasSize(4);
+        // O MAXLEN apagou as entradas ainda pendentes (backlog maior que o limite do stream).
+        redis.opsForStream().trim(fixture.stream(), 0);
+        assertThat(redis.opsForStream().size(fixture.stream())).isZero();
+        assertThat(pending(fixture.stream(), fixture.group())).isEqualTo(4);
+
+        MeterRegistry registry = new SimpleMeterRegistry();
+        ClickStreamConsumer alive = newConsumer(fixture, "it-alive",
+                new MongoClickEventWriter(mongo, fixture.collection()), Duration.ofMillis(200),
+                registry);
+        try {
+            alive.start();
+
+            await().atMost(WAIT).pollInterval(POLL).ignoreExceptions().untilAsserted(() -> {
+                assertThat(pending(fixture.stream(), fixture.group()))
+                        .as("PEL depois do reclaim").isZero();
+                assertThat(counter(registry, "linkpulse.clicks.lost"))
+                        .as("linkpulse.clicks.lost").isGreaterThanOrEqualTo(4);
+            });
+            assertThat(count(fixture.collection(), code)).isZero();
+        } finally {
+            alive.stop();
             cleanUp(fixture);
         }
     }
