@@ -53,6 +53,21 @@ class OpenApiIT extends AbstractIT {
     }
 
     @Test
+    void statsDocumentsSuccessAndErrors() {
+        MvcTestResult result = apiDocs();
+
+        assertThat(result).hasStatus(HttpStatus.OK);
+        assertThat(result).bodyJson()
+                .extractingPath("$.paths['/links/{code}/stats'].get.responses")
+                .asMap()
+                .containsKeys("200", "400", "404", "503");
+        assertThat(result).bodyJson()
+                .extractingPath("$.paths['/links/{code}/stats'].get.responses['400'].content")
+                .asMap()
+                .containsKey("application/problem+json");
+    }
+
+    @Test
     void apiDocsDoesNotExposeManagementEndpoints() {
         MvcTestResult result = apiDocs();
 

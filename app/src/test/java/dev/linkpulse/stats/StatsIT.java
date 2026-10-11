@@ -14,13 +14,16 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
+import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.test.web.servlet.assertj.MvcTestResult;
+import org.testcontainers.mongodb.MongoDBContainer;
 
 /**
  * ITs do {@code GET /links/{code}/stats} (STAT-01 a STAT-04, D-01 a D-04).
@@ -39,12 +42,17 @@ class StatsIT extends AbstractIT {
     private static final Duration WAIT = Duration.ofSeconds(30);
     private static final String PROBLEM_JSON = "application/problem+json";
     private static final String IP_HASH = "ab".repeat(32);
+    private static final long MAX_OUTAGE_MILLIS = 15_000;
 
     @Autowired
     private LinkRepository links;
 
     @Autowired
     private MongoTemplate mongo;
+
+    @Autowired
+    @Qualifier("mongoContainer")
+    private MongoDBContainer mongoContainer;
 
     private Link saveLink(String code, Instant expiresAt) {
         Instant now = Instant.now().truncatedTo(ChronoUnit.MICROS);
@@ -67,6 +75,19 @@ class StatsIT extends AbstractIT {
             String os, boolean bot) {
         mongo.insert(new ClickDocument(id, code, ts, referrer, browser, os, bot, IP_HASH),
                 ClickDocument.COLLECTION);
+    }
+
+    /**
+     * Insere um clique de uma hora atrás, dentro do período padrão.
+     */
+    private void insertRecent(String id, String code, String referrer, String browser, String os,
+            boolean bot) {
+        insertClick(id, code, Instant.now().minus(1, ChronoUnit.HOURS), referrer, browser, os,
+                bot);
+    }
+
+    private static Map<String, Object> item(String value, int clicks) {
+        return Map.of("value", value, "clicks", clicks);
     }
 
     private void insertHumanClick(String id, String code, Instant ts) {
@@ -204,5 +225,130 @@ class StatsIT extends AbstractIT {
 
         assertThat(result).hasStatus(HttpStatus.OK);
         assertThat(result).bodyJson().extractingPath("$.total").isEqualTo(1);
+    }
+
+    @Test
+    void topsAreLimitedToTenWithStableTieBreak() {
+        saveLink("stats-top1", null);
+        int n = 0;
+        for (String referrer : List.of("a.example", "a.example", "a.example", "b.example",
+                "b.example", "c.example", "c.example", "(direct)")) {
+            insertRecent("stats-top1-" + n++, "stats-top1", referrer, "Firefox", "Linux", false);
+        }
+        for (int i = 1; i <= 11; i++) {
+            insertRecent("stats-top1-" + n++, "stats-top1", String.format("h%02d.example", i),
+                    "Firefox", "Linux", false);
+        }
+
+        MvcTestResult result = stats("/links/stats-top1/stats");
+
+        assertThat(result).hasStatus(HttpStatus.OK);
+        assertThat(result).bodyJson().extractingPath("$.total").isEqualTo(19);
+        assertThat(result).bodyJson().extractingPath("$.topReferrers").asArray().containsExactly(
+                item("a.example", 3), item("b.example", 2), item("c.example", 2),
+                item("(direct)", 1), item("h01.example", 1), item("h02.example", 1),
+                item("h03.example", 1), item("h04.example", 1), item("h05.example", 1),
+                item("h06.example", 1));
+    }
+
+    @Test
+    void browserAndOsTopsFollowDocuments() {
+        saveLink("stats-top2", null);
+        String[][] agents = {
+            {"Firefox", "Linux"}, {"Firefox", "Linux"}, {"Firefox", "Linux"},
+            {"Firefox", "Windows"}, {"Firefox", "Windows"},
+            {"Chrome", "Linux"}, {"Chrome", "Windows"}
+        };
+        for (int i = 0; i < agents.length; i++) {
+            insertRecent("stats-top2-" + i, "stats-top2", "(direct)", agents[i][0], agents[i][1],
+                    false);
+        }
+
+        MvcTestResult result = stats("/links/stats-top2/stats");
+
+        assertThat(result).hasStatus(HttpStatus.OK);
+        assertThat(result).bodyJson().extractingPath("$.topBrowsers").asArray()
+                .containsExactly(item("Firefox", 5), item("Chrome", 2));
+        assertThat(result).bodyJson().extractingPath("$.topOs").asArray()
+                .containsExactly(item("Linux", 4), item("Windows", 3));
+    }
+
+    @Test
+    void botsAreExcludedByDefaultAndIncludedOnRequest() {
+        saveLink("stats-bot1", null);
+        for (int i = 0; i < 3; i++) {
+            insertRecent("stats-bot1-h" + i, "stats-bot1", "news.example", "Firefox", "Linux",
+                    false);
+        }
+        for (int i = 0; i < 2; i++) {
+            insertRecent("stats-bot1-b" + i, "stats-bot1", "crawler.example", "Other", "Other",
+                    true);
+        }
+
+        MvcTestResult humans = stats("/links/stats-bot1/stats");
+        assertThat(humans).hasStatus(HttpStatus.OK);
+        assertThat(humans).bodyJson().extractingPath("$.total").isEqualTo(3);
+        assertThat(humans).bodyJson().extractingPath("$.includeBots").isEqualTo(false);
+        assertThat(humans).bodyJson().extractingPath("$.topReferrers").asArray()
+                .containsExactly(item("news.example", 3));
+        assertThat(humans).bodyJson().extractingPath("$.topBrowsers").asArray()
+                .containsExactly(item("Firefox", 3));
+        assertThat(humans).bodyJson().extractingPath("$.topOs").asArray()
+                .containsExactly(item("Linux", 3));
+
+        MvcTestResult all = stats("/links/stats-bot1/stats?includeBots=true");
+        assertThat(all).hasStatus(HttpStatus.OK);
+        assertThat(all).bodyJson().extractingPath("$.total").isEqualTo(5);
+        assertThat(all).bodyJson().extractingPath("$.includeBots").isEqualTo(true);
+        assertThat(all).bodyJson().extractingPath("$.topReferrers").asArray()
+                .containsExactly(item("news.example", 3), item("crawler.example", 2));
+        assertThat(all).bodyJson().extractingPath("$.topBrowsers").asArray()
+                .containsExactly(item("Firefox", 3), item("Other", 2));
+        assertThat(all).bodyJson().extractingPath("$.topOs").asArray()
+                .containsExactly(item("Linux", 3), item("Other", 2));
+    }
+
+    @Test
+    void responseNeverExposesIpHash() {
+        saveLink("stats-ip1", null);
+        String firstHash = "0123456789abcdef".repeat(4);
+        String secondHash = "fedcba9876543210".repeat(4);
+        Instant ts = Instant.now().minus(1, ChronoUnit.HOURS);
+        mongo.insert(new ClickDocument("stats-ip1-0", "stats-ip1", ts, "(direct)", "Firefox",
+                "Linux", false, firstHash), ClickDocument.COLLECTION);
+        mongo.insert(new ClickDocument("stats-ip1-1", "stats-ip1", ts, "(direct)", "Other",
+                "Other", true, secondHash), ClickDocument.COLLECTION);
+
+        for (String uri : List.of("/links/stats-ip1/stats",
+                "/links/stats-ip1/stats?includeBots=true")) {
+            MvcTestResult result = stats(uri);
+            assertThat(result).hasStatus(HttpStatus.OK);
+            assertThat(result).bodyJson().extractingPath("$.total").isNotNull();
+            assertThat(body(result)).doesNotContain("ipHash", firstHash, secondHash);
+        }
+    }
+
+    @Test
+    void mongoOutageIsServiceUnavailable() {
+        saveLink("stats-mdown1", null);
+        assertThat(stats("/links/stats-mdown1/stats")).hasStatus(HttpStatus.OK);
+
+        long elapsed;
+        MvcTestResult result;
+        mongoContainer.getDockerClient().pauseContainerCmd(mongoContainer.getContainerId()).exec();
+        try {
+            long start = System.nanoTime();
+            result = stats("/links/stats-mdown1/stats");
+            elapsed = Duration.ofNanos(System.nanoTime() - start).toMillis();
+        } finally {
+            mongoContainer.getDockerClient().unpauseContainerCmd(mongoContainer.getContainerId())
+                    .exec();
+        }
+        System.out.println("StatsIT: tempo até o 503 com o Mongo pausado (ms) = " + elapsed);
+
+        assertProblem(result, HttpStatus.SERVICE_UNAVAILABLE, "/problems/stats-unavailable");
+        assertThat(elapsed).isLessThan(MAX_OUTAGE_MILLIS);
+        await().atMost(WAIT).pollInterval(Duration.ofMillis(250)).untilAsserted(() ->
+                assertThat(stats("/links/stats-mdown1/stats")).hasStatus(HttpStatus.OK));
     }
 }
