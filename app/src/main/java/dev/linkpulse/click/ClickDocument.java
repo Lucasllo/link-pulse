@@ -15,10 +15,13 @@ import org.springframework.data.mongodb.core.mapping.Field;
  * entrada entregue duas vezes bate no índice único do {@code _id} e vira duplicata ignorada, e
  * duas entradas com o mesmo conteúdo continuam sendo dois cliques (IDs diferentes).
  *
- * <p>Privacidade (CLICK-06): o documento guarda só o HMAC do IP ({@code ipHash}) e o host do
- * {@code Referer}. O IP em claro nunca chega ao stream, e o user-agent cru do stream ({@code ua})
- * não vira campo; a 02-05 acrescenta só as famílias de navegador e SO e a marca de bot, entre
- * {@code referrer} e {@code ipHash}.
+ * <p>Privacidade (CLICK-06, D-10): o documento guarda só o HMAC do IP ({@code ipHash}) e o host
+ * do {@code Referer}. O IP em claro nunca chega ao stream, e o user-agent cru do stream
+ * ({@code ua}) não vira campo: ele passa pelo {@link UserAgentClassifier} e sobra só a família
+ * do navegador, a família do SO e a marca de bot ({@code isBot}), sem versões.
+ *
+ * <p>Formato final em {@code click_events}: {@code _id}, {@code _class}, {@code code},
+ * {@code ts}, {@code referrer}, {@code browser}, {@code os}, {@code isBot} e {@code ipHash}.
  *
  * @param id ID da entrada do stream ({@code _id})
  * @param code código curto do link
@@ -47,7 +50,8 @@ public record ClickDocument(@Id String id, String code, Instant ts, String refer
      *
      * <p>Entrada inválida (versão antiga do formato ou escrita à mão no Valkey) devolve vazio em
      * vez de lançar, para não envenenar o lote: o consumer conta e confirma a entrada mesmo
-     * assim. O campo {@code ua} é ignorado de propósito.
+     * assim. O campo {@code ua} é classificado e descartado; ausente vale como vazio, que conta
+     * como bot.
      *
      * @param id ID da entrada no stream
      * @param fields campos da entrada ({@code code}, {@code ts}, {@code ref}, {@code ua},
@@ -74,8 +78,11 @@ public record ClickDocument(@Id String id, String code, Instant ts, String refer
         if (epochMilli <= 0) {
             return Optional.empty();
         }
+        String userAgent = text(fields, ClickPublisher.FIELD_UA);
+        UserAgentClassifier.UserAgentInfo agent =
+                UserAgentClassifier.classify(userAgent == null ? "" : userAgent);
         return Optional.of(new ClickDocument(id, code, Instant.ofEpochMilli(epochMilli), ref,
-                UserAgentClassifier.OTHER, UserAgentClassifier.OTHER, false, ipHash));
+                agent.browser(), agent.os(), agent.bot(), ipHash));
     }
 
     private static String text(Map<?, ?> fields, String name) {
