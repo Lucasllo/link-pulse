@@ -29,7 +29,7 @@ Requisitos da entrega inicial. Cada um é mapeado para uma fase do roadmap.
 
 - [x] **CLICK-01**: Cada redirect publica um evento de clique em Redis Stream sem bloquear nem derrubar o redirect (timeout curto, fail-open, descarte contado em métrica, `MAXLEN ~`)
 - [x] **CLICK-02**: Consumer group lê em lote, grava no MongoDB (`click_events`, coleção normal) e faz XACK só após a escrita
-- [ ] **CLICK-03**: Gravação é idempotente (`_id` = ID da mensagem do stream; duplicatas ignoradas)
+- [x] **CLICK-03**: Gravação é idempotente (`_id` = ID da mensagem do stream; duplicatas ignoradas)
 - [ ] **CLICK-04**: Mensagens pendentes de consumers mortos são recuperadas (XPENDING/XCLAIM ou XAUTOCLAIM); o consumer não para após um erro
 - [ ] **CLICK-05**: No shutdown, o lote em andamento é concluído antes de encerrar (graceful shutdown)
 - [x] **CLICK-06**: IP é armazenado apenas como hash com salt (nunca em claro)
@@ -154,7 +154,7 @@ Rastreabilidade: quais fases cobrem quais requisitos. Preenchido na criação do
 | REDIR-06 | Phase 2 | Complete |
 | CLICK-01 | Phase 2 | Complete |
 | CLICK-02 | Phase 2 | Complete |
-| CLICK-03 | Phase 2 | Pending |
+| CLICK-03 | Phase 2 | Complete |
 | CLICK-04 | Phase 2 | Pending |
 | CLICK-05 | Phase 2 | Pending |
 | CLICK-06 | Phase 2 | Complete |

@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 02
 current_phase_name: Hot path no Valkey e pipeline de cliques
 status: executing
-stopped_at: Completed 02-05-PLAN.md
-last_updated: "2026-10-11T16:32:12.376Z"
+stopped_at: Completed 02-06-PLAN.md
+last_updated: "2026-10-11T16:47:34.868Z"
 last_activity: 2026-10-11
 last_activity_desc: Phase 02 execution started
-state_head: 520ca469185999c4eb0247538e5ac4b4df5e246b
+state_head: d16169d358b5b11cdf511e0529338587d5bc9a94
 progress:
   total_phases: 5
   completed_phases: 1
   total_plans: 17
-  completed_plans: 13
+  completed_plans: 14
   percent: 20
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-10-09)
 ## Current Position
 
 Phase: 02 (Hot path no Valkey e pipeline de cliques) — EXECUTING
-Plan: 6 of 9
+Plan: 7 of 9
 Status: Ready to execute
 Last activity: 2026-10-11 — Phase 02 execution started
 
@@ -71,6 +71,7 @@ Progress: [██░░░░░░░░] 20%
 | Phase 02 P03 | 22 min | 2 tasks | 13 files |
 | Phase 02 P04 | 15 min | 2 tasks | 14 files |
 | Phase 02 P05 | 13 min | 2 tasks | 9 files |
+| Phase 02 P06 | 13 min | 2 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -116,6 +117,8 @@ Decisões recentes que afetam o trabalho atual:
 - [Phase 02]: 02-05: clientes HTTP de linha de comando (curl, wget, python-requests, Go/Java http client, k6) e UA vazio contam como bot; okhttp não. Seed (Phase 3) e smoke (Phase 4) precisam de UA de navegador ou includeBots=true
 - [Phase 02]: 02-05: índices code_ts e ts_ttl criados pelo consumer no loop (com backoff), nunca na subida; mudança de retenção usa collMod
 - [Phase 02]: 02-05: driver do Mongo com server selection 3 s, connect 2 s e read 5 s (MongoConfig); contingência A4 não foi necessária
+- [Phase 02]: [02-06] Reclaim por XPENDING IDLE + XCLAIM tipados (sem XAUTOCLAIM), a cada reclaim-interval (30s) para pendentes parados há min-idle (60s), paginado até 20 páginas; ClickStreamConsumer recebe Clock no construtor (a 02-08 depende dele)
+- [Phase 02]: [02-06] Sem limite de reentregas: só saem do PEL sem documento as entradas que não existem mais no stream (XRANGE id id vazio), confirmadas e contadas em linkpulse.clicks.lost; A5 confirmada (XCLAIM do Valkey 8.1 já remove do PEL as apagadas)
 
 ### Pending Todos
 
@@ -146,6 +149,6 @@ Itens reconhecidos e adiados no fechamento de milestone, do mais recente para o 
 
 ## Session Continuity
 
-Last session: 2026-10-11T16:32:12.285Z
-Stopped at: Completed 02-05-PLAN.md
+Last session: 2026-10-11T16:47:24.812Z
+Stopped at: Completed 02-06-PLAN.md
 Resume file: None
