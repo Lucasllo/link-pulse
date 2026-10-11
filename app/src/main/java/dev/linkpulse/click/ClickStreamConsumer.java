@@ -7,7 +7,9 @@ import io.micrometer.core.instrument.Timer;
 import java.time.Clock;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
@@ -54,6 +56,11 @@ import org.springframework.data.redis.core.StringRedisTemplate;
  * ignora duplicate key (D-05). O comando {@code XAUTOCLAIM} não existe na API do Spring Data
  * Redis; {@code XPENDING IDLE} + {@code XCLAIM} dão o mesmo resultado.
  *
+ * <p>Nenhuma entrada válida é descartada por número de reentregas: com o MongoDB fora por muito
+ * tempo, os cliques esperam no PEL e voltam quando ele volta. As únicas que saem sem documento
+ * são as que não existem mais no stream (aparadas pelo {@code MAXLEN ~} durante um backlog
+ * grande, Pitfall P9): o reclaim as confirma e as conta em {@code linkpulse.clicks.lost}.
+ *
  * <p>Antes da primeira leitura, o loop garante os índices de {@code click_events} com
  * {@link ClickIndexes#ensure()} (D-07, DATA-02). Uma falha (MongoDB fora) cai no mesmo
  * tratamento de erro do resto do ciclo e é tentada de novo depois do backoff, sem ler o stream
@@ -72,6 +79,8 @@ import org.springframework.data.redis.core.StringRedisTemplate;
  *   <li>{@code linkpulse.clicks.duplicates}: documentos que já existiam (entrega repetida);</li>
  *   <li>{@code linkpulse.clicks.invalid}: entradas descartadas por formato inválido;</li>
  *   <li>{@code linkpulse.clicks.claimed}: entradas pendentes assumidas pelo reclaim;</li>
+ *   <li>{@code linkpulse.clicks.lost}: entradas pendentes que já não existiam no stream e foram
+ *       confirmadas sem documento;</li>
  *   <li>{@code linkpulse.clicks.consumer.batch}: tamanho de cada lote lido;</li>
  *   <li>{@code linkpulse.clicks.consumer.write}: duração da escrita, com
  *       {@code outcome=success|failure};</li>
@@ -106,6 +115,7 @@ public class ClickStreamConsumer implements SmartLifecycle, DisposableBean {
     private final Counter invalid;
     private final Counter errors;
     private final Counter claimed;
+    private final Counter lost;
     private final DistributionSummary batchSizes;
     private final Timer writeSuccess;
     private final Timer writeFailure;
@@ -166,6 +176,9 @@ public class ClickStreamConsumer implements SmartLifecycle, DisposableBean {
                 .register(registry);
         this.claimed = Counter.builder("linkpulse.clicks.claimed")
                 .description("Entradas pendentes do grupo assumidas pelo reclaim (XCLAIM)")
+                .register(registry);
+        this.lost = Counter.builder("linkpulse.clicks.lost")
+                .description("Entradas pendentes apagadas do stream antes da gravação")
                 .register(registry);
         this.batchSizes = DistributionSummary.builder("linkpulse.clicks.consumer.batch")
                 .description("Entradas por lote lido do stream")
@@ -338,8 +351,18 @@ public class ClickStreamConsumer implements SmartLifecycle, DisposableBean {
     /**
      * Assume até {@code batchSize} entradas pendentes há pelo menos {@code minIdle}
      * ({@code XPENDING ... IDLE} + {@code XCLAIM}) e as grava e confirma pelo mesmo
-     * {@link #process}. Uma entrada que outro consumer assumiu entre o {@code XPENDING} e o
-     * {@code XCLAIM} já não está parada, e o {@code XCLAIM} não a devolve.
+     * {@link #process}.
+     *
+     * <p>O {@code XCLAIM} não devolve dois tipos de ID pedido: os que outro consumer assumiu entre
+     * o {@code XPENDING} e o {@code XCLAIM} (já não estão parados) e os que não existem mais no
+     * stream. Para separar os dois, cada ID não devolvido é procurado no stream
+     * ({@code XRANGE id id}): presente, é de outra instância e fica como está; ausente, foi
+     * aparado ou apagado e é confirmado sem documento, contando em {@code linkpulse.clicks.lost}.
+     * O Valkey (assumption A5, confirmada no {@code ClickRedeliveryIT} com o Valkey 8.1) já
+     * remove do PEL, no próprio {@code XCLAIM}, as entradas apagadas; o {@code XACK} defensivo
+     * cobre servidores que não fazem isso e não tem efeito quando a entrada já saiu. As entradas
+     * perdidas são confirmadas antes da gravação do resto, que pode falhar, porque não fazem parte
+     * do lote: não há o que gravar delas.
      *
      * @return quantas entradas paradas o {@code XPENDING} listou
      */
@@ -353,11 +376,50 @@ public class ClickStreamConsumer implements SmartLifecycle, DisposableBean {
         List<MapRecord<String, Object, Object>> taken = redis.opsForStream().claim(
                 settings.streamKey(), settings.group(), settings.consumerName(),
                 RedisStreamCommands.XClaimOptions.minIdle(settings.minIdle()).ids(ids));
-        if (taken != null && !taken.isEmpty()) {
+        if (taken == null) {
+            taken = List.of();
+        }
+        acknowledgeVanished(ids, taken);
+        if (!taken.isEmpty()) {
             claimed.increment(taken.size());
             process(taken);
         }
         return ids.length;
+    }
+
+    /**
+     * Confirma os IDs pedidos ao {@code XCLAIM} que não voltaram e que também não existem mais no
+     * stream. Um ID não devolvido que ainda existe foi assumido por outro consumer e não é tocado.
+     *
+     * @param requested IDs pedidos ao {@code XCLAIM}
+     * @param taken entradas que o {@code XCLAIM} devolveu
+     */
+    private void acknowledgeVanished(RecordId[] requested,
+            List<MapRecord<String, Object, Object>> taken) {
+        if (taken.size() == requested.length) {
+            return;
+        }
+        Set<RecordId> returned = new HashSet<>();
+        taken.forEach(entry -> returned.add(entry.getId()));
+        List<RecordId> vanished = new ArrayList<>();
+        for (RecordId id : requested) {
+            if (returned.contains(id)) {
+                continue;
+            }
+            List<MapRecord<String, Object, Object>> stored = redis.opsForStream().range(
+                    settings.streamKey(), Range.closed(id.getValue(), id.getValue()));
+            if (stored == null || stored.isEmpty()) {
+                vanished.add(id);
+            }
+        }
+        if (vanished.isEmpty()) {
+            return;
+        }
+        redis.opsForStream().acknowledge(settings.streamKey(), settings.group(),
+                vanished.toArray(RecordId[]::new));
+        lost.increment(vanished.size());
+        LOG.warn("{} entradas pendentes do stream {} já tinham sido apagadas e saíram sem "
+                + "documento", vanished.size(), settings.streamKey());
     }
 
     /**
