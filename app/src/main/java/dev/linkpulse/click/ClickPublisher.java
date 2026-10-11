@@ -25,13 +25,15 @@ import org.springframework.data.redis.core.StringRedisTemplate;
  * do Boot e a execução assíncrona por anotação ficam de fora porque, com virtual threads, não têm
  * limite nem backpressure.
  *
- * <p>Cada entrada tem os campos {@code code}, {@code ts} (epoch ms do clique), {@code ua}
+ * <p>Cada entrada tem os campos {@code code}, {@code ts} (epoch ms do clique), {@code ref} (só o
+ * host do {@code Referer}, ou {@code (direct)}, ver {@link ReferrerNormalizer}), {@code ua}
  * (user-agent truncado em 512 caracteres, vazio quando ausente) e {@code iph} (HMAC do IP, ver
  * {@link IpHasher}). O {@code XADD} sai com {@code MAXLEN ~ linkpulse.clicks.max-len}, então o
  * stream não cresce sem limite.
  *
- * <p>O IP cru só vive na memória da fila: vira hash na thread do publisher, antes do
- * {@code XADD}, e nunca é publicado, logado nem usado como tag de métrica (D-10).
+ * <p>O IP cru e o {@code Referer} completo só vivem na memória da fila: viram hash e host na
+ * thread do publisher, antes do {@code XADD}, e nunca são publicados, logados nem usados como tag
+ * de métrica (D-10).
  *
  * <p>Fase do ciclo de vida: {@code DEFAULT_PHASE - 4096}. O publisher para depois do web server
  * (que para de aceitar requests antes) e antes da conexão Lettuce (fase 0), então a fila é
@@ -121,6 +123,7 @@ public class ClickPublisher implements SmartLifecycle {
         Map<String, String> fields = Map.of(
                 FIELD_CODE, code,
                 FIELD_TS, Long.toString(ts.toEpochMilli()),
+                FIELD_REF, ReferrerNormalizer.toHost(referer),
                 FIELD_UA, truncate(userAgent),
                 FIELD_IPH, ipHasher.hash(remoteAddr, ts));
         redis.opsForStream().add(MapRecord.create(clicks.streamKey(), fields),
