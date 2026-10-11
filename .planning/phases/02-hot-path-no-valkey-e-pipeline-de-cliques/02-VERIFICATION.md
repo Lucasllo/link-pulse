@@ -1,9 +1,10 @@
 ---
 phase: 02-hot-path-no-valkey-e-pipeline-de-cliques
 verified: 2026-10-11T21:20:00Z
-status: human_needed
+status: passed
 score: "73/74 must-haves verificados (SC do roadmap 5/5; truths dos planos 68/69, 1 presente mas sem teste de comportamento)"
 covered_files:
+
   - .github/dependabot.yml
   - .planning/REQUIREMENTS.md
   - .planning/phases/02-hot-path-no-valkey-e-pipeline-de-cliques/02-01-PLAN.md
@@ -84,15 +85,18 @@ covered_files:
   - app/src/test/java/dev/linkpulse/stats/StatsIT.java
   - app/src/test/java/dev/linkpulse/stats/StatsPeriodTest.java
   - compose.dev.yaml
+
 covered_digest: "v1:sha256:1027bfb5610bfe8e5b10ab64e4240cd6a9cf7ac17d90a5297ed260dca6bb85d3"
 behavior_unverified: 1
 overrides_applied: 0
 behavior_unverified_items:
+
   - truth: "02-06: uma entrada pendente que ainda existe no stream e que outro consumer acabou de assumir não é confirmada pelo reclaim (só entradas que não existem mais no stream contam como lost)"
     test: "Com duas réplicas no mesmo grupo, provocar a corrida em que a réplica A faz XCLAIM de uma entrada entre o XPENDING e o XCLAIM da réplica B; conferir que B não faz XACK dela e que linkpulse.clicks.lost não sobe"
     expected: "A entrada continua no PEL com dono replicaA até a gravação de A; lost = 0; nenhum clique some se a escrita de A falhar"
     why_human: "Nenhum IT reproduz a corrida de forma determinística. O ramo está no código (ClickStreamConsumer.acknowledgeVanished, XRANGE id id), e a semântica do Valkey 8.1 foi conferida à mão pelo verificador com valkey-cli (XCLAIM MIN-IDLE da segunda réplica volta vazio e XRANGE ainda acha a entrada), mas o caminho Java não é exercitado por teste"
 human_verification:
+
   - test: "Revisar a corrida XPENDING/XCLAIM entre duas réplicas (ClickStreamConsumer.reclaimIdle e acknowledgeVanished, linhas ~470-535)"
     expected: "Um ID pedido ao XCLAIM que não voltou e que ainda existe no stream nunca recebe XACK; só IDs ausentes do stream viram lost"
     why_human: "Invariante de ordenação entre processos; sem IT determinístico (sinalizado pela própria 02-06-SUMMARY, D4)"
@@ -275,21 +279,25 @@ Os achados IN-01..IN-13 da revisão são informativos e não afetam nenhum crit�
 ### Verificação humana necessária
 
 #### 1. Corrida XPENDING/XCLAIM entre duas réplicas
+
 **Teste:** revisar `ClickStreamConsumer.reclaimIdle`/`acknowledgeVanished`. Opcionalmente, criar um IT com dois consumers e um `minIdle` controlado.
 **Esperado:** um ID pedido ao XCLAIM que não voltou e que ainda existe no stream nunca recebe XACK nem conta como `lost`.
 **Por que humano:** é um invariante de ordenação entre processos, sem IT determinístico. A primitiva do Valkey foi conferida pelo verificador com `valkey-cli`.
 
 #### 2. Decisão sobre o WR-01 (gate sem sonda única)
+
 **Teste:** decidir se picos de até ~150 ms, periódicos e só com o Valkey pausado ou particionado sob carga concorrente, são aceitáveis.
 **Esperado:** aceitar e corrigir o Javadoc e o README, ou implementar o half-open com sonda única via CAS.
 **Por que humano:** é decisão de produto. O critério literal (`docker stop`) passou, mas a documentação afirma uma garantia que o código não dá.
 
 #### 3. Três proibições de nível judgment
+
 **Teste:** confirmar no código que (a) `ClickIndexes` não toca o Mongo na criação do bean; (b) não há limite de reentregas; (c) as gauges só leem memória no scrape.
 **Esperado:** o veredito do verificador, não autoritativo, é de que as três se sustentam.
 **Por que humano:** proibições de nível judgment pedem resolução humana explícita.
 
 #### 4. Leitura do README como avaliador
+
 **Teste:** ler as seções de Valkey fora, estatísticas, rate limit, erros e riscos.
 **Esperado:** texto correto, com IN-13 (browser/os/isBot) e WR-01 ajustados.
 **Por que humano:** clareza de documentação é julgamento.

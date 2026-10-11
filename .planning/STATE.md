@@ -1,44 +1,44 @@
 ---
 gsd_state_version: "1.0"
-current_phase: 02
-current_phase_name: Hot path no Valkey e pipeline de cliques
-status: verifying
-stopped_at: Completed 02-09-PLAN.md
-last_updated: "2026-10-11T20:56:39.395Z"
+current_phase: 3
+current_phase_name: Stack local observável
+status: planning
+stopped_at: Phase 02 complete, ready to plan Phase 3
+last_updated: "2026-10-11T22:19:45.853Z"
 last_activity: 2026-10-11
-last_activity_desc: Phase 02 execution started
-state_head: b0013f33ac3ab7eb1215a1e6af2735fb485ae524
+last_activity_desc: Phase 02 complete, transitioned to Phase 3
+state_head: 214f4dc1e197e05668199e108c2b28410717b310
 progress:
   total_phases: 5
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 17
   completed_plans: 17
-  percent: 20
+  percent: 40
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-10-09)
+See: .planning/PROJECT.md (updated 2026-10-11)
 
 **Core value:** Um avaliador clona o repositório, roda `make up` (compose) ou `make k8s` (kind + Prometheus/Grafana) e vê um encurtador funcionando de ponta a ponta, com redirect rápido via cache e métricas reais nos dashboards versionados.
-**Current focus:** Phase 02 — Hot path no Valkey e pipeline de cliques
+**Current focus:** Phase 3 — Stack local observável
 
 ## Current Position
 
-Phase: 02 (Hot path no Valkey e pipeline de cliques) — EXECUTING
-Plan: 9 of 9
-Status: Phase complete — ready for verification
-Last activity: 2026-10-11 — Phase 02 execution started
+Phase: 3 — Stack local observável
+Plan: Not started
+Status: Ready to plan
+Last activity: 2026-10-11 — Phase 02 complete, transitioned to Phase 3
 
-Progress: [██░░░░░░░░] 20%
+Progress: [████░░░░░░] 40%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 8
+- Total plans completed: 17
 - Average duration: -
 - Total execution time: 0.0 hours
 
@@ -47,6 +47,7 @@ Progress: [██░░░░░░░░] 20%
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 1 | 8 | - | - |
+| 02 | 9 | - | - |
 
 **Recent Trend:**
 
@@ -138,8 +139,9 @@ None yet.
 ### Blockers/Concerns
 
 - [Phase 1 → todas]: `linkpulse.code.alphabet`/`multiplier` são contrato one-way: mudar depois altera os códigos já emitidos
-- [Phase 1 → 2]: Loop de redirect via DNS segue como mitigação parcial (T-08-06); o rate limit por IP da Phase 2 (RATE-01) é parte da mitigação
-- [Phase 2]: Pesquisar a API do Spring Data Redis na versão do Boot 4.1 (`cancelOnError`, `BLOCK` com Lettuce, `XAUTOCLAIM`) e o desenho dos testes de reentrega; `maxmemory-policy volatile-lru` em todos os ambientes
+- [Phase 1]: Loop de redirect via DNS segue como mitigação parcial (T-08-06), agora reforçada pelo rate limit por IP entregue na Phase 2
+- [Phase 2 → 3]: `maxmemory-policy volatile-lru` precisa ir para o Valkey do `make up` (e do kind na Phase 4); `LINKPULSE_IP_HASH_KEY` obrigatória fora do dev; seed/k6 precisam de UA de navegador ou `includeBots=true`
+- [Phase 2]: WR-01 aceito na UAT: com Valkey pausado/particionado, requisições concorrentes no fim da janela de bypass pagam ~150 ms (limitação conhecida, documentada)
 - [Phase 4]: Pesquisar versões atuais dos charts Traefik, kube-prometheus-stack e metrics-server, seletores (`*SelectorNilUsesHelmValues`) e sidecar de dashboards
 - [Phase 5]: Spike do token do LocalStack Hobby e do `mock_provider`; sem token, a validação fica nas camadas lint + `terraform test`
 
@@ -160,6 +162,6 @@ Itens reconhecidos e adiados no fechamento de milestone, do mais recente para o 
 
 ## Session Continuity
 
-Last session: 2026-10-11T20:56:26.587Z
-Stopped at: Completed 02-09-PLAN.md
+Last session: 2026-10-11T22:20:00Z
+Stopped at: Phase 02 complete, ready to plan Phase 3
 Resume file: None
