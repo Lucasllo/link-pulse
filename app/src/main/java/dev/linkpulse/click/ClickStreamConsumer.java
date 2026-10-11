@@ -2,6 +2,7 @@ package dev.linkpulse.click;
 
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.DistributionSummary;
+import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import java.time.Clock;
@@ -12,6 +13,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -31,6 +33,7 @@ import org.springframework.data.redis.connection.stream.PendingMessage;
 import org.springframework.data.redis.connection.stream.PendingMessages;
 import org.springframework.data.redis.connection.stream.ReadOffset;
 import org.springframework.data.redis.connection.stream.RecordId;
+import org.springframework.data.redis.connection.stream.StreamInfo;
 import org.springframework.data.redis.connection.stream.StreamOffset;
 import org.springframework.data.redis.connection.stream.StreamReadOptions;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -85,14 +88,32 @@ import org.springframework.data.redis.core.StringRedisTemplate;
  *   <li>{@code linkpulse.clicks.consumer.batch}: tamanho de cada lote lido;</li>
  *   <li>{@code linkpulse.clicks.consumer.write}: duração da escrita, com
  *       {@code outcome=success|failure};</li>
- *   <li>{@code linkpulse.clicks.consumer.errors}: ciclos do loop que falharam.</li>
+ *   <li>{@code linkpulse.clicks.consumer.errors}: ciclos do loop que falharam;</li>
+ *   <li>{@code linkpulse.clicks.stream.pending} (gauge): entradas entregues ao grupo e ainda sem
+ *       {@code XACK} ({@code XINFO GROUPS}, campo {@code pending});</li>
+ *   <li>{@code linkpulse.clicks.stream.lag} (gauge): entradas do stream que o grupo ainda não
+ *       leu ({@code XINFO GROUPS}, campo {@code lag}); {@code NaN} quando o servidor devolve
+ *       {@code null} (Pitfall P10);</li>
+ *   <li>{@code linkpulse.clicks.stream.length} (gauge): tamanho do stream ({@code XLEN}).</li>
  * </ul>
  *
- * <p>Ciclo de vida: fase {@code DEFAULT_PHASE - 8192}, então o consumer para depois do web
- * server e do {@code ClickPublisher} ({@code DEFAULT_PHASE - 4096}) e antes da conexão Lettuce
- * do Boot (fase 0). O {@code stop} não interrompe a thread: baixa a flag, e o loop sai depois do
- * lote corrente (a espera é limitada pelo {@code BLOCK}). O consumer é dono da fábrica de
- * conexões recebida e a destrói ao parar; por isso não pode ser reiniciado depois do stop.
+ * <p>As três gauges são do <b>grupo</b>, e não da réplica: todas as instâncias leem o mesmo
+ * {@code XINFO GROUPS} e expõem o mesmo valor. No dashboard e no alerta de lag, agregar com
+ * {@code max()}, nunca com {@code sum()} (Pitfall P11). O loop as atualiza no máximo uma vez
+ * por intervalo de {@code BLOCK}; o scrape só lê os valores em memória e nunca consulta o
+ * Valkey. Uma falha na atualização mantém os valores anteriores e não conta como erro do
+ * consumer.
+ *
+ * <p>Ciclo de vida (CLICK-05, Pitfall P14): fases maiores param primeiro, então a ordem de
+ * parada é web server (graceful: para de aceitar requests e espera os em andamento) →
+ * {@code ClickPublisher} ({@code DEFAULT_PHASE - 4096}: esvazia a fila de XADD) → este consumer
+ * ({@code DEFAULT_PHASE - 8192}) → {@code LettuceConnectionFactory} do Boot (fase 0). O
+ * {@code stop} não interrompe a thread: baixa a flag, e o loop sai depois do lote corrente,
+ * já gravado e confirmado. Interromper no meio do {@code write} perderia o {@code XACK} e faria
+ * o lote ser reentregue; a espera fica limitada pelo {@code BLOCK} da leitura somado ao timeout
+ * de escrita do MongoDB, abaixo do {@code spring.lifecycle.timeout-per-shutdown-phase} (30 s).
+ * O consumer é dono da fábrica de conexões recebida e a destrói ao parar, só depois de o loop
+ * sair; por isso não pode ser reiniciado depois do stop.
  */
 public class ClickStreamConsumer implements SmartLifecycle, DisposableBean {
 
@@ -120,6 +141,10 @@ public class ClickStreamConsumer implements SmartLifecycle, DisposableBean {
     private final DistributionSummary batchSizes;
     private final Timer writeSuccess;
     private final Timer writeFailure;
+    // Referências fortes: o registry guarda só referência fraca ao objeto da gauge (A10).
+    private final AtomicLong pendingCount = new AtomicLong();
+    private final AtomicLong streamLength = new AtomicLong();
+    private final AtomicLong lagBits = new AtomicLong(Double.doubleToLongBits(Double.NaN));
     private final AtomicReference<Runnable> stopCallback = new AtomicReference<>();
     private final AtomicBoolean factoryReleased = new AtomicBoolean();
     private volatile boolean running;
@@ -127,6 +152,7 @@ public class ClickStreamConsumer implements SmartLifecycle, DisposableBean {
     private volatile boolean groupReady;
     private volatile boolean indexesReady;
     private volatile long nextReclaimAt;
+    private volatile long nextGaugeRefreshAt;
     private volatile Thread worker;
 
     /**
@@ -186,6 +212,16 @@ public class ClickStreamConsumer implements SmartLifecycle, DisposableBean {
                 .register(registry);
         this.writeSuccess = writeTimer(registry, "success");
         this.writeFailure = writeTimer(registry, "failure");
+        Gauge.builder("linkpulse.clicks.stream.pending", pendingCount, AtomicLong::get)
+                .description("Entradas entregues ao grupo e ainda sem XACK (valor do grupo)")
+                .register(registry);
+        Gauge.builder("linkpulse.clicks.stream.length", streamLength, AtomicLong::get)
+                .description("Tamanho do stream de cliques (XLEN)")
+                .register(registry);
+        Gauge.builder("linkpulse.clicks.stream.lag", lagBits,
+                        bits -> Double.longBitsToDouble(bits.get()))
+                .description("Entradas do stream ainda não lidas pelo grupo (valor do grupo)")
+                .register(registry);
     }
 
     private static Timer writeTimer(MeterRegistry registry, String outcome) {
@@ -265,6 +301,7 @@ public class ClickStreamConsumer implements SmartLifecycle, DisposableBean {
             long backoffMillis = 0;
             long consecutiveFailures = 0;
             while (running) {
+                refreshGaugesIfDue();
                 try {
                     ensureIndexes();
                     ensureGroup();
@@ -299,6 +336,57 @@ public class ClickStreamConsumer implements SmartLifecycle, DisposableBean {
             loopDone = true;
             finishStopIfRequested();
         }
+    }
+
+    /**
+     * Atualiza as gauges do grupo e do stream no máximo uma vez por intervalo de {@code BLOCK},
+     * com {@code XINFO GROUPS} e {@code XLEN}. Roda na thread do loop, nunca no scrape. Uma
+     * falha (Valkey fora, stream ainda inexistente) mantém os valores anteriores, vai para o log
+     * em DEBUG e não conta em {@code linkpulse.clicks.consumer.errors}.
+     */
+    private void refreshGaugesIfDue() {
+        long now = clock.millis();
+        if (now < nextGaugeRefreshAt) {
+            return;
+        }
+        nextGaugeRefreshAt = now + settings.block().toMillis();
+        try {
+            StreamInfo.XInfoGroups groups = redis.opsForStream().groups(settings.streamKey());
+            if (groups != null) {
+                groups.stream()
+                        .filter(group -> settings.group().equals(group.groupName()))
+                        .findFirst()
+                        .ifPresent(group -> {
+                            Long pending = group.pendingCount();
+                            pendingCount.set(pending == null ? 0 : pending);
+                            lagBits.set(Double.doubleToLongBits(
+                                    lagValue(group.getRaw().get("lag"))));
+                        });
+            }
+            Long length = redis.opsForStream().size(settings.streamKey());
+            if (length != null) {
+                streamLength.set(length);
+            }
+        } catch (RuntimeException e) {
+            LOG.debug("Falha ao atualizar as gauges do stream {}: {}", settings.streamKey(),
+                    e.getClass().getName());
+        }
+    }
+
+    /**
+     * Converte o campo {@code lag} do {@code XINFO GROUPS}. O servidor devolve {@code null}
+     * quando não consegue calcular o lag (grupo criado num ID arbitrário ou entradas apagadas
+     * entre o último entregue e o último gerado, Pitfall P10); a gauge vira {@code NaN} em vez
+     * de sumir ou de mostrar um zero falso.
+     *
+     * @param raw valor bruto do campo {@code lag}
+     * @return o lag, ou {@link Double#NaN} se não for numérico
+     */
+    static double lagValue(Object raw) {
+        if (raw instanceof Number number) {
+            return number.doubleValue();
+        }
+        return Double.NaN;
     }
 
     /**
@@ -486,11 +574,6 @@ public class ClickStreamConsumer implements SmartLifecycle, DisposableBean {
         }
     }
 
-    // Placeholder do RED da 02-08 (Task 2): o GREEN implementa a conversão.
-    static double lagValue(Object raw) {
-        return 0;
-    }
-
     private static boolean causeContains(Throwable error, String token) {
         Throwable current = error;
         for (int depth = 0; current != null && depth < MAX_CAUSE_DEPTH; depth++) {
@@ -505,17 +588,25 @@ public class ClickStreamConsumer implements SmartLifecycle, DisposableBean {
 
     /**
      * Para de ler e espera a thread sair por até {@code block + 10 s}.
+     *
+     * @throws IllegalStateException se a thread não terminou nesse prazo (uma thread presa não
+     *     pode passar despercebida, nem em teste)
      */
     @Override
     public void stop() {
         stop(() -> { });
         Thread thread = worker;
-        if (thread != null) {
-            try {
-                thread.join(settings.block().plus(STOP_GRACE));
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
+        if (thread == null) {
+            return;
+        }
+        Duration limit = settings.block().plus(STOP_GRACE);
+        try {
+            if (!thread.join(limit)) {
+                throw new IllegalStateException("O consumer de cliques do stream "
+                        + settings.streamKey() + " não terminou dentro de " + limit);
             }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
         }
     }
 
