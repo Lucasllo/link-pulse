@@ -30,6 +30,7 @@ Os guias 01 a 09 descrevem só o que existe hoje no repositório. O que ainda va
 | 08 | [08 · CI no GitHub Actions](08-ci-github-actions.md) | O `ci.yml` passo a passo, pin por SHA, menor privilégio e Dependabot |
 | 09 | [09 · Ambiente local e Windows](09-ambiente-local-e-windows.md) | `compose.dev.yaml`, Makefile e os comandos para Git Bash, cmd e PowerShell |
 | 10 | [10 · Próximas fases](10-proximas-fases.md) | O que as Phases 2 a 5 vão trazer: Valkey, Redis Streams, MongoDB, observabilidade, k6, kind/Helm e Terraform |
+| 11 | [11 · Dependabot](11-dependabot.md) | Para iniciantes: o que são dependências, como o Dependabot abre PRs de atualização testados pelo CI e a configuração deste repositório |
 
 ## Trilhas de leitura
 
