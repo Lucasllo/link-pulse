@@ -19,11 +19,16 @@ import org.springframework.test.web.servlet.assertj.MockMvcTester;
  *
  * <p>{@code linkpulse.clicks.consumer.block} cai para 200 ms: o consumer de cliques volta mais
  * rápido de cada leitura vazia, e o fechamento do contexto não espera um {@code BLOCK} de 2 s.
+ *
+ * <p>{@code linkpulse.clicks.consumer.reclaim-interval} e {@code min-idle} caem para 1 s: um lote
+ * que falhou no consumer do contexto volta pelo reclaim em segundos, e não em 30 a 90 s.
  */
 @SpringBootTest(properties = {
     "linkpulse.ip-hash-key=test-ip-hash-key-0123456789",
     "linkpulse.cache.bypass-cooldown=200ms",
-    "linkpulse.clicks.consumer.block=200ms"
+    "linkpulse.clicks.consumer.block=200ms",
+    "linkpulse.clicks.consumer.reclaim-interval=1s",
+    "linkpulse.clicks.consumer.min-idle=1s"
 })
 @AutoConfigureMockMvc
 @Import(TestcontainersConfiguration.class)

@@ -7,6 +7,7 @@ import dev.linkpulse.AbstractIT;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+import java.time.Clock;
 import java.time.Duration;
 import java.util.Map;
 import java.util.UUID;
@@ -34,6 +35,7 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 class ClickRedeliveryIT extends AbstractIT {
 
     private static final Duration BLOCK = Duration.ofMillis(200);
+    private static final Duration RECLAIM_INTERVAL = Duration.ofMillis(200);
     private static final Duration WAIT = Duration.ofSeconds(15);
     private static final Duration POLL = Duration.ofMillis(100);
     private static final int BATCH_SIZE = 100;
@@ -66,11 +68,12 @@ class ClickRedeliveryIT extends AbstractIT {
     private ClickStreamConsumer newConsumer(Fixture fixture, String name, ClickEventWriter writer,
             Duration minIdle, MeterRegistry registry) {
         ClickStreamConsumer.Settings settings = new ClickStreamConsumer.Settings(
-                fixture.stream(), fixture.group(), name, BATCH_SIZE, BLOCK);
+                fixture.stream(), fixture.group(), name, BATCH_SIZE, BLOCK, RECLAIM_INTERVAL,
+                minIdle);
         return new ClickStreamConsumer(settings,
                 ClickStreamConsumer.dedicatedConnectionFactory(redisDetails, BLOCK),
                 writer, new ClickIndexes(mongo, fixture.collection(), Duration.ofDays(90)),
-                registry);
+                registry, Clock.systemUTC());
     }
 
     private void addClick(String stream, String code, int i) {

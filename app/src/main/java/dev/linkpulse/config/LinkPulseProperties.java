@@ -22,7 +22,8 @@ import org.springframework.validation.annotation.Validated;
  * {@code LINKPULSE_CLICKS_PUBLISHER_THREADS}, {@code LINKPULSE_CLICKS_PUBLISHER_QUEUE_CAPACITY},
  * {@code LINKPULSE_CLICKS_GROUP}, {@code LINKPULSE_CLICKS_RETENTION},
  * {@code LINKPULSE_CLICKS_CONSUMER_ENABLED}, {@code LINKPULSE_CLICKS_CONSUMER_BATCH_SIZE},
- * {@code LINKPULSE_CLICKS_CONSUMER_BLOCK} etc.).
+ * {@code LINKPULSE_CLICKS_CONSUMER_BLOCK}, {@code LINKPULSE_CLICKS_CONSUMER_RECLAIM_INTERVAL},
+ * {@code LINKPULSE_CLICKS_CONSUMER_MIN_IDLE} etc.).
  *
  * @param baseUrl base da URL curta devolvida na criação (D-12); nunca derivada de {@code Host}
  *     nem de {@code X-Forwarded-*}. Precisa ser URL {@code http} ou {@code https} absoluta, com
@@ -246,25 +247,49 @@ public record LinkPulseProperties(
          * @param block quanto tempo a leitura espera por entradas novas ({@code BLOCK}). Também
          *     limita quanto o shutdown espera o loop sair. Env
          *     {@code LINKPULSE_CLICKS_CONSUMER_BLOCK}; padrão 2s
+         * @param reclaimInterval de quanto em quanto tempo o consumer procura entradas pendentes
+         *     paradas no grupo ({@code XPENDING IDLE}) e as assume ({@code XCLAIM}) para gravar de
+         *     novo (CLICK-04). Env {@code LINKPULSE_CLICKS_CONSUMER_RECLAIM_INTERVAL}; padrão 30s
+         * @param minIdle há quanto tempo, no mínimo, uma entrada precisa estar entregue sem
+         *     {@code XACK} para ser assumida no reclaim; abaixo disso ela ainda pode estar em
+         *     processamento por outra instância. Env {@code LINKPULSE_CLICKS_CONSUMER_MIN_IDLE};
+         *     padrão 60s
          */
         public record ConsumerSettings(
                 @DefaultValue("true") boolean enabled,
                 @DefaultValue("500") @Positive int batchSize,
-                @DefaultValue("2s") Duration block) {
+                @DefaultValue("2s") Duration block,
+                @DefaultValue("30s") Duration reclaimInterval,
+                @DefaultValue("60s") Duration minIdle) {
 
             /**
-             * Exige {@code block} positivo; a mensagem é fixa e não ecoa o valor.
+             * Exige durações positivas; a mensagem é fixa e não ecoa o valor.
              *
              * @param enabled liga o consumer
              * @param batchSize máximo de entradas por leitura
              * @param block espera da leitura bloqueante
-             * @throws IllegalArgumentException se {@code block} é nulo, zero ou negativo
+             * @param reclaimInterval intervalo entre as buscas de pendentes parados
+             * @param minIdle tempo mínimo sem {@code XACK} para assumir uma entrada
+             * @throws IllegalArgumentException se {@code block}, {@code reclaimInterval} ou
+             *     {@code minIdle} é nulo, zero ou negativo
              */
             public ConsumerSettings {
-                if (block == null || block.isNegative() || block.isZero()) {
+                if (!isPositive(block)) {
                     throw new IllegalArgumentException(
                             "linkpulse.clicks.consumer.block deve ser uma duração positiva");
                 }
+                if (!isPositive(reclaimInterval)) {
+                    throw new IllegalArgumentException("linkpulse.clicks.consumer.reclaim-interval "
+                            + "deve ser uma duração positiva");
+                }
+                if (!isPositive(minIdle)) {
+                    throw new IllegalArgumentException(
+                            "linkpulse.clicks.consumer.min-idle deve ser uma duração positiva");
+                }
+            }
+
+            private static boolean isPositive(Duration value) {
+                return value != null && !value.isNegative() && !value.isZero();
             }
         }
     }

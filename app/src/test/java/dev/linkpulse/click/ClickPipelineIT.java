@@ -9,6 +9,7 @@ import dev.linkpulse.link.Link;
 import dev.linkpulse.link.LinkRepository;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -259,10 +260,11 @@ class ClickPipelineIT extends AbstractIT {
         };
         Duration block = Duration.ofMillis(200);
         ClickStreamConsumer consumer = new ClickStreamConsumer(
-                new ClickStreamConsumer.Settings(stream, stream, "it-idle", 10, block),
+                new ClickStreamConsumer.Settings(stream, stream, "it-idle", 10, block,
+                        Duration.ofSeconds(1), Duration.ofSeconds(1)),
                 ClickStreamConsumer.dedicatedConnectionFactory(redisDetails, block),
                 counting, new ClickIndexes(mongo, collection, Duration.ofDays(90)),
-                new SimpleMeterRegistry());
+                new SimpleMeterRegistry(), Clock.systemUTC());
         consumer.start();
         try {
             await().pollDelay(Duration.ofSeconds(1)).atMost(Duration.ofSeconds(3))

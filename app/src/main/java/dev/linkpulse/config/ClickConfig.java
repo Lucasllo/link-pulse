@@ -102,6 +102,7 @@ public class ClickConfig {
      * @param indexes índices de {@code click_events}, garantidos no loop do consumer
      * @param registry registry do Micrometer
      * @param environment ambiente, para ler o {@code HOSTNAME}
+     * @param clock relógio da aplicação, que agenda o reclaim de pendentes
      * @return o consumer, que sobe com o contexto
      */
     @Bean
@@ -109,7 +110,7 @@ public class ClickConfig {
             havingValue = "true", matchIfMissing = true)
     ClickStreamConsumer clickStreamConsumer(LinkPulseProperties properties,
             DataRedisConnectionDetails details, ClickEventWriter writer, ClickIndexes indexes,
-            MeterRegistry registry, Environment environment) {
+            MeterRegistry registry, Environment environment, Clock clock) {
         LinkPulseProperties.Clicks clicks = properties.clicks();
         String hostname = environment.getProperty("HOSTNAME");
         String consumerName = hostname == null || hostname.isBlank()
@@ -117,9 +118,10 @@ public class ClickConfig {
                 : hostname;
         ClickStreamConsumer.Settings settings = new ClickStreamConsumer.Settings(
                 clicks.streamKey(), clicks.group(), consumerName,
-                clicks.consumer().batchSize(), clicks.consumer().block());
+                clicks.consumer().batchSize(), clicks.consumer().block(),
+                clicks.consumer().reclaimInterval(), clicks.consumer().minIdle());
         return new ClickStreamConsumer(settings,
                 ClickStreamConsumer.dedicatedConnectionFactory(details, clicks.consumer().block()),
-                writer, indexes, registry);
+                writer, indexes, registry, clock);
     }
 }

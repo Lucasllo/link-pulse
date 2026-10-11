@@ -67,6 +67,8 @@ server:
 #   linkpulse.clicks.consumer.enabled=true         (LINKPULSE_CLICKS_CONSUMER_ENABLED)
 #   linkpulse.clicks.consumer.batch-size=500       (LINKPULSE_CLICKS_CONSUMER_BATCH_SIZE, COUNT)
 #   linkpulse.clicks.consumer.block=2s             (LINKPULSE_CLICKS_CONSUMER_BLOCK, BLOCK)
+#   linkpulse.clicks.consumer.reclaim-interval=30s (LINKPULSE_CLICKS_CONSUMER_RECLAIM_INTERVAL)
+#   linkpulse.clicks.consumer.min-idle=60s         (LINKPULSE_CLICKS_CONSUMER_MIN_IDLE, XPENDING IDLE)
 linkpulse:
   # Base da shortUrl (D-12); compose/kind/ECS sobrescrevem por env. Precisa ser uma URL http ou
   # https absoluta, com host e sem credenciais, query ou fragmento: valor inválido derruba a subida.

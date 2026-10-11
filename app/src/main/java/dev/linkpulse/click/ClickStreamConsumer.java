@@ -4,6 +4,7 @@ import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.DistributionSummary;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
+import java.time.Clock;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
@@ -15,13 +16,17 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.DisposableBean;
 import org.springframework.boot.data.redis.autoconfigure.DataRedisConnectionDetails;
 import org.springframework.context.SmartLifecycle;
+import org.springframework.data.domain.Range;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.connection.RedisPassword;
 import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
+import org.springframework.data.redis.connection.RedisStreamCommands;
 import org.springframework.data.redis.connection.lettuce.LettuceClientConfiguration;
 import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
 import org.springframework.data.redis.connection.stream.Consumer;
 import org.springframework.data.redis.connection.stream.MapRecord;
+import org.springframework.data.redis.connection.stream.PendingMessage;
+import org.springframework.data.redis.connection.stream.PendingMessages;
 import org.springframework.data.redis.connection.stream.ReadOffset;
 import org.springframework.data.redis.connection.stream.RecordId;
 import org.springframework.data.redis.connection.stream.StreamOffset;
@@ -37,6 +42,17 @@ import org.springframework.data.redis.core.StringRedisTemplate;
  * que a escrita volta, {@code XACK} de todos os IDs do lote (válidos e inválidos). Se a escrita
  * lança, nada é confirmado e o lote fica no PEL do grupo para ser entregue de novo. O container
  * de listeners de stream do Spring Data Redis não serve aqui porque entrega uma mensagem por vez.
+ *
+ * <p>Entrega at-least-once (CLICK-03, CLICK-04): o {@code XACK} vem sempre depois da gravação.
+ * Um lote cuja escrita falhou fica no PEL (lista de pendentes do grupo) e não volta pela leitura
+ * com {@code >}, que só entrega entradas novas. Quem o traz de volta é o reclaim: a cada
+ * {@code reclaimInterval}, o loop pede ao grupo as entradas entregues há pelo menos
+ * {@code minIdle} sem {@code XACK} ({@code XPENDING ... IDLE}), assume-as com {@code XCLAIM} e as
+ * passa pelo mesmo caminho gravação → {@code XACK}. Isso vale para os pendentes de um consumer
+ * morto (outra instância, ou a mesma reiniciada com outro nome) e para os do próprio consumer.
+ * Reprocessar nunca duplica: o {@code _id} do documento é o ID da entrada no stream e o writer
+ * ignora duplicate key (D-05). O comando {@code XAUTOCLAIM} não existe na API do Spring Data
+ * Redis; {@code XPENDING IDLE} + {@code XCLAIM} dão o mesmo resultado.
  *
  * <p>Antes da primeira leitura, o loop garante os índices de {@code click_events} com
  * {@link ClickIndexes#ensure()} (D-07, DATA-02). Uma falha (MongoDB fora) cai no mesmo
@@ -55,6 +71,7 @@ import org.springframework.data.redis.core.StringRedisTemplate;
  *   <li>{@code linkpulse.clicks.persisted}: documentos novos gravados;</li>
  *   <li>{@code linkpulse.clicks.duplicates}: documentos que já existiam (entrega repetida);</li>
  *   <li>{@code linkpulse.clicks.invalid}: entradas descartadas por formato inválido;</li>
+ *   <li>{@code linkpulse.clicks.claimed}: entradas pendentes assumidas pelo reclaim;</li>
  *   <li>{@code linkpulse.clicks.consumer.batch}: tamanho de cada lote lido;</li>
  *   <li>{@code linkpulse.clicks.consumer.write}: duração da escrita, com
  *       {@code outcome=success|failure};</li>
@@ -76,16 +93,19 @@ public class ClickStreamConsumer implements SmartLifecycle, DisposableBean {
     private static final long SLEEP_SLICE_MILLIS = 100;
     private static final Duration STOP_GRACE = Duration.ofSeconds(10);
     private static final int MAX_CAUSE_DEPTH = 16;
+    private static final int MAX_RECLAIM_PAGES = 20;
 
     private final Settings settings;
     private final RedisConnectionFactory connectionFactory;
     private final StringRedisTemplate redis;
     private final ClickEventWriter writer;
     private final ClickIndexes indexes;
+    private final Clock clock;
     private final Counter persisted;
     private final Counter duplicates;
     private final Counter invalid;
     private final Counter errors;
+    private final Counter claimed;
     private final DistributionSummary batchSizes;
     private final Timer writeSuccess;
     private final Timer writeFailure;
@@ -95,6 +115,7 @@ public class ClickStreamConsumer implements SmartLifecycle, DisposableBean {
     private volatile boolean loopDone = true;
     private volatile boolean groupReady;
     private volatile boolean indexesReady;
+    private volatile long nextReclaimAt;
     private volatile Thread worker;
 
     /**
@@ -105,9 +126,11 @@ public class ClickStreamConsumer implements SmartLifecycle, DisposableBean {
      * @param consumerName nome deste consumer dentro do grupo (um por instância)
      * @param batchSize máximo de entradas por leitura ({@code COUNT})
      * @param block espera máxima da leitura ({@code BLOCK})
+     * @param reclaimInterval intervalo entre as buscas de pendentes parados no grupo
+     * @param minIdle tempo mínimo sem {@code XACK} para uma entrada pendente ser assumida
      */
     public record Settings(String streamKey, String group, String consumerName, int batchSize,
-            Duration block) {
+            Duration block, Duration reclaimInterval, Duration minIdle) {
     }
 
     /**
@@ -119,14 +142,16 @@ public class ClickStreamConsumer implements SmartLifecycle, DisposableBean {
      * @param writer gravação idempotente do lote
      * @param indexes índices da coleção de destino, garantidos no loop (nunca aqui)
      * @param registry registry do Micrometer
+     * @param clock relógio que agenda o reclaim
      */
     public ClickStreamConsumer(Settings settings, RedisConnectionFactory connectionFactory,
-            ClickEventWriter writer, ClickIndexes indexes, MeterRegistry registry) {
+            ClickEventWriter writer, ClickIndexes indexes, MeterRegistry registry, Clock clock) {
         this.settings = settings;
         this.connectionFactory = connectionFactory;
         this.redis = new StringRedisTemplate(connectionFactory);
         this.writer = writer;
         this.indexes = indexes;
+        this.clock = clock;
         this.persisted = Counter.builder("linkpulse.clicks.persisted")
                 .description("Cliques novos gravados em click_events")
                 .register(registry);
@@ -138,6 +163,9 @@ public class ClickStreamConsumer implements SmartLifecycle, DisposableBean {
                 .register(registry);
         this.errors = Counter.builder("linkpulse.clicks.consumer.errors")
                 .description("Ciclos do consumer de cliques que falharam")
+                .register(registry);
+        this.claimed = Counter.builder("linkpulse.clicks.claimed")
+                .description("Entradas pendentes do grupo assumidas pelo reclaim (XCLAIM)")
                 .register(registry);
         this.batchSizes = DistributionSummary.builder("linkpulse.clicks.consumer.batch")
                 .description("Entradas por lote lido do stream")
@@ -216,6 +244,7 @@ public class ClickStreamConsumer implements SmartLifecycle, DisposableBean {
                 try {
                     ensureIndexes();
                     ensureGroup();
+                    reclaimIfDue();
                     List<MapRecord<String, Object, Object>> batch = readBatch();
                     if (batch != null && !batch.isEmpty()) {
                         process(batch);
@@ -284,6 +313,51 @@ public class ClickStreamConsumer implements SmartLifecycle, DisposableBean {
             }
         }
         groupReady = true;
+    }
+
+    /**
+     * Roda o reclaim quando o intervalo venceu. O próximo é agendado antes de rodar: se o reclaim
+     * falha (MongoDB fora), o loop segue lendo entradas novas e tenta de novo no intervalo
+     * seguinte, sem repetir o reclaim a cada ciclo. Uma página cheia de pendentes faz buscar a
+     * próxima na mesma rodada (até {@value #MAX_RECLAIM_PAGES} páginas), para que um backlog
+     * acumulado durante uma queda do MongoDB não escoe a um lote por intervalo.
+     */
+    private void reclaimIfDue() {
+        long now = clock.millis();
+        if (now < nextReclaimAt) {
+            return;
+        }
+        nextReclaimAt = now + settings.reclaimInterval().toMillis();
+        for (int page = 0; page < MAX_RECLAIM_PAGES && running; page++) {
+            if (reclaimIdle() < settings.batchSize()) {
+                return;
+            }
+        }
+    }
+
+    /**
+     * Assume até {@code batchSize} entradas pendentes há pelo menos {@code minIdle}
+     * ({@code XPENDING ... IDLE} + {@code XCLAIM}) e as grava e confirma pelo mesmo
+     * {@link #process}. Uma entrada que outro consumer assumiu entre o {@code XPENDING} e o
+     * {@code XCLAIM} já não está parada, e o {@code XCLAIM} não a devolve.
+     *
+     * @return quantas entradas paradas o {@code XPENDING} listou
+     */
+    private int reclaimIdle() {
+        PendingMessages idle = redis.opsForStream().pending(settings.streamKey(),
+                settings.group(), Range.unbounded(), settings.batchSize(), settings.minIdle());
+        if (idle == null || idle.isEmpty()) {
+            return 0;
+        }
+        RecordId[] ids = idle.stream().map(PendingMessage::getId).toArray(RecordId[]::new);
+        List<MapRecord<String, Object, Object>> taken = redis.opsForStream().claim(
+                settings.streamKey(), settings.group(), settings.consumerName(),
+                RedisStreamCommands.XClaimOptions.minIdle(settings.minIdle()).ids(ids));
+        if (taken != null && !taken.isEmpty()) {
+            claimed.increment(taken.size());
+            process(taken);
+        }
+        return ids.length;
     }
 
     /**
