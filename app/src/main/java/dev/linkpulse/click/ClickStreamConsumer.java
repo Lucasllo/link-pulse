@@ -38,6 +38,12 @@ import org.springframework.data.redis.core.StringRedisTemplate;
  * lança, nada é confirmado e o lote fica no PEL do grupo para ser entregue de novo. O container
  * de listeners de stream do Spring Data Redis não serve aqui porque entrega uma mensagem por vez.
  *
+ * <p>Antes da primeira leitura, o loop garante os índices de {@code click_events} com
+ * {@link ClickIndexes#ensure()} (D-07, DATA-02). Uma falha (MongoDB fora) cai no mesmo
+ * tratamento de erro do resto do ciclo e é tentada de novo depois do backoff, sem ler o stream
+ * antes disso. Nada disso roda no construtor nem na inicialização do bean: com o MongoDB fora,
+ * a aplicação ainda sobe e redireciona.
+ *
  * <p>O loop nunca morre: qualquer {@link RuntimeException} conta em
  * {@code linkpulse.clicks.consumer.errors} e espera um backoff de 500 ms, que dobra até 10 s e
  * volta a zero no primeiro ciclo bem-sucedido. {@code NOGROUP} (stream apagado ou expulso da
@@ -75,6 +81,7 @@ public class ClickStreamConsumer implements SmartLifecycle, DisposableBean {
     private final RedisConnectionFactory connectionFactory;
     private final StringRedisTemplate redis;
     private final ClickEventWriter writer;
+    private final ClickIndexes indexes;
     private final Counter persisted;
     private final Counter duplicates;
     private final Counter invalid;
@@ -87,6 +94,7 @@ public class ClickStreamConsumer implements SmartLifecycle, DisposableBean {
     private volatile boolean running;
     private volatile boolean loopDone = true;
     private volatile boolean groupReady;
+    private volatile boolean indexesReady;
     private volatile Thread worker;
 
     /**
@@ -109,14 +117,16 @@ public class ClickStreamConsumer implements SmartLifecycle, DisposableBean {
      * @param connectionFactory fábrica de conexões dedicada, com timeout acima do {@code BLOCK}
      *     (ver {@link #dedicatedConnectionFactory}); o consumer passa a ser dono dela
      * @param writer gravação idempotente do lote
+     * @param indexes índices da coleção de destino, garantidos no loop (nunca aqui)
      * @param registry registry do Micrometer
      */
     public ClickStreamConsumer(Settings settings, RedisConnectionFactory connectionFactory,
-            ClickEventWriter writer, MeterRegistry registry) {
+            ClickEventWriter writer, ClickIndexes indexes, MeterRegistry registry) {
         this.settings = settings;
         this.connectionFactory = connectionFactory;
         this.redis = new StringRedisTemplate(connectionFactory);
         this.writer = writer;
+        this.indexes = indexes;
         this.persisted = Counter.builder("linkpulse.clicks.persisted")
                 .description("Cliques novos gravados em click_events")
                 .register(registry);
@@ -204,6 +214,7 @@ public class ClickStreamConsumer implements SmartLifecycle, DisposableBean {
             long backoffMillis = 0;
             while (running) {
                 try {
+                    ensureIndexes();
                     ensureGroup();
                     List<MapRecord<String, Object, Object>> batch = readBatch();
                     if (batch != null && !batch.isEmpty()) {
@@ -242,6 +253,18 @@ public class ClickStreamConsumer implements SmartLifecycle, DisposableBean {
                 Consumer.from(settings.group(), settings.consumerName()),
                 StreamReadOptions.empty().count(settings.batchSize()).block(settings.block()),
                 StreamOffset.create(settings.streamKey(), ReadOffset.lastConsumed()));
+    }
+
+    /**
+     * Garante os índices de {@code click_events} uma vez por vida do consumer. Se o
+     * {@link ClickIndexes#ensure()} lança, a flag não sobe e o próximo ciclo tenta de novo.
+     */
+    private void ensureIndexes() {
+        if (indexesReady) {
+            return;
+        }
+        indexes.ensure();
+        indexesReady = true;
     }
 
     /**

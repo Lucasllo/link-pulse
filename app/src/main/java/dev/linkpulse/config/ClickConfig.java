@@ -3,6 +3,7 @@ package dev.linkpulse.config;
 import dev.linkpulse.cache.ValkeyAvailability;
 import dev.linkpulse.click.ClickDocument;
 import dev.linkpulse.click.ClickEventWriter;
+import dev.linkpulse.click.ClickIndexes;
 import dev.linkpulse.click.ClickPublisher;
 import dev.linkpulse.click.ClickStreamConsumer;
 import dev.linkpulse.click.MongoClickEventWriter;
@@ -72,6 +73,20 @@ public class ClickConfig {
     }
 
     /**
+     * Índices {@code code_ts} e {@code ts_ttl} de {@code click_events}, com o TTL igual a
+     * {@code linkpulse.clicks.retention}. O bean não toca no MongoDB: quem chama
+     * {@link ClickIndexes#ensure()} é o loop do consumer, com retry.
+     *
+     * @param mongo template do Spring Data MongoDB
+     * @param properties propriedades {@code linkpulse.*}; usa {@code linkpulse.clicks.retention}
+     * @return os índices configurados
+     */
+    @Bean
+    ClickIndexes clickIndexes(MongoTemplate mongo, LinkPulseProperties properties) {
+        return new ClickIndexes(mongo, ClickDocument.COLLECTION, properties.clicks().retention());
+    }
+
+    /**
      * Consumer group que lê {@code linkpulse.clicks.stream-key} e grava em {@code click_events}.
      * Desligável por instância com {@code linkpulse.clicks.consumer.enabled=false}.
      *
@@ -84,6 +99,7 @@ public class ClickConfig {
      * @param properties propriedades {@code linkpulse.*}; usa {@code linkpulse.clicks.*}
      * @param details conexão do Valkey resolvida pelo Boot
      * @param writer gravação do lote
+     * @param indexes índices de {@code click_events}, garantidos no loop do consumer
      * @param registry registry do Micrometer
      * @param environment ambiente, para ler o {@code HOSTNAME}
      * @return o consumer, que sobe com o contexto
@@ -92,8 +108,8 @@ public class ClickConfig {
     @ConditionalOnProperty(prefix = "linkpulse.clicks.consumer", name = "enabled",
             havingValue = "true", matchIfMissing = true)
     ClickStreamConsumer clickStreamConsumer(LinkPulseProperties properties,
-            DataRedisConnectionDetails details, ClickEventWriter writer, MeterRegistry registry,
-            Environment environment) {
+            DataRedisConnectionDetails details, ClickEventWriter writer, ClickIndexes indexes,
+            MeterRegistry registry, Environment environment) {
         LinkPulseProperties.Clicks clicks = properties.clicks();
         String hostname = environment.getProperty("HOSTNAME");
         String consumerName = hostname == null || hostname.isBlank()
@@ -104,6 +120,6 @@ public class ClickConfig {
                 clicks.consumer().batchSize(), clicks.consumer().block());
         return new ClickStreamConsumer(settings,
                 ClickStreamConsumer.dedicatedConnectionFactory(details, clicks.consumer().block()),
-                writer, registry);
+                writer, indexes, registry);
     }
 }

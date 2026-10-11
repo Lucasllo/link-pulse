@@ -261,7 +261,8 @@ class ClickPipelineIT extends AbstractIT {
         ClickStreamConsumer consumer = new ClickStreamConsumer(
                 new ClickStreamConsumer.Settings(stream, stream, "it-idle", 10, block),
                 ClickStreamConsumer.dedicatedConnectionFactory(redisDetails, block),
-                counting, new SimpleMeterRegistry());
+                counting, new ClickIndexes(mongo, collection, Duration.ofDays(90)),
+                new SimpleMeterRegistry());
         consumer.start();
         try {
             await().pollDelay(Duration.ofSeconds(1)).atMost(Duration.ofSeconds(3))
