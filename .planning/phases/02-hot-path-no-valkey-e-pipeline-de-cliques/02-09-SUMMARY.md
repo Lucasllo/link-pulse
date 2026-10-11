@@ -302,3 +302,8 @@ None. Nenhuma configuração externa é necessária. O default (`internal-proxie
 ---
 *Phase: 02-hot-path-no-valkey-e-pipeline-de-cliques*
 *Completed: 2026-10-11*
+
+## Self-Check: PASSED
+
+- 7 arquivos criados presentes; commits b34e340, ba0b340, 2efeeb9, 3421867, f6ecf98, 524c33e e b0013f3 existem
+- RateLimitIT 274 linhas (min 120), TrustedProxyRateLimitIT 135 linhas (min 50)

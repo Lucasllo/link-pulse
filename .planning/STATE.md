@@ -2,17 +2,17 @@
 gsd_state_version: "1.0"
 current_phase: 02
 current_phase_name: Hot path no Valkey e pipeline de cliques
-status: executing
-stopped_at: Completed 02-08-PLAN.md
-last_updated: "2026-10-11T20:31:46.990Z"
+status: verifying
+stopped_at: Completed 02-09-PLAN.md
+last_updated: "2026-10-11T20:56:39.395Z"
 last_activity: 2026-10-11
 last_activity_desc: Phase 02 execution started
-state_head: dcfe2ef3356077ced0bc6783872998a1e05041de
+state_head: b0013f33ac3ab7eb1215a1e6af2735fb485ae524
 progress:
   total_phases: 5
   completed_phases: 1
   total_plans: 17
-  completed_plans: 16
+  completed_plans: 17
   percent: 20
 ---
 
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-10-09)
 
 Phase: 02 (Hot path no Valkey e pipeline de cliques) — EXECUTING
 Plan: 9 of 9
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-10-11 — Phase 02 execution started
 
 Progress: [██░░░░░░░░] 20%
@@ -74,6 +74,7 @@ Progress: [██░░░░░░░░] 20%
 | Phase 02 P06 | 13 min | 2 tasks | 8 files |
 | Phase 02 P07 | 18min | 3 tasks | 10 files |
 | Phase 02 P08 | 28min | 3 tasks | 6 files |
+| Phase 02 P09 | 21 min | 3 tasks | 14 files |
 
 ## Accumulated Context
 
@@ -126,6 +127,9 @@ Decisões recentes que afetam o trabalho atual:
 - [Phase 02]: 02-08: ClickStreamConsumer e ClickPublisher são reiniciáveis (stop libera fábrica/executor, start recria, destroy é terminal): o Spring Framework 7 pausa e retoma contextos de teste em cache
 - [Phase 02]: 02-08: gauges linkpulse_clicks_stream_pending/lag/length são do grupo; dashboards e alerta de lag usam max(), lag NaN = indefinido
 - [Phase 02]: 02-08: spring-boot-micrometer-metrics-test dispensado; /actuator/prometheus responde em @SpringBootTest RANDOM_PORT no Boot 4.1.1 sem @AutoConfigureMetrics
+- [Phase 02]: Rate limit do POST /links: script Lua de janela fixa (INCR + PEXPIRE quando sem TTL), chave lp:rl:{hmac}:{janela}, fail-open pelo ValkeyAvailability e linkpulse.ratelimit.requests{result}
+- [Phase 02]: IP real só via RemoteIpValve: forward-headers-strategy native e internal-proxies vazio por padrão; SERVER_TOMCAT_REMOTEIP_INTERNAL_PROXIES (forma com _) faz binding; Phase 4 usa o CIDR dos pods do Traefik
+- [Phase 02]: A2 confirmada: ErrorResponseException no preHandle vira 429 problem+json com Retry-After pelo GlobalExceptionHandler
 
 ### Pending Todos
 
@@ -156,6 +160,6 @@ Itens reconhecidos e adiados no fechamento de milestone, do mais recente para o 
 
 ## Session Continuity
 
-Last session: 2026-10-11T20:31:46.886Z
-Stopped at: Completed 02-08-PLAN.md
+Last session: 2026-10-11T20:56:26.587Z
+Stopped at: Completed 02-09-PLAN.md
 Resume file: None

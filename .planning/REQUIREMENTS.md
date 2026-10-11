@@ -45,15 +45,15 @@ Requisitos da entrega inicial. Cada um é mapeado para uma fase do roadmap.
 
 ### Rate limiting
 
-- [ ] **RATE-01**: `POST /links` é limitado por IP via Valkey (operação atômica), retornando 429 com `Retry-After`
-- [ ] **RATE-02**: O IP real do cliente é obtido via forward headers apenas de proxies confiáveis (funciona atrás do Traefik)
+- [x] **RATE-01**: `POST /links` é limitado por IP via Valkey (operação atômica), retornando 429 com `Retry-After`
+- [x] **RATE-02**: O IP real do cliente é obtido via forward headers apenas de proxies confiáveis (funciona atrás do Traefik)
 
 ### Dados e qualidade
 
 - [x] **DATA-01**: Schema do Postgres gerenciado por Liquibase com changelogs YAML versionados e contexts dev/prod; Hibernate em `ddl-auto=validate`
 - [x] **DATA-02**: Índices do MongoDB (`{code, ts}` e TTL de retenção) criados explicitamente
 - [x] **QUAL-01**: Testes unitários do gerador de código (Base62 + embaralhamento, ida e volta, unicidade)
-- [ ] **QUAL-02**: Testes de integração com Testcontainers (Postgres + Mongo + Valkey), cobrindo redirect, cache, rate limit, pipeline de cliques (incluindo reentrega) e stats
+- [x] **QUAL-02**: Testes de integração com Testcontainers (Postgres + Mongo + Valkey), cobrindo redirect, cache, rate limit, pipeline de cliques (incluindo reentrega) e stats
 - [x] **QUAL-03**: Checkstyle e SpotBugs rodam no build e quebram em violação
 - [x] **QUAL-04**: API documentada com OpenAPI/Swagger UI (springdoc)
 
@@ -80,7 +80,7 @@ Requisitos da entrega inicial. Cada um é mapeado para uma fase do roadmap.
 
 ### Observabilidade
 
-- [ ] **OBS-01**: App expõe métricas Micrometer/Prometheus (requisições, latência, cache hit/miss, cliques, pipeline) sem tags de alta cardinalidade
+- [x] **OBS-01**: App expõe métricas Micrometer/Prometheus (requisições, latência, cache hit/miss, cliques, pipeline) sem tags de alta cardinalidade
 - [ ] **OBS-02**: Dashboard Grafana versionado em JSON com taxa de requisições, latência p95/p99, cache hit ratio e cliques/min
 - [ ] **OBS-03**: Dashboard de saúde do pipeline de cliques (lag, pendentes, descartados)
 - [ ] **OBS-04**: Alertas Prometheus: taxa de 5xx, latência p99 alta, lag do consumer e target down, cada um com runbook
@@ -164,12 +164,12 @@ Rastreabilidade: quais fases cobrem quais requisitos. Preenchido na criação do
 | STAT-02 | Phase 2 | Complete |
 | STAT-03 | Phase 2 | Complete |
 | STAT-04 | Phase 2 | Complete |
-| RATE-01 | Phase 2 | Pending |
-| RATE-02 | Phase 2 | Pending |
+| RATE-01 | Phase 2 | Complete |
+| RATE-02 | Phase 2 | Complete |
 | DATA-01 | Phase 1 | Complete |
 | DATA-02 | Phase 2 | Complete |
 | QUAL-01 | Phase 1 | Complete |
-| QUAL-02 | Phase 2 | Pending |
+| QUAL-02 | Phase 2 | Complete |
 | QUAL-03 | Phase 1 | Complete |
 | QUAL-04 | Phase 1 | Complete |
 | CONT-01 | Phase 3 | Pending |
@@ -184,7 +184,7 @@ Rastreabilidade: quais fases cobrem quais requisitos. Preenchido na criação do
 | CI-02 | Phase 4 | Pending |
 | CI-03 | Phase 4 | Pending |
 | CI-04 | Phase 4 | Pending |
-| OBS-01 | Phase 2 | Pending |
+| OBS-01 | Phase 2 | Complete |
 | OBS-02 | Phase 3 | Pending |
 | OBS-03 | Phase 3 | Pending |
 | OBS-04 | Phase 3 | Pending |
