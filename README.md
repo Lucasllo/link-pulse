@@ -30,9 +30,9 @@ Rode da raiz do repositório.
 | `make build` | `cd app && ./mvnw -B -ntp -DskipTests package` | Empacota o jar sem rodar testes |
 | `make test` | `cd app && ./mvnw -B -ntp test` | Só os testes unitários (não precisa de Docker) |
 | `make verify` | `cd app && ./mvnw -B -ntp verify` | Checkstyle, unitários, ITs com Testcontainers e SpotBugs (precisa de Docker) |
-| `make db-up` | `docker compose -f compose.dev.yaml up -d --wait` | Sobe as dependências locais do `compose.dev.yaml` (Postgres e Valkey) e espera os healthchecks |
-| `make db-down` | `docker compose -f compose.dev.yaml down` | Para as dependências locais do `compose.dev.yaml` (Postgres e Valkey; mantém o volume `pgdata`) |
-| `make run` | `docker compose -f compose.dev.yaml up -d --wait` e depois `cd app && ./mvnw -B -ntp spring-boot:run -Dspring-boot.run.profiles=dev` | Sobe as dependências locais do `compose.dev.yaml` (Postgres e Valkey) e a API com o profile `dev` |
+| `make db-up` | `docker compose -f compose.dev.yaml up -d --wait` | Sobe as dependências locais do `compose.dev.yaml` (Postgres, Valkey e Mongo) e espera os healthchecks |
+| `make db-down` | `docker compose -f compose.dev.yaml down` | Para as dependências locais do `compose.dev.yaml` (Postgres, Valkey e Mongo; mantém os volumes `pgdata` e `mongodata`) |
+| `make run` | `docker compose -f compose.dev.yaml up -d --wait` e depois `cd app && ./mvnw -B -ntp spring-boot:run -Dspring-boot.run.profiles=dev` | Sobe as dependências locais do `compose.dev.yaml` (Postgres, Valkey e Mongo) e a API com o profile `dev` |
 
 No **PowerShell**, use o `mvnw.cmd`:
 
@@ -57,6 +57,12 @@ curl -i http://localhost:8080/demo-link
 # Cache-Control: no-store, private
 ```
 
+Cada redirect vira um clique: a API publica o evento no stream `lp:clicks` do Valkey sem esperar, e um consumer group lê o stream em lote e grava cada clique como um documento na coleção `click_events` do Mongo do `compose.dev.yaml` (`127.0.0.1:27017`, banco `linkpulse`). O documento guarda o código, o instante, o host do `Referer` e o hash do IP; o IP em claro e o user-agent cru não são gravados. Para ver os cliques chegando:
+
+```bash
+docker compose -f compose.dev.yaml exec mongo mongosh linkpulse --eval 'db.click_events.find().limit(3)'
+```
+
 - Swagger UI: <http://localhost:8080/swagger-ui.html> (spec em <http://localhost:8080/v3/api-docs>)
 - Health: <http://localhost:8081/actuator/health>. O Actuator fica numa porta separada (8081) e expõe `health`, `info` e `prometheus` (<http://localhost:8081/actuator/prometheus>, com hit/miss do cache em `linkpulse_cache_requests_total` e o histograma de latência em `http_server_requests_seconds_bucket`).
 
@@ -73,7 +79,7 @@ curl -i http://localhost:8080/demo-link
 
 O redirect continua respondendo 302 pelo Postgres, sem atraso perceptível: o Lettuce tem timeout de comando de 150 ms e de conexão de 250 ms, rejeita comandos na hora com a conexão caída e, depois de uma falha, o cache fica desviado por 2 s (`linkpulse.cache.bypass-cooldown`). A falha aparece em `curl -s http://localhost:8081/actuator/prometheus | grep linkpulse_cache` (`result="error"` e `result="bypass"`) e em `linkpulse_valkey_unavailable_total`. Para voltar: `docker compose -f compose.dev.yaml start valkey`.
 
-Fora do profile dev, o datasource vem por variável de ambiente (`SPRING_DATASOURCE_URL`, `SPRING_DATASOURCE_USERNAME`, `SPRING_DATASOURCE_PASSWORD`). As credenciais `linkpulse` valem só para o Postgres local de desenvolvimento.
+Fora do profile dev, as conexões vêm por variável de ambiente: o datasource (`SPRING_DATASOURCE_URL`, `SPRING_DATASOURCE_USERNAME`, `SPRING_DATASOURCE_PASSWORD`), o Valkey (`SPRING_DATA_REDIS_HOST`, `SPRING_DATA_REDIS_PORT`) e o MongoDB (`SPRING_MONGODB_URI`; o banco continua `linkpulse`, fixado em `spring.mongodb.database`). As credenciais `linkpulse` valem só para o Postgres local de desenvolvimento.
 
 ## API
 
