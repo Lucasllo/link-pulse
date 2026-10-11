@@ -47,6 +47,11 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-data-jpa</artifactId>
         </dependency>
+        <!-- Cliente Lettuce (default do Boot); o servidor é o Valkey 8.1 em todos os ambientes. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-redis</artifactId>
+        </dependency>
         <!-- No Boot 4 a autoconfig do Liquibase saiu do core e precisa do starter próprio. -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
