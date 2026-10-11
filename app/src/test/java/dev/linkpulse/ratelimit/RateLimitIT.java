@@ -262,4 +262,13 @@ class RateLimitIT {
         assertThat(count("allowed") - allowedBefore).isEqualTo(3.0);
         assertThat(count("rejected") - rejectedBefore).isEqualTo(1.0);
     }
+
+    @Test
+    void spoofedForwardedForFromUntrustedPeerIsIgnored() throws Exception {
+        for (int i = 1; i <= 3; i++) {
+            assertThat(post("203.0.113." + i).statusCode()).as("POST %d", i).isEqualTo(201);
+        }
+
+        assertRateLimited(post("203.0.113.4"));
+    }
 }

@@ -31,9 +31,13 @@ class OpenApiIT extends AbstractIT {
         assertThat(result).hasStatus(HttpStatus.OK);
         assertThat(result).bodyJson().extractingPath("$.paths['/links'].post.responses")
                 .asMap()
-                .containsKeys("201", "400", "409");
+                .containsKeys("201", "400", "409", "429");
         assertThat(result).bodyJson()
                 .extractingPath("$.paths['/links'].post.responses['409'].content")
+                .asMap()
+                .containsKey("application/problem+json");
+        assertThat(result).bodyJson()
+                .extractingPath("$.paths['/links'].post.responses['429'].content")
                 .asMap()
                 .containsKey("application/problem+json");
     }
