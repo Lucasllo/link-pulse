@@ -1,5 +1,6 @@
 package dev.linkpulse.click;
 
+import dev.linkpulse.cache.ValkeyAvailability;
 import dev.linkpulse.common.IpHasher;
 import dev.linkpulse.config.LinkPulseProperties;
 import io.micrometer.core.instrument.Counter;
@@ -77,13 +78,15 @@ public class ClickPublisher implements SmartLifecycle {
      * Cria o publisher, os contadores e o executor limitado.
      *
      * @param redis template de strings do Spring Data Redis (Lettuce)
+     * @param availability gate de disponibilidade do Valkey
      * @param ipHasher hasher do IP do cliente
      * @param clicks propriedades {@code linkpulse.clicks.*}
      * @param clock relógio da aplicação (instante do clique)
      * @param registry registry do Micrometer
      */
-    public ClickPublisher(StringRedisTemplate redis, IpHasher ipHasher,
-            LinkPulseProperties.Clicks clicks, Clock clock, MeterRegistry registry) {
+    public ClickPublisher(StringRedisTemplate redis, ValkeyAvailability availability,
+            IpHasher ipHasher, LinkPulseProperties.Clicks clicks, Clock clock,
+            MeterRegistry registry) {
         this.redis = redis;
         this.ipHasher = ipHasher;
         this.clicks = clicks;

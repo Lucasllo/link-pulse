@@ -23,7 +23,8 @@ import org.springframework.test.web.servlet.assertj.MvcTestResult;
 import org.testcontainers.containers.GenericContainer;
 
 /**
- * ITs do fail-open do redirect com o Valkey pausado ({@code docker pause}).
+ * ITs do fail-open do redirect e da publicação de cliques com o Valkey pausado
+ * ({@code docker pause}).
  *
  * <p>A pausa simula o pior caso, "conectado, mas sem resposta": a conexão TCP continua aberta e
  * cada comando só falha pelo timeout do Lettuce. Pausar, em vez de parar, mantém a porta mapeada
@@ -35,6 +36,7 @@ class ValkeyOutageIT extends AbstractIT {
     private static final long MAX_REDIRECT_MILLIS = 1000;
     private static final String CACHE_REQUESTS = "linkpulse.cache.requests";
     private static final String UNAVAILABLE = "linkpulse.valkey.unavailable";
+    private static final String CLICKS_PUBLISH = "linkpulse.clicks.publish";
 
     @Autowired
     @Qualifier("valkey")
@@ -64,6 +66,15 @@ class ValkeyOutageIT extends AbstractIT {
         return counter == null ? 0.0 : counter.count();
     }
 
+    /**
+     * Um GET com o Valkey no ar antes da pausa. Aquece o caminho do redirect e abre a conexão do
+     * Lettuce: os testes medem a queda do Valkey com a aplicação já rodando, não o primeiro
+     * request de uma JVM fria nem uma conexão aberta com o container já pausado.
+     */
+    private void warmUp(String code) {
+        assertThat(mvc.get().uri("/" + code).exchange()).hasStatus(HttpStatus.FOUND);
+    }
+
     private void pauseValkey() {
         valkey.getDockerClient().pauseContainerCmd(valkey.getContainerId()).exec();
     }
@@ -87,6 +98,7 @@ class ValkeyOutageIT extends AbstractIT {
     void redirectKeepsWorkingFastWhileValkeyIsPaused() {
         String target = "https://example.com/outage";
         saveLink("outage-1", target);
+        warmUp("outage-1");
         final double errorsBefore = count(CACHE_REQUESTS, "error");
         final double bypassBefore = count(CACHE_REQUESTS, "bypass");
         final double unavailableBefore = count(UNAVAILABLE, null);
@@ -120,5 +132,36 @@ class ValkeyOutageIT extends AbstractIT {
         assertThat(mvc.get().uri("/outage-1").exchange()).hasStatus(HttpStatus.FOUND);
         double hitOrMiss = count(CACHE_REQUESTS, "hit") + count(CACHE_REQUESTS, "miss");
         assertThat(hitOrMiss - hitOrMissBefore).isEqualTo(1.0);
+    }
+
+    @Test
+    void clickPublishFailureIsCountedWhileValkeyIsPaused() {
+        String target = "https://example.com/outage-click";
+        saveLink("outage-2", target);
+        warmUp("outage-2");
+        final double failedBefore = count(CLICKS_PUBLISH, "failed");
+        List<Long> elapsedMillis = new ArrayList<>();
+
+        pauseValkey();
+        try {
+            for (int i = 0; i < 3; i++) {
+                long start = System.nanoTime();
+                MvcTestResult result = mvc.get().uri("/outage-2").exchange();
+                long elapsed = Duration.ofNanos(System.nanoTime() - start).toMillis();
+                elapsedMillis.add(elapsed);
+
+                assertThat(result).hasStatus(HttpStatus.FOUND);
+                assertThat(result.getResponse().getHeader(HttpHeaders.LOCATION)).isEqualTo(target);
+                assertThat(elapsed).isLessThan(MAX_REDIRECT_MILLIS);
+            }
+            // Ainda com o Valkey pausado: a publicação falha (gate fechado ou timeout) e conta.
+            await().atMost(Duration.ofSeconds(5)).untilAsserted(() ->
+                    assertThat(count(CLICKS_PUBLISH, "failed") - failedBefore)
+                            .isGreaterThanOrEqualTo(1.0));
+        } finally {
+            unpauseValkeyAndWaitForGate();
+        }
+        System.out.println("ValkeyOutageIT: tempos dos GETs com publicação e Valkey pausado (ms) = "
+                + elapsedMillis);
     }
 }

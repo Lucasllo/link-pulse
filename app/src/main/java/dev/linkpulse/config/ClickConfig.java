@@ -1,5 +1,6 @@
 package dev.linkpulse.config;
 
+import dev.linkpulse.cache.ValkeyAvailability;
 import dev.linkpulse.click.ClickPublisher;
 import dev.linkpulse.common.IpHasher;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -35,6 +36,7 @@ public class ClickConfig {
      * Publisher assíncrono e limitado dos cliques no stream do Valkey.
      *
      * @param redis template de strings do Spring Data Redis
+     * @param availability gate de disponibilidade do Valkey, compartilhado com o cache
      * @param ipHasher hasher do IP
      * @param properties propriedades {@code linkpulse.*}; usa {@code linkpulse.clicks.*}
      * @param clock relógio da aplicação
@@ -42,8 +44,10 @@ public class ClickConfig {
      * @return o publisher configurado
      */
     @Bean
-    ClickPublisher clickPublisher(StringRedisTemplate redis, IpHasher ipHasher,
-            LinkPulseProperties properties, Clock clock, MeterRegistry registry) {
-        return new ClickPublisher(redis, ipHasher, properties.clicks(), clock, registry);
+    ClickPublisher clickPublisher(StringRedisTemplate redis, ValkeyAvailability availability,
+            IpHasher ipHasher, LinkPulseProperties properties, Clock clock,
+            MeterRegistry registry) {
+        return new ClickPublisher(redis, availability, ipHasher, properties.clicks(), clock,
+                registry);
     }
 }
