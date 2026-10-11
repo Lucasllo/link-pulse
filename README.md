@@ -191,6 +191,7 @@ Configuração (override por variável de ambiente, via relaxed binding do Sprin
 | `LINKPULSE_CODE_MULTIPLIER` | `2176477521915` | Precisa ser coprimo de `62^7`. Um valor inválido derruba a subida |
 | `LINKPULSE_CODE_ALPHABET` | `0-9A-Za-z` (62 caracteres) | Alfabeto do Base62 |
 | `LINKPULSE_ALIAS_RESERVED` | lista acima | Lista separada por vírgula |
+| `LINKPULSE_IP_HASH_KEY` | nenhum fora do profile `dev` | **Obrigatória**, com pelo menos 16 caracteres. Chave do HMAC que transforma o IP do cliente em hash antes de publicar o clique; o IP nunca é guardado em claro. Sem ela a aplicação não sobe. O valor nunca aparece no `toString` das propriedades nem em mensagem de erro |
 
 **Trocar `M` ou o alfabeto muda o código de todos os links já publicados**, e os links antigos deixam de funcionar. Escolha uma vez, antes de publicar.
 

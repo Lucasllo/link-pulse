@@ -35,7 +35,14 @@ server:
 
 # Override por env via relaxed binding: LINKPULSE_BASE_URL, LINKPULSE_CODE_ALPHABET,
 # LINKPULSE_CODE_MULTIPLIER, LINKPULSE_ALIAS_RESERVED (lista separada por vírgula),
-# LINKPULSE_SELF_HOSTS (lista separada por vírgula).
+# LINKPULSE_SELF_HOSTS (lista separada por vírgula) e LINKPULSE_IP_HASH_KEY (chave do HMAC do IP;
+# obrigatória fora do profile dev, pelo menos 16 caracteres; sem default aqui de propósito).
+#
+# Publicação dos cliques no stream (sem chave aqui; os defaults ficam no LinkPulseProperties):
+#   linkpulse.clicks.stream-key=lp:clicks          (LINKPULSE_CLICKS_STREAM_KEY)
+#   linkpulse.clicks.max-len=100000                (LINKPULSE_CLICKS_MAX_LEN, XADD MAXLEN ~)
+#   linkpulse.clicks.publisher.threads=2           (LINKPULSE_CLICKS_PUBLISHER_THREADS)
+#   linkpulse.clicks.publisher.queue-capacity=10000 (LINKPULSE_CLICKS_PUBLISHER_QUEUE_CAPACITY)
 linkpulse:
   # Base da shortUrl (D-12); compose/kind/ECS sobrescrevem por env. Precisa ser uma URL http ou
   # https absoluta, com host e sem credenciais, query ou fragmento: valor inválido derruba a subida.

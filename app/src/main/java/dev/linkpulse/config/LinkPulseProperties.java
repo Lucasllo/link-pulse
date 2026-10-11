@@ -78,6 +78,24 @@ public record LinkPulseProperties(
         selfHosts = selfHosts == null ? List.of() : List.copyOf(selfHosts);
     }
 
+    /**
+     * Mesmo formato do {@code toString()} gerado para o record, mas com {@code ipHashKey=****}
+     * quando houver chave. Evita vazar a chave do HMAC em log, em relatório de falha de binding
+     * ou em mensagem de erro que imprima as propriedades (T-02-44).
+     *
+     * @return representação das propriedades sem a chave do HMAC
+     */
+    @Override
+    public String toString() {
+        return "LinkPulseProperties[baseUrl=" + baseUrl
+                + ", code=" + code
+                + ", alias=" + alias
+                + ", selfHosts=" + selfHosts
+                + ", cache=" + cache
+                + ", ipHashKey=" + (ipHashKey == null ? "null" : "****")
+                + ", clicks=" + clicks + "]";
+    }
+
     private static boolean isValidBaseUrl(URI baseUrl) {
         String scheme = baseUrl.getScheme();
         String host = baseUrl.getHost();
