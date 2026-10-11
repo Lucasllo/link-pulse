@@ -4,10 +4,10 @@ current_phase: 3
 current_phase_name: Stack local observável
 status: planning
 stopped_at: Phase 02 complete, ready to plan Phase 3
-last_updated: "2026-10-11T23:37:30.403Z"
+last_updated: "2026-10-11T23:42:38.222Z"
 last_activity: 2026-10-11
 last_activity_desc: Phase 02 complete, transitioned to Phase 3
-state_head: 5dbeb90430407e922598af5d0f6ab52272f9708f
+state_head: 2b12c4d957180784271b466633505843412d9880
 progress:
   total_phases: 5
   completed_phases: 2
@@ -152,6 +152,7 @@ None yet.
 | 261009-tdc | Criar pasta estudos com material didático sobre estrutura e tecnologias | 2026-10-09 | 4d759c6 | [261009-tdc-criar-pasta-estudos-com-material-did-tic](./quick/261009-tdc-criar-pasta-estudos-com-material-did-tic/) |
 | 2 | Configurar Dependabot para ignorar apache-maven 3.10.x e fechar o PR #2 | 2026-10-11 | 9e5adc5 | — |
 | 3 | Adicionar estudos/00-visao-geral-do-projeto.md (visão geral para iniciantes) | 2026-10-11 | 5dbeb90 | — |
+| 4 | Adicionar estudos/11-dependabot.md (Dependabot para iniciantes) | 2026-10-11 | 2b12c4d | — |
 
 ## Deferred Items
 
