@@ -1,16 +1,25 @@
 package dev.linkpulse.config;
 
 import dev.linkpulse.cache.ValkeyAvailability;
+import dev.linkpulse.click.ClickDocument;
+import dev.linkpulse.click.ClickEventWriter;
 import dev.linkpulse.click.ClickPublisher;
+import dev.linkpulse.click.ClickStreamConsumer;
+import dev.linkpulse.click.MongoClickEventWriter;
 import dev.linkpulse.common.IpHasher;
 import io.micrometer.core.instrument.MeterRegistry;
 import java.time.Clock;
+import java.util.UUID;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.boot.data.redis.autoconfigure.DataRedisConnectionDetails;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.env.Environment;
+import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.redis.core.StringRedisTemplate;
 
 /**
- * Beans da publicação de cliques.
+ * Beans da publicação de cliques e do consumer group que os grava no MongoDB.
  *
  * <p>Ficam fora do {@link ApplicationConfig} de propósito: os testes com
  * {@code ApplicationContextRunner} ({@code LinkPulsePropertiesTest}, {@code CodeGeneratorTest})
@@ -49,5 +58,52 @@ public class ClickConfig {
             MeterRegistry registry) {
         return new ClickPublisher(redis, availability, ipHasher, properties.clicks(), clock,
                 registry);
+    }
+
+    /**
+     * Gravação idempotente dos cliques em {@code click_events}.
+     *
+     * @param mongo template do Spring Data MongoDB
+     * @return o writer configurado
+     */
+    @Bean
+    MongoClickEventWriter clickEventWriter(MongoTemplate mongo) {
+        return new MongoClickEventWriter(mongo, ClickDocument.COLLECTION);
+    }
+
+    /**
+     * Consumer group que lê {@code linkpulse.clicks.stream-key} e grava em {@code click_events}.
+     * Desligável por instância com {@code linkpulse.clicks.consumer.enabled=false}.
+     *
+     * <p>O nome do consumer no grupo é o {@code HOSTNAME} (nome do pod ou do container), para que
+     * as entradas pendentes de uma instância sejam reconhecíveis no {@code XPENDING}; sem ele,
+     * {@code lp-<uuid>}. A fábrica de conexões vem de
+     * {@link ClickStreamConsumer#dedicatedConnectionFactory} e de propósito não é bean: um
+     * segundo {@code RedisConnectionFactory} no contexto desligaria a auto-configuração do Boot.
+     *
+     * @param properties propriedades {@code linkpulse.*}; usa {@code linkpulse.clicks.*}
+     * @param details conexão do Valkey resolvida pelo Boot
+     * @param writer gravação do lote
+     * @param registry registry do Micrometer
+     * @param environment ambiente, para ler o {@code HOSTNAME}
+     * @return o consumer, que sobe com o contexto
+     */
+    @Bean
+    @ConditionalOnProperty(prefix = "linkpulse.clicks.consumer", name = "enabled",
+            havingValue = "true", matchIfMissing = true)
+    ClickStreamConsumer clickStreamConsumer(LinkPulseProperties properties,
+            DataRedisConnectionDetails details, ClickEventWriter writer, MeterRegistry registry,
+            Environment environment) {
+        LinkPulseProperties.Clicks clicks = properties.clicks();
+        String hostname = environment.getProperty("HOSTNAME");
+        String consumerName = hostname == null || hostname.isBlank()
+                ? "lp-" + UUID.randomUUID()
+                : hostname;
+        ClickStreamConsumer.Settings settings = new ClickStreamConsumer.Settings(
+                clicks.streamKey(), clicks.group(), consumerName,
+                clicks.consumer().batchSize(), clicks.consumer().block());
+        return new ClickStreamConsumer(settings,
+                ClickStreamConsumer.dedicatedConnectionFactory(details, clicks.consumer().block()),
+                writer, registry);
     }
 }

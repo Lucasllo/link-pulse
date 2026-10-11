@@ -29,9 +29,26 @@ spring:
       repositories:
         # Só o JPA usa repositórios; o Valkey é acessado direto pelo StringRedisTemplate.
         enabled: false
+    mongodb:
+      repositories:
+        # O MongoDB é acessado pelo MongoTemplate (bulk do consumer e agregações do /stats).
+        type: none
+  # MongoDB dos cliques (coleção click_events). Boot 4: prefixo spring.mongodb.*. Sem host aqui:
+  # o default é localhost:27017 (compose.dev.yaml); fora do dev, override por env
+  # SPRING_MONGODB_URI. O nome do banco fica fixo e prevalece sobre o da connection string do
+  # @ServiceConnection dos ITs.
+  mongodb:
+    database: linkpulse
+  lifecycle:
+    # Cada fase do shutdown espera até 30 s: acima do BLOCK do consumer (2 s) somado ao tempo de
+    # gravação do último lote no MongoDB (Pitfall P14).
+    timeout-per-shutdown-phase: 30s
 
 server:
   port: 8080
+  # Já é o default no Boot 4.1; explícito para documentar: o web server para de aceitar requests
+  # antes de o publisher esvaziar a fila e de o consumer gravar o último lote.
+  shutdown: graceful
 
 # Override por env via relaxed binding: LINKPULSE_BASE_URL, LINKPULSE_CODE_ALPHABET,
 # LINKPULSE_CODE_MULTIPLIER, LINKPULSE_ALIAS_RESERVED (lista separada por vírgula),
@@ -43,6 +60,13 @@ server:
 #   linkpulse.clicks.max-len=100000                (LINKPULSE_CLICKS_MAX_LEN, XADD MAXLEN ~)
 #   linkpulse.clicks.publisher.threads=2           (LINKPULSE_CLICKS_PUBLISHER_THREADS)
 #   linkpulse.clicks.publisher.queue-capacity=10000 (LINKPULSE_CLICKS_PUBLISHER_QUEUE_CAPACITY)
+#
+# Consumo do stream pelo consumer group que grava em click_events no MongoDB:
+#   linkpulse.clicks.group=click-writers           (LINKPULSE_CLICKS_GROUP)
+#   linkpulse.clicks.retention=90d                 (LINKPULSE_CLICKS_RETENTION, índice TTL)
+#   linkpulse.clicks.consumer.enabled=true         (LINKPULSE_CLICKS_CONSUMER_ENABLED)
+#   linkpulse.clicks.consumer.batch-size=500       (LINKPULSE_CLICKS_CONSUMER_BATCH_SIZE, COUNT)
+#   linkpulse.clicks.consumer.block=2s             (LINKPULSE_CLICKS_CONSUMER_BLOCK, BLOCK)
 linkpulse:
   # Base da shortUrl (D-12); compose/kind/ECS sobrescrevem por env. Precisa ser uma URL http ou
   # https absoluta, com host e sem credenciais, query ou fragmento: valor inválido derruba a subida.

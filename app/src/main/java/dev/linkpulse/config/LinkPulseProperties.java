@@ -19,8 +19,10 @@ import org.springframework.validation.annotation.Validated;
  * {@code LINKPULSE_CODE_MULTIPLIER}, {@code LINKPULSE_ALIAS_RESERVED},
  * {@code LINKPULSE_SELF_HOSTS}, {@code LINKPULSE_CACHE_DEFAULT_TTL}, {@code LINKPULSE_IP_HASH_KEY},
  * {@code LINKPULSE_CLICKS_STREAM_KEY}, {@code LINKPULSE_CLICKS_MAX_LEN},
- * {@code LINKPULSE_CLICKS_PUBLISHER_THREADS}, {@code LINKPULSE_CLICKS_PUBLISHER_QUEUE_CAPACITY}
- * etc.).
+ * {@code LINKPULSE_CLICKS_PUBLISHER_THREADS}, {@code LINKPULSE_CLICKS_PUBLISHER_QUEUE_CAPACITY},
+ * {@code LINKPULSE_CLICKS_GROUP}, {@code LINKPULSE_CLICKS_RETENTION},
+ * {@code LINKPULSE_CLICKS_CONSUMER_ENABLED}, {@code LINKPULSE_CLICKS_CONSUMER_BATCH_SIZE},
+ * {@code LINKPULSE_CLICKS_CONSUMER_BLOCK} etc.).
  *
  * @param baseUrl base da URL curta devolvida na criação (D-12); nunca derivada de {@code Host}
  *     nem de {@code X-Forwarded-*}. Precisa ser URL {@code http} ou {@code https} absoluta, com
@@ -36,8 +38,8 @@ import org.springframework.validation.annotation.Validated;
  *     publicação ({@code linkpulse.ip-hash-key}). Obrigatória fora do dev (env
  *     {@code LINKPULSE_IP_HASH_KEY}); ausente ou com menos de 16 caracteres, o {@code IpHasher}
  *     derruba a subida. É chave de topo porque o rate limit também a usa
- * @param clicks publicação dos cliques no stream do Valkey ({@code linkpulse.clicks.*}); os
- *     defaults ficam nas anotações, então o bloco é opcional
+ * @param clicks publicação dos cliques no stream do Valkey e consumo pelo consumer group
+ *     ({@code linkpulse.clicks.*}); os defaults ficam nas anotações, então o bloco é opcional
  */
 @ConfigurationProperties("linkpulse")
 @Validated
@@ -176,21 +178,49 @@ public record LinkPulseProperties(
     }
 
     /**
-     * Publicação dos cliques no Redis Stream (CLICK-01).
+     * Publicação dos cliques no Redis Stream (CLICK-01) e consumo pelo consumer group que grava
+     * em {@code click_events} no MongoDB (CLICK-02, CLICK-03).
      *
      * <p>O nome {@code PublisherSettings} evita colisão com o {@code Consumer} do Spring Data
-     * Redis.
+     * Redis; pelo mesmo motivo o lado do consumo é {@code ConsumerSettings}.
      *
      * @param streamKey chave do stream. Env {@code LINKPULSE_CLICKS_STREAM_KEY}; padrão
      *     {@code lp:clicks}
      * @param maxLen limite aproximado de entradas ({@code XADD MAXLEN ~}), para o stream não
      *     crescer sem limite. Env {@code LINKPULSE_CLICKS_MAX_LEN}; padrão 100000
      * @param publisher executor da publicação
+     * @param group nome do consumer group que lê o stream. Env {@code LINKPULSE_CLICKS_GROUP};
+     *     padrão {@code click-writers}
+     * @param retention por quanto tempo um clique fica em {@code click_events} (índice TTL do
+     *     MongoDB, criado pelo {@code ClickIndexes}). Env {@code LINKPULSE_CLICKS_RETENTION};
+     *     padrão 90d
+     * @param consumer leitura em lote do stream pelo consumer group
      */
     public record Clicks(
             @DefaultValue("lp:clicks") @NotBlank String streamKey,
             @DefaultValue("100000") @Positive long maxLen,
-            @Valid @DefaultValue PublisherSettings publisher) {
+            @Valid @DefaultValue PublisherSettings publisher,
+            @DefaultValue("click-writers") @NotBlank String group,
+            @DefaultValue("90d") Duration retention,
+            @Valid @DefaultValue ConsumerSettings consumer) {
+
+        /**
+         * Exige retenção positiva; a mensagem é fixa e não ecoa o valor.
+         *
+         * @param streamKey chave do stream
+         * @param maxLen limite aproximado de entradas
+         * @param publisher executor da publicação
+         * @param group nome do consumer group
+         * @param retention retenção dos cliques no MongoDB
+         * @param consumer leitura em lote do stream
+         * @throws IllegalArgumentException se {@code retention} é nula, zero ou negativa
+         */
+        public Clicks {
+            if (retention == null || retention.isNegative() || retention.isZero()) {
+                throw new IllegalArgumentException(
+                        "linkpulse.clicks.retention deve ser uma duração positiva");
+            }
+        }
 
         /**
          * Executor limitado da publicação: threads fixas e fila com capacidade fixa; o que não
@@ -204,6 +234,38 @@ public record LinkPulseProperties(
         public record PublisherSettings(
                 @DefaultValue("2") @Positive int threads,
                 @DefaultValue("10000") @Positive int queueCapacity) {
+        }
+
+        /**
+         * Leitura do stream pelo consumer group ({@code XREADGROUP COUNT/BLOCK}).
+         *
+         * @param enabled liga o consumer nesta instância. Env
+         *     {@code LINKPULSE_CLICKS_CONSUMER_ENABLED}; padrão {@code true}
+         * @param batchSize máximo de entradas por leitura ({@code COUNT}), gravadas num único
+         *     bulk no MongoDB. Env {@code LINKPULSE_CLICKS_CONSUMER_BATCH_SIZE}; padrão 500
+         * @param block quanto tempo a leitura espera por entradas novas ({@code BLOCK}). Também
+         *     limita quanto o shutdown espera o loop sair. Env
+         *     {@code LINKPULSE_CLICKS_CONSUMER_BLOCK}; padrão 2s
+         */
+        public record ConsumerSettings(
+                @DefaultValue("true") boolean enabled,
+                @DefaultValue("500") @Positive int batchSize,
+                @DefaultValue("2s") Duration block) {
+
+            /**
+             * Exige {@code block} positivo; a mensagem é fixa e não ecoa o valor.
+             *
+             * @param enabled liga o consumer
+             * @param batchSize máximo de entradas por leitura
+             * @param block espera da leitura bloqueante
+             * @throws IllegalArgumentException se {@code block} é nulo, zero ou negativo
+             */
+            public ConsumerSettings {
+                if (block == null || block.isNegative() || block.isZero()) {
+                    throw new IllegalArgumentException(
+                            "linkpulse.clicks.consumer.block deve ser uma duração positiva");
+                }
+            }
         }
     }
 }

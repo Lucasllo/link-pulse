@@ -72,7 +72,9 @@ class ClickPublisherTest {
 
     private ClickPublisher start(int threads, int queueCapacity) {
         LinkPulseProperties.Clicks clicks = new LinkPulseProperties.Clicks("lp:clicks", 100_000,
-                new LinkPulseProperties.Clicks.PublisherSettings(threads, queueCapacity));
+                new LinkPulseProperties.Clicks.PublisherSettings(threads, queueCapacity),
+                "click-writers", Duration.ofDays(90),
+                new LinkPulseProperties.Clicks.ConsumerSettings(true, 500, Duration.ofSeconds(2)));
         publisher = new ClickPublisher(redis, availability, new IpHasher(IP_HASH_KEY), clicks,
                 clock, registry);
         publisher.start();
