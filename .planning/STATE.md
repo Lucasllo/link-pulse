@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 02
 current_phase_name: Hot path no Valkey e pipeline de cliques
 status: executing
-stopped_at: Completed 02-04-PLAN.md
-last_updated: "2026-10-11T16:16:25.059Z"
+stopped_at: Completed 02-05-PLAN.md
+last_updated: "2026-10-11T16:32:12.376Z"
 last_activity: 2026-10-11
 last_activity_desc: Phase 02 execution started
-state_head: 8a98210239df7673461b3080577dd5d0cdfaefd5
+state_head: 520ca469185999c4eb0247538e5ac4b4df5e246b
 progress:
   total_phases: 5
   completed_phases: 1
   total_plans: 17
-  completed_plans: 12
+  completed_plans: 13
   percent: 20
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-10-09)
 ## Current Position
 
 Phase: 02 (Hot path no Valkey e pipeline de cliques) — EXECUTING
-Plan: 5 of 9
+Plan: 6 of 9
 Status: Ready to execute
 Last activity: 2026-10-11 — Phase 02 execution started
 
@@ -70,6 +70,7 @@ Progress: [██░░░░░░░░] 20%
 | Phase 02 P02 | 13min | 2 tasks | 11 files |
 | Phase 02 P03 | 22 min | 2 tasks | 13 files |
 | Phase 02 P04 | 15 min | 2 tasks | 14 files |
+| Phase 02 P05 | 13 min | 2 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -112,6 +113,9 @@ Decisões recentes que afetam o trabalho atual:
 - [Phase 02]: 02-04: assumption A8 confirmada (spring.mongodb.database=linkpulse prevalece sobre o @ServiceConnection)
 - [Phase 02]: 02-04: bean do container Mongo dos ITs = mongoContainer (mongo já é o MongoClient do Boot)
 - [Phase 02]: 02-04: consumer com fábrica Lettuce dedicada (timeout block + 3 s), XACK só depois do bulk UNORDERED
+- [Phase 02]: 02-05: clientes HTTP de linha de comando (curl, wget, python-requests, Go/Java http client, k6) e UA vazio contam como bot; okhttp não. Seed (Phase 3) e smoke (Phase 4) precisam de UA de navegador ou includeBots=true
+- [Phase 02]: 02-05: índices code_ts e ts_ttl criados pelo consumer no loop (com backoff), nunca na subida; mudança de retenção usa collMod
+- [Phase 02]: 02-05: driver do Mongo com server selection 3 s, connect 2 s e read 5 s (MongoConfig); contingência A4 não foi necessária
 
 ### Pending Todos
 
@@ -142,6 +146,6 @@ Itens reconhecidos e adiados no fechamento de milestone, do mais recente para o 
 
 ## Session Continuity
 
-Last session: 2026-10-11T16:16:24.960Z
-Stopped at: Completed 02-04-PLAN.md
+Last session: 2026-10-11T16:32:12.285Z
+Stopped at: Completed 02-05-PLAN.md
 Resume file: None

@@ -28,12 +28,12 @@ Requisitos da entrega inicial. Cada um é mapeado para uma fase do roadmap.
 ### Cliques (pipeline assíncrono)
 
 - [x] **CLICK-01**: Cada redirect publica um evento de clique em Redis Stream sem bloquear nem derrubar o redirect (timeout curto, fail-open, descarte contado em métrica, `MAXLEN ~`)
-- [ ] **CLICK-02**: Consumer group lê em lote, grava no MongoDB (`click_events`, coleção normal) e faz XACK só após a escrita
+- [x] **CLICK-02**: Consumer group lê em lote, grava no MongoDB (`click_events`, coleção normal) e faz XACK só após a escrita
 - [ ] **CLICK-03**: Gravação é idempotente (`_id` = ID da mensagem do stream; duplicatas ignoradas)
 - [ ] **CLICK-04**: Mensagens pendentes de consumers mortos são recuperadas (XPENDING/XCLAIM ou XAUTOCLAIM); o consumer não para após um erro
 - [ ] **CLICK-05**: No shutdown, o lote em andamento é concluído antes de encerrar (graceful shutdown)
 - [x] **CLICK-06**: IP é armazenado apenas como hash com salt (nunca em claro)
-- [ ] **CLICK-07**: Eventos de bots/crawlers são marcados com `isBot`; user-agent é parseado em navegador/SO
+- [x] **CLICK-07**: Eventos de bots/crawlers são marcados com `isBot`; user-agent é parseado em navegador/SO
 - [ ] **CLICK-08**: Lag e pendentes do consumer são expostos como métricas
 
 ### Estatísticas
@@ -51,7 +51,7 @@ Requisitos da entrega inicial. Cada um é mapeado para uma fase do roadmap.
 ### Dados e qualidade
 
 - [x] **DATA-01**: Schema do Postgres gerenciado por Liquibase com changelogs YAML versionados e contexts dev/prod; Hibernate em `ddl-auto=validate`
-- [ ] **DATA-02**: Índices do MongoDB (`{code, ts}` e TTL de retenção) criados explicitamente
+- [x] **DATA-02**: Índices do MongoDB (`{code, ts}` e TTL de retenção) criados explicitamente
 - [x] **QUAL-01**: Testes unitários do gerador de código (Base62 + embaralhamento, ida e volta, unicidade)
 - [ ] **QUAL-02**: Testes de integração com Testcontainers (Postgres + Mongo + Valkey), cobrindo redirect, cache, rate limit, pipeline de cliques (incluindo reentrega) e stats
 - [x] **QUAL-03**: Checkstyle e SpotBugs rodam no build e quebram em violação
@@ -153,12 +153,12 @@ Rastreabilidade: quais fases cobrem quais requisitos. Preenchido na criação do
 | REDIR-05 | Phase 2 | Complete |
 | REDIR-06 | Phase 2 | Complete |
 | CLICK-01 | Phase 2 | Complete |
-| CLICK-02 | Phase 2 | Pending |
+| CLICK-02 | Phase 2 | Complete |
 | CLICK-03 | Phase 2 | Pending |
 | CLICK-04 | Phase 2 | Pending |
 | CLICK-05 | Phase 2 | Pending |
 | CLICK-06 | Phase 2 | Complete |
-| CLICK-07 | Phase 2 | Pending |
+| CLICK-07 | Phase 2 | Complete |
 | CLICK-08 | Phase 2 | Pending |
 | STAT-01 | Phase 2 | Pending |
 | STAT-02 | Phase 2 | Pending |
@@ -167,7 +167,7 @@ Rastreabilidade: quais fases cobrem quais requisitos. Preenchido na criação do
 | RATE-01 | Phase 2 | Pending |
 | RATE-02 | Phase 2 | Pending |
 | DATA-01 | Phase 1 | Complete |
-| DATA-02 | Phase 2 | Pending |
+| DATA-02 | Phase 2 | Complete |
 | QUAL-01 | Phase 1 | Complete |
 | QUAL-02 | Phase 2 | Pending |
 | QUAL-03 | Phase 1 | Complete |
