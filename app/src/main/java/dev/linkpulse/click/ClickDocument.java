@@ -6,6 +6,7 @@ import java.util.Optional;
 import java.util.regex.Pattern;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
+import org.springframework.data.mongodb.core.mapping.Field;
 
 /**
  * Um clique gravado na coleção normal {@code click_events} do MongoDB (D-05).
@@ -23,11 +24,14 @@ import org.springframework.data.mongodb.core.mapping.Document;
  * @param code código curto do link
  * @param ts instante do clique (BSON Date, usado pelo índice TTL e pelas agregações por dia)
  * @param referrer host do {@code Referer}, ou {@code (direct)}
+ * @param browser família do navegador
+ * @param os família do sistema operacional
+ * @param bot se o clique veio de robô ({@code isBot} no MongoDB)
  * @param ipHash HMAC-SHA256 do IP em hexadecimal (64 caracteres)
  */
 @Document(ClickDocument.COLLECTION)
 public record ClickDocument(@Id String id, String code, Instant ts, String referrer,
-        String ipHash) {
+        String browser, String os, @Field("isBot") boolean bot, String ipHash) {
 
     /** Coleção dos cliques. */
     public static final String COLLECTION = "click_events";
@@ -71,7 +75,7 @@ public record ClickDocument(@Id String id, String code, Instant ts, String refer
             return Optional.empty();
         }
         return Optional.of(new ClickDocument(id, code, Instant.ofEpochMilli(epochMilli), ref,
-                ipHash));
+                UserAgentClassifier.OTHER, UserAgentClassifier.OTHER, false, ipHash));
     }
 
     private static String text(Map<?, ?> fields, String name) {

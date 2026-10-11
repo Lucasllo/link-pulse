@@ -6,21 +6,28 @@ import static org.awaitility.Awaitility.await;
 import dev.linkpulse.AbstractIT;
 import dev.linkpulse.link.Link;
 import dev.linkpulse.link.LinkRepository;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicReference;
 import org.bson.Document;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.data.redis.autoconfigure.DataRedisConnectionDetails;
 import org.springframework.data.domain.Range;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.data.redis.connection.stream.MapRecord;
+import org.springframework.data.redis.connection.stream.PendingMessages;
 import org.springframework.data.redis.connection.stream.RecordId;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.HttpHeaders;
@@ -32,12 +39,17 @@ import org.springframework.test.web.servlet.assertj.MvcTestResult;
  * → coleção {@code click_events} do MongoDB (CLICK-02, CLICK-03, CLICK-06).
  *
  * <p>O stream e a coleção são compartilhados por todos os ITs do contexto, então cada teste usa
- * um código próprio e só olha os documentos dele.
+ * um código próprio e só olha os documentos dele. O teste do consumer ocioso instancia um
+ * consumer próprio, com stream, grupo e coleção exclusivos.
  */
 class ClickPipelineIT extends AbstractIT {
 
     private static final String STREAM = "lp:clicks";
     private static final String COLLECTION = "click_events";
+    private static final String GROUP = "click-writers";
+    private static final String CURL = "curl/8.5.0";
+    private static final Set<String> DOCUMENT_KEYS = Set.of("_id", "_class", "code", "ts",
+            "referrer", "browser", "os", "isBot", "ipHash");
     private static final String CLIENT_IP = "198.51.100.9";
     private static final String FIREFOX =
             "Mozilla/5.0 (X11; Linux x86_64; rv:131.0) Gecko/20100101 Firefox/131.0";
@@ -51,6 +63,12 @@ class ClickPipelineIT extends AbstractIT {
 
     @Autowired
     private MongoTemplate mongo;
+
+    @Autowired
+    private MeterRegistry registry;
+
+    @Autowired
+    private DataRedisConnectionDetails redisDetails;
 
     private Link saveLink(String code, String target) {
         Instant now = Instant.now().truncatedTo(ChronoUnit.MICROS);
@@ -88,6 +106,30 @@ class ClickPipelineIT extends AbstractIT {
                 .map(entry -> entry.getId().getValue())
                 .findFirst()
                 .orElseThrow();
+    }
+
+    private void click(String code, String userAgent) {
+        MvcTestResult result = mvc.get().uri("/" + code)
+                .with(request -> {
+                    request.setRemoteAddr(CLIENT_IP);
+                    return request;
+                })
+                .header(HttpHeaders.USER_AGENT, userAgent)
+                .exchange();
+        assertThat(result).hasStatus(HttpStatus.FOUND);
+    }
+
+    private static Map<String, String> validEntry(String code) {
+        return Map.of(
+                "code", code,
+                "ts", String.valueOf(System.currentTimeMillis()),
+                "ref", "(direct)",
+                "ua", FIREFOX,
+                "iph", "b".repeat(64));
+    }
+
+    private double invalidCount() {
+        return registry.get("linkpulse.clicks.invalid").counter().count();
     }
 
     @Test
@@ -137,5 +179,87 @@ class ClickPipelineIT extends AbstractIT {
         assertThat(documents).extracting(document -> document.get("_id"))
                 .containsExactlyInAnyOrder(first.getValue(), second.getValue())
                 .doesNotHaveDuplicates();
+    }
+
+    @Test
+    void documentCarriesBrowserOsAndBotFlag() {
+        saveLink("pipe-ua1", "https://example.com/ua1");
+        saveLink("pipe-ua2", "https://example.com/ua2");
+
+        click("pipe-ua1", FIREFOX);
+        click("pipe-ua2", CURL);
+
+        Document browser = awaitDocuments("pipe-ua1", 1).getFirst();
+        assertThat(browser.get("browser")).isEqualTo("Firefox");
+        assertThat(browser.get("os")).isEqualTo("Linux");
+        assertThat(browser.get("isBot")).isEqualTo(false);
+        assertThat(browser.keySet()).isSubsetOf(DOCUMENT_KEYS);
+
+        Document bot = awaitDocuments("pipe-ua2", 1).getFirst();
+        assertThat(bot.get("isBot")).isEqualTo(true);
+        assertThat(bot.keySet()).isSubsetOf(DOCUMENT_KEYS);
+        assertThat(bot.values()).allSatisfy(value -> assertThat(String.valueOf(value))
+                .isNotEqualTo(CLIENT_IP)
+                .isNotEqualTo(CURL));
+    }
+
+    @Test
+    void invalidEntryIsAcknowledgedWithoutDocument() {
+        double invalidBefore = invalidCount();
+        Map<String, String> withoutIpHash = Map.of(
+                "code", "pipe-inv1",
+                "ts", String.valueOf(System.currentTimeMillis()),
+                "ref", "(direct)",
+                "ua", FIREFOX);
+
+        RecordId invalidId = redis.opsForStream().add(MapRecord.create(STREAM, withoutIpHash));
+        redis.opsForStream().add(MapRecord.create(STREAM, validEntry("pipe-inv2")));
+
+        awaitDocuments("pipe-inv2", 1);
+        await().atMost(WAIT).pollInterval(Duration.ofMillis(200)).untilAsserted(() -> {
+            assertThat(invalidCount()).isGreaterThanOrEqualTo(invalidBefore + 1);
+            PendingMessages pending = redis.opsForStream()
+                    .pending(STREAM, GROUP, Range.closed(invalidId.getValue(),
+                            invalidId.getValue()), 10);
+            assertThat(pending).as("entrada inválida no PEL").isEmpty();
+        });
+        assertThat(documentsOf("pipe-inv1")).isEmpty();
+    }
+
+    @Test
+    void idleConsumerDoesNotWriteAndSingleEntryIsAcknowledged() {
+        String suffix = UUID.randomUUID().toString();
+        String stream = "lp:test:" + suffix;
+        String collection = "click_events_test_" + suffix;
+        MongoClickEventWriter delegate = new MongoClickEventWriter(mongo, collection);
+        List<Integer> calls = new CopyOnWriteArrayList<>();
+        ClickEventWriter counting = documents -> {
+            calls.add(documents.size());
+            return delegate.write(documents);
+        };
+        Duration block = Duration.ofMillis(200);
+        ClickStreamConsumer consumer = new ClickStreamConsumer(
+                new ClickStreamConsumer.Settings(stream, stream, "it-idle", 10, block),
+                ClickStreamConsumer.dedicatedConnectionFactory(redisDetails, block),
+                counting, new SimpleMeterRegistry());
+        consumer.start();
+        try {
+            await().pollDelay(Duration.ofSeconds(1)).atMost(Duration.ofSeconds(3))
+                    .untilAsserted(() -> assertThat(calls).as("escritas com o consumer ocioso")
+                            .isEmpty());
+
+            redis.opsForStream().add(MapRecord.create(stream, validEntry("pipe-idle1")));
+
+            await().atMost(WAIT).pollInterval(Duration.ofMillis(100)).untilAsserted(() -> {
+                assertThat(calls).containsExactly(1);
+                assertThat(redis.opsForStream().pending(stream, stream).getTotalPendingMessages())
+                        .isZero();
+            });
+            assertThat(mongo.getCollection(collection).countDocuments()).isEqualTo(1);
+        } finally {
+            consumer.stop();
+            redis.delete(stream);
+            mongo.dropCollection(collection);
+        }
     }
 }
