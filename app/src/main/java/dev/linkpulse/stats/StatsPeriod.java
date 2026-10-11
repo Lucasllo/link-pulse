@@ -26,17 +26,23 @@ public record StatsPeriod(LocalDate from, LocalDate to) {
      * Resolve o período pedido, completando o que faltar.
      *
      * <p>Os dois nulos: os últimos 30 dias até hoje. Só {@code from}: até hoje. Só {@code to}: os
-     * 30 dias que terminam em {@code to}.
+     * 30 dias que terminam em {@code to}. Depois dos defaults, {@code from} depois de {@code to}
+     * ou mais de {@link #MAX_DAYS} dias é período inválido (D-02).
      *
      * @param from primeiro dia pedido, ou {@code null}
      * @param to último dia pedido, ou {@code null}
      * @param todayUtc hoje em UTC
      * @return o período efetivo
+     * @throws org.springframework.web.ErrorResponseException 400 {@code /problems/invalid-period}
      */
     public static StatsPeriod resolve(LocalDate from, LocalDate to, LocalDate todayUtc) {
         LocalDate end = to != null ? to : todayUtc;
         LocalDate start = from != null ? from : end.minusDays(DEFAULT_DAYS - 1L);
-        return new StatsPeriod(start, end);
+        StatsPeriod period = new StatsPeriod(start, end);
+        if (start.isAfter(end) || period.days() > MAX_DAYS) {
+            throw StatsProblems.invalidPeriod(start, end);
+        }
+        return period;
     }
 
     /**

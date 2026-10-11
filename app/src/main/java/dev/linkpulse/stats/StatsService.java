@@ -7,7 +7,9 @@ import java.time.Clock;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import org.bson.Document;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.aggregation.Aggregation;
@@ -19,6 +21,9 @@ import org.springframework.stereotype.Service;
  * <p>A existência do código é conferida no Postgres antes (D-04): código inexistente é 404, e
  * link expirado continua com estatísticas. O {@code $match} usa o índice {@code code_ts}
  * (igualdade em {@code code} e intervalo em {@code ts}).
+ *
+ * <p>Os dias são agrupados em UTC ({@code $dateToString} com {@code timezone: "UTC"}), e a série
+ * contínua, com 0 nos dias sem clique, é montada em Java a partir do mapa vindo do Mongo (D-02).
  */
 @Service
 public class StatsService {
@@ -64,13 +69,41 @@ public class StatsService {
         }
         Aggregation aggregation = Aggregation.newAggregation(
                 Aggregation.stage(new Document("$match", match)),
-                Aggregation.stage(new Document("$facet",
-                        new Document("total", List.of(new Document("$count", "n"))))));
+                Aggregation.stage(new Document("$facet", new Document()
+                        .append("total", List.of(new Document("$count", "n")))
+                        .append("daily", List.of(new Document("$group",
+                                new Document("_id", new Document("$dateToString",
+                                        new Document("format", "%Y-%m-%d")
+                                                .append("date", "$ts")
+                                                .append("timezone", "UTC")))
+                                        .append("n", new Document("$sum", 1))))))));
         Document facets = mongo.aggregate(aggregation, ClickDocument.COLLECTION, Document.class)
                 .getUniqueMappedResult();
 
         return new StatsResponse(code, period.from(), period.to(), includeBots,
-                total(facets));
+                total(facets), daily(facets, period));
+    }
+
+    /**
+     * Monta a série contínua do {@code from} ao {@code to}, com 0 nos dias ausentes do facet
+     * {@code daily}.
+     */
+    private static List<StatsResponse.DailyCount> daily(Document facets, StatsPeriod period) {
+        Map<String, Long> byDay = new HashMap<>();
+        for (Document day : facet(facets, "daily")) {
+            Object id = day.get("_id");
+            if (id != null) {
+                byDay.put(id.toString(), number(day.get("n")));
+            }
+        }
+        return period.from().datesUntil(period.to().plusDays(1))
+                .map(date -> new StatsResponse.DailyCount(date,
+                        byDay.getOrDefault(date.toString(), 0L)))
+                .toList();
+    }
+
+    private static List<Document> facet(Document facets, String name) {
+        return facets == null ? List.of() : facets.getList(name, Document.class, List.of());
     }
 
     /**
@@ -78,10 +111,7 @@ public class StatsService {
      * vazia, que vira 0.
      */
     private static long total(Document facets) {
-        if (facets == null) {
-            return 0;
-        }
-        List<Document> total = facets.getList("total", Document.class, List.of());
+        List<Document> total = facet(facets, "total");
         return total.isEmpty() ? 0 : number(total.getFirst().get("n"));
     }
 
