@@ -32,7 +32,7 @@ Requisitos da entrega inicial. Cada um é mapeado para uma fase do roadmap.
 - [ ] **CLICK-03**: Gravação é idempotente (`_id` = ID da mensagem do stream; duplicatas ignoradas)
 - [ ] **CLICK-04**: Mensagens pendentes de consumers mortos são recuperadas (XPENDING/XCLAIM ou XAUTOCLAIM); o consumer não para após um erro
 - [ ] **CLICK-05**: No shutdown, o lote em andamento é concluído antes de encerrar (graceful shutdown)
-- [ ] **CLICK-06**: IP é armazenado apenas como hash com salt (nunca em claro)
+- [x] **CLICK-06**: IP é armazenado apenas como hash com salt (nunca em claro)
 - [ ] **CLICK-07**: Eventos de bots/crawlers são marcados com `isBot`; user-agent é parseado em navegador/SO
 - [ ] **CLICK-08**: Lag e pendentes do consumer são expostos como métricas
 
@@ -157,7 +157,7 @@ Rastreabilidade: quais fases cobrem quais requisitos. Preenchido na criação do
 | CLICK-03 | Phase 2 | Pending |
 | CLICK-04 | Phase 2 | Pending |
 | CLICK-05 | Phase 2 | Pending |
-| CLICK-06 | Phase 2 | Pending |
+| CLICK-06 | Phase 2 | Complete |
 | CLICK-07 | Phase 2 | Pending |
 | CLICK-08 | Phase 2 | Pending |
 | STAT-01 | Phase 2 | Pending |

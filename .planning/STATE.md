@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 02
 current_phase_name: Hot path no Valkey e pipeline de cliques
 status: executing
-stopped_at: Completed 02-03-PLAN.md
-last_updated: "2026-10-11T15:58:18.839Z"
+stopped_at: Completed 02-04-PLAN.md
+last_updated: "2026-10-11T16:16:25.059Z"
 last_activity: 2026-10-11
 last_activity_desc: Phase 02 execution started
-state_head: beb9e378ec3517703b4c266b69a31423e3326f0f
+state_head: 8a98210239df7673461b3080577dd5d0cdfaefd5
 progress:
   total_phases: 5
   completed_phases: 1
   total_plans: 17
-  completed_plans: 11
+  completed_plans: 12
   percent: 20
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-10-09)
 ## Current Position
 
 Phase: 02 (Hot path no Valkey e pipeline de cliques) — EXECUTING
-Plan: 4 of 9
+Plan: 5 of 9
 Status: Ready to execute
 Last activity: 2026-10-11 — Phase 02 execution started
 
@@ -69,6 +69,7 @@ Progress: [██░░░░░░░░] 20%
 | Phase 02 P01 | 14min | 2 tasks | 12 files |
 | Phase 02 P02 | 13min | 2 tasks | 11 files |
 | Phase 02 P03 | 22 min | 2 tasks | 13 files |
+| Phase 02 P04 | 15 min | 2 tasks | 14 files |
 
 ## Accumulated Context
 
@@ -107,6 +108,10 @@ Decisões recentes que afetam o trabalho atual:
 - [Phase 02]: 02-02: iph = HMAC-SHA256(linkpulse.ip-hash-key, '<dia UTC>|<ip>'); LINKPULSE_IP_HASH_KEY (>= 16 caracteres) é obrigatória fora do dev e vira contrato de configuração das Phases 3-5; o rate limit da 02-09 reusa a chave
 - [Phase 02]: 02-02: construtor do ClickPublisher = (StringRedisTemplate, IpHasher, LinkPulseProperties.Clicks, Clock, MeterRegistry); a 02-03 insere ValkeyAvailability como segundo parâmetro
 - [Phase 02]: 02-02: RedirectController publica só depois do resolve e só em GET (HttpMethod.GET.matches); Referer normalizado ao host na ingestão, (direct) quando não há host
+- [Phase 02]: 02-04: click_events nesta fase = _id (ID do stream), code, ts (Date), referrer, ipHash; a 02-05 acrescenta browser, os e isBot
+- [Phase 02]: 02-04: assumption A8 confirmada (spring.mongodb.database=linkpulse prevalece sobre o @ServiceConnection)
+- [Phase 02]: 02-04: bean do container Mongo dos ITs = mongoContainer (mongo já é o MongoClient do Boot)
+- [Phase 02]: 02-04: consumer com fábrica Lettuce dedicada (timeout block + 3 s), XACK só depois do bulk UNORDERED
 
 ### Pending Todos
 
@@ -137,6 +142,6 @@ Itens reconhecidos e adiados no fechamento de milestone, do mais recente para o 
 
 ## Session Continuity
 
-Last session: 2026-10-11T15:58:18.746Z
-Stopped at: Completed 02-03-PLAN.md
+Last session: 2026-10-11T16:16:24.960Z
+Stopped at: Completed 02-04-PLAN.md
 Resume file: None
