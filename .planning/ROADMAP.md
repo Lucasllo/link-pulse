@@ -13,7 +13,7 @@ O Link Pulse é construído de dentro para fora. Primeiro vem a verdade do link 
 
 As fases decimais aparecem entre as inteiras vizinhas, em ordem numérica.
 
-- [ ] **Phase 1: Fundação e núcleo de links** - Criar e redirecionar links a partir do Postgres, com Liquibase, qualidade estática e CI verdes desde o início
+- [x] **Phase 1: Fundação e núcleo de links** - Criar e redirecionar links a partir do Postgres, com Liquibase, qualidade estática e CI verdes desde o início (completed 2026-10-09)
 - [ ] **Phase 2: Hot path no Valkey e pipeline de cliques** - Cache-aside com fail-open, rate limit por IP, cliques assíncronos via Redis Streams → MongoDB e endpoint de estatísticas
 - [ ] **Phase 3: Stack local observável** - Imagem do app, `make up` com os 6 serviços, dashboards e alertas versionados, seed de demonstração e teste de carga k6
 - [ ] **Phase 4: Kubernetes no kind e entrega contínua** - Helm chart, `make k8s` com Traefik e kube-prometheus-stack, publicação no GHCR com Trivy/SBOM e smoke test em kind no CI
@@ -78,7 +78,38 @@ Plans:
   4. O pipeline não perde nem duplica cliques: a suíte de integração com Testcontainers (Postgres + Mongo + Valkey) cobre redirect, cache, rate limit e stats, e prova que o XACK só acontece após a gravação, que pendentes de um consumer morto são reprocessados sem duplicata, que o consumer segue vivo após uma queda do Mongo e que o shutdown conclui o lote em andamento; lag e pendentes aparecem como métricas
   5. `POST /links` acima do limite por IP retorna 429 com `Retry-After`, contando o IP real do cliente quando a requisição chega por um proxy confiável e ignorando `X-Forwarded-For` vindo de origem não confiável
 
-**Plans**: TBD
+**Plans**: 9 plans
+
+Plans:
+**Wave 1**
+
+- [ ] 02-01-PLAN.md — Redirect servido do Valkey: cache-aside fora da transação, negative cache invalidado depois do commit, TTL limitado pela expiração e hit/miss no Micrometer (wave 1)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 02-02-PLAN.md — Cada 302 (nunca HEAD) publica o clique no stream lp:clicks: fila limitada, MAXLEN ~, IP em HMAC (linkpulse.ip-hash-key) e Referer como host (wave 2)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
+- [ ] 02-03-PLAN.md — Valkey fora não derruba nada: fail-open rápido do cache e da publicação (gate, timeouts curtos, descarte contado), /actuator/prometheus e chave do HMAC mascarada (wave 3)
+
+**Wave 4** *(blocked on Wave 3 completion)*
+
+- [ ] 02-04-PLAN.md — Consumer group em loop próprio grava cliques em click_events (bulk UNORDERED, XACK depois da escrita) e Mongo no make run (wave 4)
+
+**Wave 5** *(blocked on Wave 4 completion)*
+
+- [ ] 02-05-PLAN.md — Navegador/SO/isBot por classificador versionado, entradas inválidas confirmadas, índices code_ts + TTL e timeouts curtos do Mongo (wave 5)
+
+**Wave 6** *(blocked on Wave 5 completion)*
+
+- [ ] 02-06-PLAN.md — At-least-once: reclaim por XPENDING IDLE + XCLAIM, consumer morto e crash entre insert e ACK sem duplicata, entradas aparadas como lost (wave 6)
+- [ ] 02-07-PLAN.md — GET /links/{code}/stats: 30 dias UTC por padrão, série contínua, tops estáveis, bots só com includeBots e erros em Problem Details (wave 6)
+
+**Wave 7** *(blocked on Wave 6 completion)*
+
+- [ ] 02-08-PLAN.md — Consumer sobrevive à queda do Mongo, shutdown conclui o lote, gauges de pending/lag/length e /actuator/prometheus sem alta cardinalidade (wave 7)
+- [ ] 02-09-PLAN.md — Rate limit por IP no POST /links (Lua de janela fixa, 429 + Retry-After, fail-open) com IP real só de proxy confiável (wave 7)
 
 ### Phase 3: Stack local observável
 
@@ -134,8 +165,8 @@ As fases seguem a ordem numérica: 1 → 2 → 3 → 4 → 5 (a parte Terraform 
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Fundação e núcleo de links | 8/8 | In Progress|  |
-| 2. Hot path no Valkey e pipeline de cliques | 0/TBD | Not started | - |
+| 1. Fundação e núcleo de links | 8/8 | Complete    | 2026-10-09 |
+| 2. Hot path no Valkey e pipeline de cliques | 0/9 | Not started | - |
 | 3. Stack local observável | 0/TBD | Not started | - |
 | 4. Kubernetes no kind e entrega contínua | 0/TBD | Not started | - |
 | 5. Terraform AWS e vitrine | 0/TBD | Not started | - |

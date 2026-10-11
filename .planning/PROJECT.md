@@ -18,27 +18,27 @@ Um avaliador clona o repositório, roda `make up` (compose) ou `make k8s` (kind 
 
 ### Validados
 
-(Nenhum ainda — entregar para validar)
+- ✓ `POST /links` recebe URL longa, alias opcional e expiração opcional e retorna o código curto (com regras de URL/host e erros em Problem Details) — Phase 1
+- ✓ Código curto gerado por Base62 a partir do ID da sequência do Postgres (permutação multiplicativa mod 62^7, sem colisão); alias customizado validado por unicidade — Phase 1
+- ✓ Código inexistente → 404; link expirado → 410 Gone — Phase 1
+- ✓ PostgreSQL com Liquibase: changelogs YAML versionados e contexts (dev/prod) — Phase 1
+- ✓ Testes unitários do gerador de código (Base62) — Phase 1
+- ✓ Análise estática com Checkstyle e SpotBugs no build — Phase 1
 
 ### Ativos
 
 **API**
-- [ ] `POST /links` recebe URL longa, alias opcional e expiração opcional e retorna o código curto
-- [ ] Código curto gerado por Base62 a partir do ID da sequência do Postgres (sem colisão); alias customizado validado por unicidade
-- [ ] `GET /{code}` responde 302 para a URL original, com lookup via cache Redis (hit/miss medido em métrica)
-- [ ] Código inexistente → 404; link expirado → 410 Gone; TTL do cache respeita a expiração
+- [ ] `GET /{code}` responde 302 para a URL original, com lookup via cache Redis (hit/miss medido em métrica) — 302 a partir do Postgres entregue na Phase 1; cache na Phase 2
+- [ ] TTL do cache respeita a expiração (Phase 2)
 - [ ] Clique registrado de forma assíncrona: o redirect publica evento em Redis Stream e um consumer grava no MongoDB em lote, sem atrasar o redirect
 - [ ] `GET /links/{code}/stats` retorna total de cliques, cliques por dia e top referrers/user-agents (aggregation pipeline do MongoDB)
 - [ ] Rate limiting simples por IP em `POST /links` (Redis), retornando 429
 
 **Dados**
-- [ ] PostgreSQL com Liquibase: changelogs YAML versionados e contexts (dev/prod)
 - [ ] MongoDB para eventos de clique; Redis para cache, stream e rate limit
 
 **Qualidade**
-- [ ] Testes unitários do gerador de código (Base62)
-- [ ] Testes de integração com Testcontainers (Postgres + Mongo + Redis)
-- [ ] Análise estática com Checkstyle e SpotBugs no build
+- [ ] Testes de integração com Testcontainers (Postgres + Mongo + Redis) — Postgres entregue na Phase 1
 - [ ] Teste de carga com k6 e resultados documentados no README
 
 **Container e Kubernetes**
@@ -91,18 +91,19 @@ Um avaliador clona o repositório, roda `make up` (compose) ou `make k8s` (kind 
 
 | Decisão | Justificativa | Resultado |
 |---------|---------------|-----------|
-| Base62 do ID da sequência do Postgres | Sem colisão, determinístico e simples de testar | — Pendente |
+| Base62 do ID da sequência do Postgres | Sem colisão, determinístico e simples de testar | ✓ Phase 1 (com permutação mod 62^7 para ofuscar a ordem) |
 | Redis Streams para eventos de clique | Assíncrono e durável sem infra nova; demonstra backpressure/lag | — Pendente |
 | Helm chart (com values dev/prod) | Padrão de mercado; integra com kube-prometheus-stack | — Pendente |
 | ECS Fargate como alvo AWS | Terraform mais leve que EKS (o LocalStack gratuito não cobre ECS nem EKS) | — Pendente |
 | Terraform validado em camadas (lint + `terraform test` com mock + LocalStack Hobby parcial) | LocalStack gratuito não inclui ECS/RDS/ElastiCache/ECR desde 2026-03; custo zero | — Pendente |
 | Imagem publicada no GHCR | Grátis, sem secrets AWS no CI | — Pendente |
-| 404 para inexistente, 410 para expirado | Semântica HTTP correta | — Pendente |
-| Spring Boot 4.1.1 | Linha 3.x sem suporte OSS desde 2026-06-30; 4.1 suportado até 2027-07 | — Pendente |
+| 404 para inexistente, 410 para expirado | Semântica HTTP correta | ✓ Phase 1 |
+| Spring Boot 4.1.1 | Linha 3.x sem suporte OSS desde 2026-06-30; 4.1 suportado até 2027-07 | ✓ Phase 1 |
 | Valkey 8.1 em todos os ambientes | Paridade com ElastiCache (Redis OSS parado na 7.1); protocolo compatível com Spring Data Redis | — Pendente |
 | Traefik + manifests próprios no kind | ingress-nginx aposentado (2026-03) e catálogo gratuito Bitnami encerrado | — Pendente |
 | Coleção Mongo normal `click_events` (não time-series) | Time-series não aceita índice único; idempotência usa `_id` = ID do stream | — Pendente |
 | Liquibase 5.0.3 (BOM do Boot 4.1.1), licença FSL-1.1-ALv2 | Versão gerenciada e testada pelo Boot 4.1; a FSL permite uso em portfólio; a alternativa Apache (4.33.0 por property) fica documentada no README | ✓ Registrada na Phase 1 |
+| Checagem de host de destino sem DNS (`TargetHostPolicy`) + `LINKPULSE_SELF_HOSTS` | Resolver DNS no POST custa latência e é contornável por rebinding; loop via DNS fica como mitigação parcial documentada | ✓ Phase 1 |
 
 ## Evolução
 
@@ -122,4 +123,4 @@ Este documento evolui nas transições de fase e nos fechamentos de milestone.
 4. Atualizar Contexto com o estado atual
 
 ---
-*Última atualização: 2026-10-06 após a pesquisa (decisões de stack revisadas)*
+*Última atualização: 2026-10-09 após a Phase 1*
