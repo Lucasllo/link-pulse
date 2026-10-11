@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 02
 current_phase_name: Hot path no Valkey e pipeline de cliques
 status: executing
-stopped_at: Phase 2 context gathered
-last_updated: "2026-10-11T14:58:21.312Z"
+stopped_at: Completed 02-01-PLAN.md
+last_updated: "2026-10-11T15:15:53.837Z"
 last_activity: 2026-10-11
 last_activity_desc: Phase 02 execution started
-state_head: 1ceb06a33c26e8d33b574733c08fd7f8734bf1dd
+state_head: dfa6ffda4df84b7a4f53af2c46b8ecbce6851fd6
 progress:
   total_phases: 5
   completed_phases: 1
   total_plans: 17
-  completed_plans: 8
+  completed_plans: 9
   percent: 20
 ---
 
@@ -28,8 +28,8 @@ See: .planning/PROJECT.md (updated 2026-10-09)
 ## Current Position
 
 Phase: 02 (Hot path no Valkey e pipeline de cliques) — EXECUTING
-Plan: 1 of 9
-Status: Executing Phase 02
+Plan: 2 of 9
+Status: Ready to execute
 Last activity: 2026-10-11 — Phase 02 execution started
 
 Progress: [██░░░░░░░░] 20%
@@ -66,6 +66,7 @@ Progress: [██░░░░░░░░] 20%
 | Phase 01 P06 | 8min | 2 tasks | 8 files |
 | Phase 01 P07 | 7min | 2 tasks | 6 files |
 | Phase 01 P08 | 14 min | 3 tasks | 9 files |
+| Phase 02 P01 | 14min | 2 tasks | 12 files |
 
 ## Accumulated Context
 
@@ -96,6 +97,10 @@ Decisões recentes que afetam o trabalho atual:
 - [Phase 01]: 01-08: host numérico só é aceito na forma canônica a.b.c.d (regra WHATWG ends-in-a-number); TargetHostPolicy nunca resolve DNS
 - [Phase 01]: 01-08: LINKPULSE_SELF_HOSTS (linkpulse.self-hosts) vira contrato de configuração das Phases 3-5; binding com underscore confirmado no Boot 4.1.1
 - [Phase 01]: 01-08: linkpulse.base-url inválida derruba a subida (mensagem fixa, sem ecoar o valor); T-06-03 substituído por T-08-01 e T-08-06 (mitigação parcial por DNS)
+- [Phase 02]: 02-01: valores de lp:link:{code} são L|<ISO-8601 ou ->|<url>, N e G|<ISO-8601>; instantes em Instant.toString(), nunca epoch; formato fora do padrão = miss
+- [Phase 02]: 02-01: LinkService.resolve saiu; RedirectService (sem transação) consulta o cache e só chama LinkService.find (read-only) no miss
+- [Phase 02]: 02-01: construtor do LinkCache = (StringRedisTemplate, LinkPulseProperties, Clock, MeterRegistry); a 02-03 insere ValkeyAvailability como segundo parâmetro
+- [Phase 02]: 02-01: LinkService.create apaga lp:link:{code} no afterCommit (record EvictAfterCommit), sempre; janela residual limitada ao negative-ttl
 
 ### Pending Todos
 
@@ -126,6 +131,6 @@ Itens reconhecidos e adiados no fechamento de milestone, do mais recente para o 
 
 ## Session Continuity
 
-Last session: 2026-10-10T13:32:51.589Z
-Stopped at: Phase 2 context gathered
-Resume file: .planning/phases/02-hot-path-no-valkey-e-pipeline-de-cliques/02-CONTEXT.md
+Last session: 2026-10-11T15:15:53.739Z
+Stopped at: Completed 02-01-PLAN.md
+Resume file: None
