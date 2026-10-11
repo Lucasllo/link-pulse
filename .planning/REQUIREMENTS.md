@@ -38,10 +38,10 @@ Requisitos da entrega inicial. Cada um é mapeado para uma fase do roadmap.
 
 ### Estatísticas
 
-- [ ] **STAT-01**: `GET /links/{code}/stats` retorna total de cliques (com filtro opcional `from`/`to`)
-- [ ] **STAT-02**: Stats retornam cliques por dia (aggregation pipeline do MongoDB)
-- [ ] **STAT-03**: Stats retornam top referrers e top navegadores/SO
-- [ ] **STAT-04**: Bots ficam fora das stats por padrão; `?includeBots=true` os inclui
+- [x] **STAT-01**: `GET /links/{code}/stats` retorna total de cliques (com filtro opcional `from`/`to`)
+- [x] **STAT-02**: Stats retornam cliques por dia (aggregation pipeline do MongoDB)
+- [x] **STAT-03**: Stats retornam top referrers e top navegadores/SO
+- [x] **STAT-04**: Bots ficam fora das stats por padrão; `?includeBots=true` os inclui
 
 ### Rate limiting
 
@@ -160,10 +160,10 @@ Rastreabilidade: quais fases cobrem quais requisitos. Preenchido na criação do
 | CLICK-06 | Phase 2 | Complete |
 | CLICK-07 | Phase 2 | Complete |
 | CLICK-08 | Phase 2 | Pending |
-| STAT-01 | Phase 2 | Pending |
-| STAT-02 | Phase 2 | Pending |
-| STAT-03 | Phase 2 | Pending |
-| STAT-04 | Phase 2 | Pending |
+| STAT-01 | Phase 2 | Complete |
+| STAT-02 | Phase 2 | Complete |
+| STAT-03 | Phase 2 | Complete |
+| STAT-04 | Phase 2 | Complete |
 | RATE-01 | Phase 2 | Pending |
 | RATE-02 | Phase 2 | Pending |
 | DATA-01 | Phase 1 | Complete |

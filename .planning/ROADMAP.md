@@ -78,7 +78,7 @@ Plans:
   4. O pipeline não perde nem duplica cliques: a suíte de integração com Testcontainers (Postgres + Mongo + Valkey) cobre redirect, cache, rate limit e stats, e prova que o XACK só acontece após a gravação, que pendentes de um consumer morto são reprocessados sem duplicata, que o consumer segue vivo após uma queda do Mongo e que o shutdown conclui o lote em andamento; lag e pendentes aparecem como métricas
   5. `POST /links` acima do limite por IP retorna 429 com `Retry-After`, contando o IP real do cliente quando a requisição chega por um proxy confiável e ignorando `X-Forwarded-For` vindo de origem não confiável
 
-**Plans**: 6/9 plans executed
+**Plans**: 7/9 plans executed
 
 Plans:
 **Wave 1**
@@ -104,7 +104,7 @@ Plans:
 **Wave 6** *(blocked on Wave 5 completion)*
 
 - [x] 02-06-PLAN.md — At-least-once: reclaim por XPENDING IDLE + XCLAIM, consumer morto e crash entre insert e ACK sem duplicata, entradas aparadas como lost (wave 6)
-- [ ] 02-07-PLAN.md — GET /links/{code}/stats: 30 dias UTC por padrão, série contínua, tops estáveis, bots só com includeBots e erros em Problem Details (wave 6)
+- [x] 02-07-PLAN.md — GET /links/{code}/stats: 30 dias UTC por padrão, série contínua, tops estáveis, bots só com includeBots e erros em Problem Details (wave 6)
 
 **Wave 7** *(blocked on Wave 6 completion)*
 
@@ -166,7 +166,7 @@ As fases seguem a ordem numérica: 1 → 2 → 3 → 4 → 5 (a parte Terraform 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Fundação e núcleo de links | 8/8 | Complete    | 2026-10-09 |
-| 2. Hot path no Valkey e pipeline de cliques | 6/9 | In Progress|  |
+| 2. Hot path no Valkey e pipeline de cliques | 7/9 | In Progress|  |
 | 3. Stack local observável | 0/TBD | Not started | - |
 | 4. Kubernetes no kind e entrega contínua | 0/TBD | Not started | - |
 | 5. Terraform AWS e vitrine | 0/TBD | Not started | - |

@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 02
 current_phase_name: Hot path no Valkey e pipeline de cliques
 status: executing
-stopped_at: Completed 02-06-PLAN.md
-last_updated: "2026-10-11T16:47:34.868Z"
+stopped_at: Completed 02-07-PLAN.md
+last_updated: "2026-10-11T20:00:46.848Z"
 last_activity: 2026-10-11
 last_activity_desc: Phase 02 execution started
-state_head: d16169d358b5b11cdf511e0529338587d5bc9a94
+state_head: 3d9e86c9c0aee3038597e963f6ac7a9fe42c53ac
 progress:
   total_phases: 5
   completed_phases: 1
   total_plans: 17
-  completed_plans: 14
+  completed_plans: 15
   percent: 20
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-10-09)
 ## Current Position
 
 Phase: 02 (Hot path no Valkey e pipeline de cliques) — EXECUTING
-Plan: 7 of 9
+Plan: 8 of 9
 Status: Ready to execute
 Last activity: 2026-10-11 — Phase 02 execution started
 
@@ -72,6 +72,7 @@ Progress: [██░░░░░░░░] 20%
 | Phase 02 P04 | 15 min | 2 tasks | 14 files |
 | Phase 02 P05 | 13 min | 2 tasks | 9 files |
 | Phase 02 P06 | 13 min | 2 tasks | 8 files |
+| Phase 02 P07 | 18min | 3 tasks | 10 files |
 
 ## Accumulated Context
 
@@ -119,6 +120,8 @@ Decisões recentes que afetam o trabalho atual:
 - [Phase 02]: 02-05: driver do Mongo com server selection 3 s, connect 2 s e read 5 s (MongoConfig); contingência A4 não foi necessária
 - [Phase 02]: [02-06] Reclaim por XPENDING IDLE + XCLAIM tipados (sem XAUTOCLAIM), a cada reclaim-interval (30s) para pendentes parados há min-idle (60s), paginado até 20 páginas; ClickStreamConsumer recebe Clock no construtor (a 02-08 depende dele)
 - [Phase 02]: [02-06] Sem limite de reentregas: só saem do PEL sem documento as entradas que não existem mais no stream (XRANGE id id vazio), confirmadas e contadas em linkpulse.clicks.lost; A5 confirmada (XCLAIM do Valkey 8.1 já remove do PEL as apagadas)
+- [Phase 02]: 02-07: contrato JSON do /stats travado ({code, from, to, includeBots, total, daily[{date, clicks}], topReferrers/topBrowsers/topOs[{value, clicks}]}, datas YYYY-MM-DD); documentos sem isBot contam como humanos e valores nulos nos tops viram (unknown)
+- [Phase 02]: 02-07: Mongo fora no /stats vira 503 /problems/stats-unavailable (~8 s com os timeouts do driver); parâmetro malformado vira /problems/invalid-parameter sem ecoar o valor
 
 ### Pending Todos
 
@@ -149,6 +152,6 @@ Itens reconhecidos e adiados no fechamento de milestone, do mais recente para o 
 
 ## Session Continuity
 
-Last session: 2026-10-11T16:47:24.812Z
-Stopped at: Completed 02-06-PLAN.md
+Last session: 2026-10-11T20:00:46.747Z
+Stopped at: Completed 02-07-PLAN.md
 Resume file: None
