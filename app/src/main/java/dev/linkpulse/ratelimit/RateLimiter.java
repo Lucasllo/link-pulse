@@ -3,6 +3,7 @@ package dev.linkpulse.ratelimit;
 import dev.linkpulse.cache.ValkeyAvailability;
 import dev.linkpulse.common.IpHasher;
 import dev.linkpulse.config.LinkPulseProperties;
+import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import java.time.Clock;
 import java.util.List;
@@ -22,6 +23,16 @@ import org.springframework.stereotype.Component;
  * <p>O contador é um script Lua atômico: {@code INCR} e, quando a chave é nova ou está sem TTL,
  * {@code PEXPIRE} com a janela. Requisições simultâneas nunca passam do limite, e um crash entre
  * os dois comandos não deixa chave eterna.
+ *
+ * <p><b>Fail-open, por decisão consciente (D-08).</b> Com o Valkey fora (gate de
+ * {@link ValkeyAvailability} fechado ou erro no comando), a criação passa sem limite: ninguém é
+ * limitado enquanto o Valkey não volta. Disponibilidade da escrita vale mais que o limite; a
+ * queda fica visível em {@code linkpulse.ratelimit.requests{result=error}} e em
+ * {@code linkpulse.valkey.unavailable}, e o risco está registrado no README.
+ *
+ * <p>Toda decisão conta em {@code linkpulse.ratelimit.requests} com a tag {@code result}
+ * ({@code allowed}, {@code rejected} ou {@code error}); nenhuma tag carrega o IP, o hash nem a
+ * chave (D-10). Nada é logado com o IP ou a chave.
  */
 @Component
 public class RateLimiter {
@@ -41,11 +52,18 @@ public class RateLimiter {
 
     private static final double MILLIS_PER_SECOND = 1000.0;
 
+    /** Nome do contador de decisões do rate limit. */
+    static final String REQUESTS_METRIC = "linkpulse.ratelimit.requests";
+
     private final StringRedisTemplate redis;
+    private final ValkeyAvailability availability;
     private final IpHasher ipHasher;
     private final Clock clock;
     private final int limit;
     private final long windowMillis;
+    private final Counter allowed;
+    private final Counter rejected;
+    private final Counter errors;
 
     /**
      * Resultado da checagem.
@@ -57,7 +75,7 @@ public class RateLimiter {
     }
 
     /**
-     * Cria o rate limiter.
+     * Cria o rate limiter e registra os contadores de decisão.
      *
      * @param redis template do Valkey
      * @param availability gate de disponibilidade do Valkey
@@ -71,27 +89,52 @@ public class RateLimiter {
             IpHasher ipHasher, LinkPulseProperties properties, Clock clock,
             MeterRegistry registry) {
         this.redis = redis;
+        this.availability = availability;
         this.ipHasher = ipHasher;
         this.clock = clock;
         this.limit = properties.ratelimit().limit();
         this.windowMillis = properties.ratelimit().window().toMillis();
+        this.allowed = requests(registry, "allowed");
+        this.rejected = requests(registry, "rejected");
+        this.errors = requests(registry, "error");
+    }
+
+    private static Counter requests(MeterRegistry registry, String result) {
+        return Counter.builder(REQUESTS_METRIC)
+                .description("Decisões do rate limit do POST /links")
+                .tag("result", result)
+                .register(registry);
     }
 
     /**
      * Conta uma criação do IP na janela corrente e decide se ela passa.
      *
      * @param clientIp IP do cliente, já corrigido pelo {@code RemoteIpValve}
-     * @return {@code Decision(true, 0)} dentro do limite; senão {@code Decision(false, n)} com os
-     *     segundos até a próxima janela
+     * @return {@code Decision(true, 0)} dentro do limite ou com o Valkey fora (fail-open); senão
+     *     {@code Decision(false, n)} com os segundos até a próxima janela
      */
     public Decision check(String clientIp) {
+        if (!availability.allowRequest()) {
+            errors.increment();
+            return new Decision(true, 0);
+        }
         long now = clock.millis();
         String key = KEY_PREFIX + ipHasher.hash(clientIp, clock.instant()) + ":"
                 + windowIndex(now, windowMillis);
-        Long count = redis.execute(FIXED_WINDOW, List.of(key), Long.toString(windowMillis));
+        Long count;
+        try {
+            count = redis.execute(FIXED_WINDOW, List.of(key), Long.toString(windowMillis));
+        } catch (RuntimeException e) {
+            // Sem log: a exceção do Lettuce pode citar a chave. A queda já conta no gate.
+            availability.recordFailure();
+            errors.increment();
+            return new Decision(true, 0);
+        }
         if (count != null && count > limit) {
+            rejected.increment();
             return new Decision(false, retryAfterSeconds(now, windowMillis));
         }
+        allowed.increment();
         return new Decision(true, 0);
     }
 
