@@ -23,7 +23,8 @@ import org.springframework.validation.annotation.Validated;
  * {@code LINKPULSE_CLICKS_GROUP}, {@code LINKPULSE_CLICKS_RETENTION},
  * {@code LINKPULSE_CLICKS_CONSUMER_ENABLED}, {@code LINKPULSE_CLICKS_CONSUMER_BATCH_SIZE},
  * {@code LINKPULSE_CLICKS_CONSUMER_BLOCK}, {@code LINKPULSE_CLICKS_CONSUMER_RECLAIM_INTERVAL},
- * {@code LINKPULSE_CLICKS_CONSUMER_MIN_IDLE} etc.).
+ * {@code LINKPULSE_CLICKS_CONSUMER_MIN_IDLE}, {@code LINKPULSE_RATELIMIT_ENABLED},
+ * {@code LINKPULSE_RATELIMIT_LIMIT}, {@code LINKPULSE_RATELIMIT_WINDOW} etc.).
  *
  * @param baseUrl base da URL curta devolvida na criação (D-12); nunca derivada de {@code Host}
  *     nem de {@code X-Forwarded-*}. Precisa ser URL {@code http} ou {@code https} absoluta, com
@@ -41,6 +42,8 @@ import org.springframework.validation.annotation.Validated;
  *     derruba a subida. É chave de topo porque o rate limit também a usa
  * @param clicks publicação dos cliques no stream do Valkey e consumo pelo consumer group
  *     ({@code linkpulse.clicks.*}); os defaults ficam nas anotações, então o bloco é opcional
+ * @param ratelimit rate limit de criação de links por IP ({@code linkpulse.ratelimit.*}, D-08);
+ *     os defaults ficam nas anotações, então o bloco é opcional
  */
 @ConfigurationProperties("linkpulse")
 @Validated
@@ -51,7 +54,8 @@ public record LinkPulseProperties(
         List<String> selfHosts,
         @Valid @DefaultValue Cache cache,
         String ipHashKey,
-        @Valid @DefaultValue Clicks clicks) {
+        @Valid @DefaultValue Clicks clicks,
+        @Valid @DefaultValue RateLimit ratelimit) {
 
     /**
      * Valida {@code baseUrl} e normaliza {@code selfHosts}.
@@ -71,6 +75,7 @@ public record LinkPulseProperties(
      * @param cache TTLs do cache do redirect
      * @param ipHashKey chave do HMAC do IP (validada pelo {@code IpHasher})
      * @param clicks publicação dos cliques no stream
+     * @param ratelimit rate limit de criação de links por IP
      * @throws IllegalArgumentException se {@code baseUrl} é inválida
      */
     public LinkPulseProperties {
@@ -96,7 +101,8 @@ public record LinkPulseProperties(
                 + ", selfHosts=" + selfHosts
                 + ", cache=" + cache
                 + ", ipHashKey=" + (ipHashKey == null ? "null" : "****")
-                + ", clicks=" + clicks + "]";
+                + ", clicks=" + clicks
+                + ", ratelimit=" + ratelimit + "]";
     }
 
     private static boolean isValidBaseUrl(URI baseUrl) {
@@ -290,6 +296,37 @@ public record LinkPulseProperties(
 
             private static boolean isPositive(Duration value) {
                 return value != null && !value.isNegative() && !value.isZero();
+            }
+        }
+    }
+
+    /**
+     * Rate limit de criação de links por IP, em janela fixa no Valkey (D-08). Vale só para o
+     * {@code POST /links}; o redirect, o {@code HEAD} e o {@code /stats} nunca são limitados.
+     *
+     * @param enabled liga o rate limit. Env {@code LINKPULSE_RATELIMIT_ENABLED}; padrão
+     *     {@code true}
+     * @param limit criações aceitas por IP em cada janela; a seguinte responde 429. Env
+     *     {@code LINKPULSE_RATELIMIT_LIMIT}; padrão 20
+     * @param window tamanho da janela fixa. Env {@code LINKPULSE_RATELIMIT_WINDOW}; padrão 1m
+     */
+    public record RateLimit(
+            @DefaultValue("true") boolean enabled,
+            @DefaultValue("20") @Positive int limit,
+            @DefaultValue("1m") Duration window) {
+
+        /**
+         * Exige janela positiva; a mensagem é fixa e não ecoa o valor.
+         *
+         * @param enabled liga o rate limit
+         * @param limit criações aceitas por IP em cada janela
+         * @param window tamanho da janela fixa
+         * @throws IllegalArgumentException se {@code window} é nula, zero ou negativa
+         */
+        public RateLimit {
+            if (window == null || window.isNegative() || window.isZero()) {
+                throw new IllegalArgumentException(
+                        "linkpulse.ratelimit.window deve ser uma duração positiva");
             }
         }
     }

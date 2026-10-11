@@ -22,9 +22,13 @@ import org.springframework.test.web.servlet.assertj.MockMvcTester;
  *
  * <p>{@code linkpulse.clicks.consumer.reclaim-interval} e {@code min-idle} caem para 1 s: um lote
  * que falhou no consumer do contexto volta pelo reclaim em segundos, e não em 30 a 90 s.
+ *
+ * <p>{@code linkpulse.ratelimit.limit} sobe para 100000: todos os ITs MockMvc saem de 127.0.0.1 e
+ * não podem esbarrar no rate limit do {@code POST /links} (Pitfall P8).
  */
 @SpringBootTest(properties = {
     "linkpulse.ip-hash-key=test-ip-hash-key-0123456789",
+    "linkpulse.ratelimit.limit=100000",
     "linkpulse.cache.bypass-cooldown=200ms",
     "linkpulse.clicks.consumer.block=200ms",
     "linkpulse.clicks.consumer.reclaim-interval=1s",
