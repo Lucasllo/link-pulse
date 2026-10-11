@@ -30,9 +30,9 @@ Rode da raiz do repositório.
 | `make build` | `cd app && ./mvnw -B -ntp -DskipTests package` | Empacota o jar sem rodar testes |
 | `make test` | `cd app && ./mvnw -B -ntp test` | Só os testes unitários (não precisa de Docker) |
 | `make verify` | `cd app && ./mvnw -B -ntp verify` | Checkstyle, unitários, ITs com Testcontainers e SpotBugs (precisa de Docker) |
-| `make db-up` | `docker compose -f compose.dev.yaml up -d --wait` | Sobe o Postgres 18 local e espera o healthcheck |
-| `make db-down` | `docker compose -f compose.dev.yaml down` | Para o Postgres local (mantém o volume `pgdata`) |
-| `make run` | `docker compose -f compose.dev.yaml up -d --wait` e depois `cd app && ./mvnw -B -ntp spring-boot:run -Dspring-boot.run.profiles=dev` | Sobe o Postgres e a API com o profile `dev` |
+| `make db-up` | `docker compose -f compose.dev.yaml up -d --wait` | Sobe as dependências locais do `compose.dev.yaml` (Postgres e Valkey) e espera os healthchecks |
+| `make db-down` | `docker compose -f compose.dev.yaml down` | Para as dependências locais do `compose.dev.yaml` (Postgres e Valkey; mantém o volume `pgdata`) |
+| `make run` | `docker compose -f compose.dev.yaml up -d --wait` e depois `cd app && ./mvnw -B -ntp spring-boot:run -Dspring-boot.run.profiles=dev` | Sobe as dependências locais do `compose.dev.yaml` (Postgres e Valkey) e a API com o profile `dev` |
 
 No **PowerShell**, use o `mvnw.cmd`:
 
@@ -48,7 +48,7 @@ Para apagar também os dados locais: `docker compose -f compose.dev.yaml down -v
 make run
 ```
 
-O profile `dev` aponta para o Postgres do `compose.dev.yaml` (`localhost:5432`, banco/usuário/senha `linkpulse`, só no loopback) e aplica o changeset de seed `demo-link`, que existe **só no profile dev**. Em outro terminal:
+O profile `dev` aponta para o Postgres do `compose.dev.yaml` (`localhost:5432`, banco/usuário/senha `linkpulse`, só no loopback) e para o Valkey do mesmo arquivo (`127.0.0.1:6379`), e aplica o changeset de seed `demo-link`, que existe **só no profile dev**. Em outro terminal:
 
 ```bash
 curl -i http://localhost:8080/demo-link
@@ -58,7 +58,20 @@ curl -i http://localhost:8080/demo-link
 ```
 
 - Swagger UI: <http://localhost:8080/swagger-ui.html> (spec em <http://localhost:8080/v3/api-docs>)
-- Health: <http://localhost:8081/actuator/health>. O Actuator fica numa porta separada (8081) e expõe só `health` e `info`.
+- Health: <http://localhost:8081/actuator/health>. O Actuator fica numa porta separada (8081) e expõe `health`, `info` e `prometheus` (<http://localhost:8081/actuator/prometheus>, com hit/miss do cache em `linkpulse_cache_requests_total` e o histograma de latência em `http_server_requests_seconds_bucket`).
+
+### Demonstração: o redirect sem o Valkey
+
+O Valkey é só cache e fila de cliques; o Postgres continua sendo a fonte da verdade. Com a API rodando, pare o Valkey:
+
+```bash
+docker compose -f compose.dev.yaml stop valkey
+curl -i http://localhost:8080/demo-link
+# HTTP/1.1 302
+# Location: https://example.com/
+```
+
+O redirect continua respondendo 302 pelo Postgres, sem atraso perceptível: o Lettuce tem timeout de comando de 150 ms e de conexão de 250 ms, rejeita comandos na hora com a conexão caída e, depois de uma falha, o cache fica desviado por 2 s (`linkpulse.cache.bypass-cooldown`). A falha aparece em `curl -s http://localhost:8081/actuator/prometheus | grep linkpulse_cache` (`result="error"` e `result="bypass"`) e em `linkpulse_valkey_unavailable_total`. Para voltar: `docker compose -f compose.dev.yaml start valkey`.
 
 Fora do profile dev, o datasource vem por variável de ambiente (`SPRING_DATASOURCE_URL`, `SPRING_DATASOURCE_USERNAME`, `SPRING_DATASOURCE_PASSWORD`). As credenciais `linkpulse` valem só para o Postgres local de desenvolvimento.
 

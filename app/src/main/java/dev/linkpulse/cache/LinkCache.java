@@ -31,6 +31,17 @@ import org.springframework.stereotype.Component;
  * {@code hit} só para {@code L}, {@code negative_hit} para {@code N}/{@code G} e {@code miss}
  * para ausente ou corrompido. Nenhuma tag carrega código, URL ou IP (D-10), e a classe não
  * registra nada em log.
+ *
+ * <p>Fail-open (REDIR-05): o cache é descartável. Nenhuma exceção do Valkey sai desta classe.
+ * <ul>
+ *   <li>Com o gate {@link ValkeyAvailability} fechado, {@link #get} conta {@code bypass} e
+ *       devolve vazio sem chamar o Valkey, e as escritas são puladas.</li>
+ *   <li>Uma falha de leitura conta {@code error}, fecha o gate e devolve vazio; o redirect segue
+ *       pelo Postgres. Toda falha conta em {@code linkpulse.cache.errors} com a tag
+ *       {@code operation} ({@code get}, {@code put} ou {@code evict}).</li>
+ *   <li>{@link #evict} sempre tenta, mesmo com o gate fechado: um {@code N} que sobrevive à
+ *       criação do alias pesa mais que o custo de uma chamada a mais.</li>
+ * </ul>
  */
 @Component
 public class LinkCache {
@@ -41,6 +52,9 @@ public class LinkCache {
     /** Nome do contador de consultas ao cache. */
     static final String REQUESTS_METRIC = "linkpulse.cache.requests";
 
+    /** Nome do contador de falhas do Valkey no cache, por operação. */
+    static final String ERRORS_METRIC = "linkpulse.cache.errors";
+
     private static final String SEPARATOR = "|";
     private static final String FOUND = "L";
     private static final String MISSING = "N";
@@ -49,28 +63,41 @@ public class LinkCache {
     private static final Duration MIN_TTL = Duration.ofMillis(1);
 
     private final StringRedisTemplate redis;
+    private final ValkeyAvailability availability;
     private final LinkPulseProperties.Cache properties;
     private final Clock clock;
     private final Counter hits;
     private final Counter negativeHits;
     private final Counter misses;
+    private final Counter errors;
+    private final Counter bypasses;
+    private final Counter getErrors;
+    private final Counter putErrors;
+    private final Counter evictErrors;
 
     /**
      * Cria o cache e registra os contadores (uma vez só).
      *
      * @param redis template de strings do Spring Data Redis (Lettuce)
+     * @param availability gate de disponibilidade do Valkey
      * @param properties propriedades {@code linkpulse.*}; usa {@code linkpulse.cache.*}
      * @param clock relógio da aplicação (base do TTL limitado pela expiração)
      * @param registry registry do Micrometer
      */
-    public LinkCache(StringRedisTemplate redis, LinkPulseProperties properties, Clock clock,
-            MeterRegistry registry) {
+    public LinkCache(StringRedisTemplate redis, ValkeyAvailability availability,
+            LinkPulseProperties properties, Clock clock, MeterRegistry registry) {
         this.redis = redis;
+        this.availability = availability;
         this.properties = properties.cache();
         this.clock = clock;
         this.hits = requests(registry, "hit");
         this.negativeHits = requests(registry, "negative_hit");
         this.misses = requests(registry, "miss");
+        this.errors = requests(registry, "error");
+        this.bypasses = requests(registry, "bypass");
+        this.getErrors = errors(registry, "get");
+        this.putErrors = errors(registry, "put");
+        this.evictErrors = errors(registry, "evict");
     }
 
     private static Counter requests(MeterRegistry registry, String result) {
@@ -80,14 +107,35 @@ public class LinkCache {
                 .register(registry);
     }
 
+    private static Counter errors(MeterRegistry registry, String operation) {
+        return Counter.builder(ERRORS_METRIC)
+                .description("Falhas do Valkey no cache do redirect por operação")
+                .tag("operation", operation)
+                .register(registry);
+    }
+
     /**
      * Lê o valor do código e conta o resultado.
      *
      * @param code código curto
-     * @return o valor decodificado, ou vazio se a chave não existe ou está corrompida (miss)
+     * @return o valor decodificado; vazio se a chave não existe ou está corrompida (miss), se o
+     *     Valkey falhou ({@code error}) ou se o gate está fechado ({@code bypass})
      */
     public Optional<CacheEntry> get(String code) {
-        Optional<CacheEntry> entry = decode(redis.opsForValue().get(key(code)));
+        if (!availability.allowRequest()) {
+            bypasses.increment();
+            return Optional.empty();
+        }
+        String raw;
+        try {
+            raw = redis.opsForValue().get(key(code));
+        } catch (RuntimeException e) {
+            availability.recordFailure();
+            getErrors.increment();
+            errors.increment();
+            return Optional.empty();
+        }
+        Optional<CacheEntry> entry = decode(raw);
         if (entry.isEmpty()) {
             misses.increment();
         } else if (entry.get() instanceof CacheEntry.Found) {
@@ -109,8 +157,7 @@ public class LinkCache {
     public void putFound(String code, String targetUrl, Instant expiresAt) {
         Duration ttl = foundTtl(properties.defaultTtl(), expiresAt, clock.instant());
         if (ttl.compareTo(MIN_TTL) >= 0) {
-            redis.opsForValue().set(key(code), encode(new CacheEntry.Found(targetUrl, expiresAt)),
-                    ttl);
+            put(code, encode(new CacheEntry.Found(targetUrl, expiresAt)), ttl);
         } else if (expiresAt != null) {
             putGone(code, expiresAt);
         }
@@ -122,7 +169,7 @@ public class LinkCache {
      * @param code código curto
      */
     public void putMissing(String code) {
-        redis.opsForValue().set(key(code), MISSING, properties.negativeTtl());
+        put(code, MISSING, properties.negativeTtl());
     }
 
     /**
@@ -132,17 +179,37 @@ public class LinkCache {
      * @param expiredAt instante da expiração (vai no {@code expiredAt} do 410)
      */
     public void putGone(String code, Instant expiredAt) {
-        redis.opsForValue().set(key(code), encode(new CacheEntry.Gone(expiredAt)),
-                properties.goneTtl());
+        put(code, encode(new CacheEntry.Gone(expiredAt)), properties.goneTtl());
     }
 
     /**
-     * Remove a chave do código (por exemplo, o negative cache de um alias recém-criado).
+     * Remove a chave do código (por exemplo, o negative cache de um alias recém-criado). Tenta
+     * mesmo com o gate fechado; uma falha fecha o gate e só é contada.
      *
      * @param code código curto
      */
     public void evict(String code) {
-        redis.delete(key(code));
+        try {
+            redis.delete(key(code));
+        } catch (RuntimeException e) {
+            availability.recordFailure();
+            evictErrors.increment();
+        }
+    }
+
+    /**
+     * Grava o valor se o gate deixar; uma falha fecha o gate e só é contada.
+     */
+    private void put(String code, String value, Duration ttl) {
+        if (!availability.allowRequest()) {
+            return;
+        }
+        try {
+            redis.opsForValue().set(key(code), value, ttl);
+        } catch (RuntimeException e) {
+            availability.recordFailure();
+            putErrors.increment();
+        }
     }
 
     private static String key(String code) {

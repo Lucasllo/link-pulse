@@ -17,6 +17,18 @@ spring:
     contexts: prod
     # O Liquibase OSS envia analytics anônimos por padrão.
     analytics-enabled: false
+  # Valkey (cliente Lettuce). Sem host aqui: o default é localhost:6379; fora do dev, override
+  # por env SPRING_DATA_REDIS_HOST e SPRING_DATA_REDIS_PORT. Os ITs usam @ServiceConnection.
+  data:
+    redis:
+      # Timeout de comando curto: com o Valkey lento ou sem resposta, o cache falha em até 150 ms
+      # e o redirect segue pelo Postgres (fail-open sem fail-slow, Pitfall P1).
+      timeout: 150ms
+      # Timeout de conexão curto: uma (re)conexão não segura o request pelo default de 10 s.
+      connect-timeout: 250ms
+      repositories:
+        # Só o JPA usa repositórios; o Valkey é acessado direto pelo StringRedisTemplate.
+        enabled: false
 
 server:
   port: 8080
@@ -60,4 +72,10 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info
+        # prometheus: /actuator/prometheus na porta de gerenciamento (8081), raspado pelo Prometheus.
+        include: health,info,prometheus
+  metrics:
+    distribution:
+      percentiles-histogram:
+        # Histograma de http.server.requests: p95/p99 via histogram_quantile no Prometheus.
+        http.server.requests: true
