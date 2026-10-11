@@ -486,6 +486,11 @@ public class ClickStreamConsumer implements SmartLifecycle, DisposableBean {
         }
     }
 
+    // Placeholder do RED da 02-08 (Task 2): o GREEN implementa a conversão.
+    static double lagValue(Object raw) {
+        return 0;
+    }
+
     private static boolean causeContains(Throwable error, String token) {
         Throwable current = error;
         for (int depth = 0; current != null && depth < MAX_CAUSE_DEPTH; depth++) {
