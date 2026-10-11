@@ -195,6 +195,7 @@ curl -s 'http://localhost:8080/links/minha-promo/stats?from=2026-10-01&to=2026-1
   A checagem **não resolve DNS**: um domínio de terceiros que aponte para o encurtador só é barrado se estiver em `LINKPULSE_SELF_HOSTS` (ver "Riscos conhecidos").
 - **`expiresAt`** (opcional): ISO-8601 **com offset** (`2026-12-31T23:59:59Z` ou `2026-12-31T20:59:59-03:00`) e **no futuro**. Sem offset, a resposta é 400 `malformed-request`. No passado, 400 `validation-error`. A partir do instante de expiração, o redirect responde 410.
 - A **mesma URL enviada duas vezes gera dois links** diferentes. Não há deduplicação.
+- **Rate limit**: o `POST /links` aceita **20 criações por minuto por IP**, em janela fixa (o contador zera no início de cada minuto). Acima disso a resposta é 429 `rate-limited` com o header `Retry-After` (segundos até a próxima janela). O redirect (`GET /{code}`), o `HEAD` e o `/stats` não têm limite. Com o Valkey fora, o limite é desligado (fail-open): a criação continua funcionando e a queda aparece em `linkpulse_ratelimit_requests_total{result="error"}`. O IP vem do socket; o `X-Forwarded-For` só vale quando chega de um proxy listado em `SERVER_TOMCAT_REMOTEIP_INTERNAL_PROXIES` (vazio por padrão, ou seja, o header é ignorado). O IP nunca vai em claro para o Valkey: a chave usa o mesmo HMAC de `LINKPULSE_IP_HASH_KEY`.
 
 ## Erros (Problem Details, RFC 9457)
 
@@ -209,6 +210,7 @@ Todo erro sai como `application/problem+json`. O `type` é uma URI relativa no f
 | `/problems/invalid-parameter` | 400 | Parâmetro em formato inválido, como `from=2026-13-01` ou `includeBots=talvez` (o valor recebido não é ecoado) | `parameter` |
 | `/problems/link-not-found` | 404 | `GET /{code}` ou `GET /links/{code}/stats` de um código inexistente | `code` |
 | `/problems/link-expired` | 410 | `GET /{code}` de um link expirado | `code`, `expiredAt` |
+| `/problems/rate-limited` | 429 | Acima do limite de criações por IP no `POST /links` | `retryAfterSeconds` (e o header `Retry-After`) |
 | `/problems/internal-error` | 500 | Erro inesperado (detail genérico; o detalhe fica só no log) | — |
 | `/problems/stats-unavailable` | 503 | `/stats` com o MongoDB indisponível; tente de novo em instantes | — |
 
@@ -240,6 +242,10 @@ Configuração (override por variável de ambiente, via relaxed binding do Sprin
 | `LINKPULSE_CODE_MULTIPLIER` | `2176477521915` | Precisa ser coprimo de `62^7`. Um valor inválido derruba a subida |
 | `LINKPULSE_CODE_ALPHABET` | `0-9A-Za-z` (62 caracteres) | Alfabeto do Base62 |
 | `LINKPULSE_ALIAS_RESERVED` | lista acima | Lista separada por vírgula |
+| `LINKPULSE_RATELIMIT_LIMIT` | `20` | Criações de link aceitas por IP em cada janela; a seguinte responde 429 |
+| `LINKPULSE_RATELIMIT_WINDOW` | `1m` | Tamanho da janela fixa do rate limit. Precisa ser positiva; zero derruba a subida |
+| `LINKPULSE_RATELIMIT_ENABLED` | `true` | Liga o rate limit do `POST /links` |
+| `SERVER_TOMCAT_REMOTEIP_INTERNAL_PROXIES` | vazio | Proxies confiáveis, em CIDR, cujo `X-Forwarded-For` define o IP do cliente. Vazio: nenhum proxy confiável e o header é ignorado. No kind, o CIDR dos pods do Traefik (Phase 4). Não deixe o default do Boot, que confia nas redes privadas e na bridge do Docker |
 | `LINKPULSE_IP_HASH_KEY` | nenhum fora do profile `dev` | **Obrigatória**, com pelo menos 16 caracteres. Chave do HMAC que transforma o IP do cliente em hash antes de publicar o clique; o IP nunca é guardado em claro. Sem ela a aplicação não sobe. O valor nunca aparece no `toString` das propriedades nem em mensagem de erro |
 
 **Trocar `M` ou o alfabeto muda o código de todos os links já publicados**, e os links antigos deixam de funcionar. Escolha uma vez, antes de publicar.
@@ -247,9 +253,9 @@ Configuração (override por variável de ambiente, via relaxed binding do Sprin
 ## Riscos conhecidos
 
 - **Open redirect.** Todo encurtador é, por natureza, um open redirect: qualquer pessoa pode criar um link curto que leva a um site malicioso com cara de link confiável. As mitigações são as regras de URL acima: só `http`/`https`, sem credenciais embutidas (bloqueia `https://banco.com@evil.com`), sem esquemas perigosos (`javascript:`, `data:`, `file:`) e as regras de host da seção "Regras" (próprio encurtador, loopback e IP numérico ofuscado), com a ressalva de DNS do item seguinte. Não há lista de domínios bloqueados nem verificação de reputação.
-- **Loop de redirect via DNS (mitigação parcial).** A checagem de host não resolve DNS: resolver no `POST` adicionaria latência e ainda seria contornável por DNS rebinding (o nome pode mudar entre a criação e o clique). Por isso, um domínio de terceiros que resolva para o encurtador (um DNS curinga que devolve 127.0.0.1, um CNAME para o load balancer) e não esteja em `LINKPULSE_SELF_HOSTS` ainda cria um link em loop; o navegador desiste depois de cerca de 20 saltos. Recomendação: declarar em `LINKPULSE_SELF_HOSTS` todos os hostnames conhecidos do encurtador.
+- **Loop de redirect via DNS (mitigação parcial).** A checagem de host não resolve DNS: resolver no `POST` adicionaria latência e ainda seria contornável por DNS rebinding (o nome pode mudar entre a criação e o clique). Por isso, um domínio de terceiros que resolva para o encurtador (um DNS curinga que devolve 127.0.0.1, um CNAME para o load balancer) e não esteja em `LINKPULSE_SELF_HOSTS` ainda cria um link em loop; o navegador desiste depois de cerca de 20 saltos. Recomendação: declarar em `LINKPULSE_SELF_HOSTS` todos os hostnames conhecidos do encurtador. O rate limit por IP no `POST /links` reduz a escala desse abuso: cada IP cria no máximo 20 links por minuto.
 - **Enumeração.** Ver "Código curto": a ofuscação não impede quem quiser listar os links.
-- **API sem autenticação nem rate limit nesta fase.** O rate limit por IP no `POST /links` entra na Phase 2.
+- **API sem autenticação.** Qualquer cliente cria links. O rate limit por IP no `POST /links` (20 por minuto) é parte da mitigação da criação em massa e do loop via DNS, com dois limites conscientes: é **fail-open** (com o Valkey fora, ninguém é limitado, e a queda fica visível em `linkpulse_ratelimit_requests_total{result="error"}` e `linkpulse_valkey_unavailable_total`) e **não vale para o redirect**, que fica sem custo extra. Um atacante com muitos IPs ainda cria links em escala.
 
 ## Qualidade e CI
 

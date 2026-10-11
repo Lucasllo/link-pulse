@@ -53,7 +53,9 @@ public class LinkController {
             description = "Gera um código curto para a URL de destino (http ou https). O alias é "
                     + "opcional: com ele, o código é o próprio alias (4 a 32 caracteres, com pelo "
                     + "menos um '-' ou '_'). O expiresAt é opcional, em ISO-8601 com offset (por "
-                    + "exemplo 2026-12-31T23:59:59Z), e precisa estar no futuro.")
+                    + "exemplo 2026-12-31T23:59:59Z), e precisa estar no futuro. A criação é "
+                    + "limitada por IP (padrão: 20 por minuto, em janela fixa); acima disso a "
+                    + "resposta é 429 com o header Retry-After.")
     @ApiResponse(responseCode = "201",
             description = "Link criado; o header Location traz a URL curta",
             headers = @Header(name = "Location", description = "URL curta do link criado"))
@@ -63,6 +65,13 @@ public class LinkController {
             content = @Content(mediaType = "application/problem+json",
                     schema = @Schema(implementation = ProblemDetail.class)))
     @ApiResponse(responseCode = "409", description = "O alias já existe (alias-conflict)",
+            content = @Content(mediaType = "application/problem+json",
+                    schema = @Schema(implementation = ProblemDetail.class)))
+    @ApiResponse(responseCode = "429",
+            description = "Limite de criações por IP atingido (rate-limited); o header "
+                    + "Retry-After traz os segundos até a próxima janela",
+            headers = @Header(name = "Retry-After",
+                    description = "Segundos até a próxima janela"),
             content = @Content(mediaType = "application/problem+json",
                     schema = @Schema(implementation = ProblemDetail.class)))
     public ResponseEntity<LinkResponse> create(@Valid @RequestBody CreateLinkRequest request) {

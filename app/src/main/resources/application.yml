@@ -49,6 +49,17 @@ server:
   # Já é o default no Boot 4.1; explícito para documentar: o web server para de aceitar requests
   # antes de o publisher esvaziar a fila e de o consumer gravar o último lote.
   shutdown: graceful
+  # IP real do cliente pelo RemoteIpValve do Tomcat (RATE-02, D-08). O código só lê
+  # getRemoteAddr(); é o valve que decide se o X-Forwarded-For vale.
+  forward-headers-strategy: native
+  tomcat:
+    remoteip:
+      # Vazio = nenhum proxy confiável: o X-Forwarded-For é ignorado e o IP vem do socket. Explícito
+      # de propósito: o default do Boot confiaria na rede bridge do Docker (10/8, 172.16/12,
+      # 192.168/16, 127/8) e qualquer cliente burlaria o rate limit com um header forjado
+      # (Pitfall P5). Override por env SERVER_TOMCAT_REMOTEIP_INTERNAL_PROXIES; no kind, o CIDR dos
+      # pods do Traefik (Phase 4). Use CIDR: regex é deprecated no Tomcat 11.
+      internal-proxies: ""
 
 # Override por env via relaxed binding: LINKPULSE_BASE_URL, LINKPULSE_CODE_ALPHABET,
 # LINKPULSE_CODE_MULTIPLIER, LINKPULSE_ALIAS_RESERVED (lista separada por vírgula),
@@ -69,6 +80,11 @@ server:
 #   linkpulse.clicks.consumer.block=2s             (LINKPULSE_CLICKS_CONSUMER_BLOCK, BLOCK)
 #   linkpulse.clicks.consumer.reclaim-interval=30s (LINKPULSE_CLICKS_CONSUMER_RECLAIM_INTERVAL)
 #   linkpulse.clicks.consumer.min-idle=60s         (LINKPULSE_CLICKS_CONSUMER_MIN_IDLE, XPENDING IDLE)
+#
+# Rate limit do POST /links por IP, em janela fixa no Valkey (D-08):
+#   linkpulse.ratelimit.enabled=true               (LINKPULSE_RATELIMIT_ENABLED)
+#   linkpulse.ratelimit.limit=20                   (LINKPULSE_RATELIMIT_LIMIT, criações por janela)
+#   linkpulse.ratelimit.window=1m                  (LINKPULSE_RATELIMIT_WINDOW)
 linkpulse:
   # Base da shortUrl (D-12); compose/kind/ECS sobrescrevem por env. Precisa ser uma URL http ou
   # https absoluta, com host e sem credenciais, query ou fragmento: valor inválido derruba a subida.
