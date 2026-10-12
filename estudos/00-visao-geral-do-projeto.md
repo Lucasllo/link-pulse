@@ -110,3 +110,29 @@ Cada um faz o que faz de melhor, e o sistema continua funcionando mesmo quando u
 3. Por que o clique vai para uma fila em vez de ser gravado direto no MongoDB?
 4. Qual banco é a "fonte da verdade" dos links, e por quê?
 5. Por que o código curto não deve ser tratado como segredo?
+
+<details>
+<summary>Respostas</summary>
+
+1. Porque o Valkey guarda tudo na memória e responde muito mais rápido; o Postgres só é consultado quando o Valkey não sabe a resposta.
+2. Continua funcionando (fail-open), indo direto ao Postgres; fica só um pouco mais lento.
+3. Para o redirect responder na hora, sem esperar o MongoDB, e continuar funcionando mesmo se o MongoDB cair.
+4. O Postgres: os links nascem lá, com regras que impedem códigos repetidos; o cache e os cliques podem ser reconstruídos ou perdidos sem perder os links.
+5. Porque é ofuscação, não segurança: quem conhece dois códigos seguidos consegue calcular os outros.
+
+</details>
+
+## Onde aprofundar
+
+| Momento | Guias |
+|---------|-------|
+| A: criar um link | [01](01-estrutura-e-fluxo-de-requisicoes.md) (fluxo), [03](03-postgres-jpa-e-liquibase.md) (Postgres), [04](04-codigo-curto-base62.md) (código curto), [05](05-validacao-e-erros.md) (validação), [15](15-rate-limit-por-ip.md) (rate limit) |
+| B: alguém clica | [12](12-cache-valkey-e-fail-open.md) (cache e fail-open), [13](13-pipeline-de-cliques.md) (publicação do clique) |
+| C: cliques gravados | [13](13-pipeline-de-cliques.md) (consumer e MongoDB) |
+| D: estatísticas | [14](14-estatisticas-no-mongodb.md) |
+| Qualidade e operação | [02](02-spring-boot-e-java-21.md), [06](06-testes.md), [07](07-build-e-qualidade.md), [08](08-ci-github-actions.md), [09](09-ambiente-local-e-windows.md), [11](11-dependabot.md), [16](16-metricas-com-micrometer.md) |
+| O que vem depois | [10](10-proximas-fases.md) |
+
+---
+
+[Índice](README.md) · [Próximo: 01 · Estrutura e fluxo →](01-estrutura-e-fluxo-de-requisicoes.md)

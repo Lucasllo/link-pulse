@@ -88,3 +88,17 @@ Resumindo: **o Dependabot mantém as peças do projeto em dia, e o CI garante qu
 2. Por que é importante que o CI rode em cada PR aberto pelo Dependabot?
 3. Para que serve a regra `ignore` no `dependabot.yml` deste projeto?
 4. Por que atualizar à mão actions fixadas por SHA seria trabalhoso?
+
+<details>
+<summary>Respostas</summary>
+
+1. Não. Ele só abre um Pull Request; quem decide se a atualização entra (merge) é você.
+2. Porque o CI compila e testa o projeto com a versão nova: é a evidência de que a atualização não quebrou nada.
+3. Para o robô não oferecer o Maven 3.10 ou mais novo, porque o projeto fixou a 3.9.16 de propósito.
+4. Porque seria preciso descobrir, para cada action, o hash de 40 caracteres do commit da versão nova e trocá-lo junto com o comentário de versão.
+
+</details>
+
+---
+
+[← Anterior: 09 · Ambiente local e Windows](09-ambiente-local-e-windows.md) · [Índice](README.md) · [Próximo: 12 · Cache no Valkey →](12-cache-valkey-e-fail-open.md)
