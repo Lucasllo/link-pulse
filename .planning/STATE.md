@@ -4,10 +4,10 @@ current_phase: 3
 current_phase_name: Stack local observável
 status: planning
 stopped_at: Phase 02 complete, ready to plan Phase 3
-last_updated: "2026-10-11T23:42:38.222Z"
+last_updated: "2026-10-12T00:33:01.000Z"
 last_activity: 2026-10-11
 last_activity_desc: Phase 02 complete, transitioned to Phase 3
-state_head: 2b12c4d957180784271b466633505843412d9880
+state_head: 25bdd4440ab2269c94821b821ac7f509ff7589c9
 progress:
   total_phases: 5
   completed_phases: 2
@@ -153,6 +153,7 @@ None yet.
 | 2 | Configurar Dependabot para ignorar apache-maven 3.10.x e fechar o PR #2 | 2026-10-11 | 9e5adc5 | — |
 | 3 | Adicionar estudos/00-visao-geral-do-projeto.md (visão geral para iniciantes) | 2026-10-11 | 5dbeb90 | — |
 | 4 | Adicionar estudos/11-dependabot.md (Dependabot para iniciantes) | 2026-10-11 | 2b12c4d | — |
+| 5 | Detalhar ApplicationConfig, LinkPulseProperties e application.yml no guia 02 (para iniciantes) | 2026-10-11 | 25bdd44 | — |
 
 ## Deferred Items
 
