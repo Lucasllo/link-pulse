@@ -155,6 +155,7 @@ None yet.
 | 4 | Adicionar estudos/11-dependabot.md (Dependabot para iniciantes) | 2026-10-11 | 2b12c4d | — |
 | 5 | Detalhar ApplicationConfig, LinkPulseProperties e application.yml no guia 02 (para iniciantes) | 2026-10-11 | 25bdd44 | — |
 | 6 | Reescrever estudos/ para iniciantes (00-11) e adicionar guias 12-16 da Phase 2 (cache, cliques, stats, rate limit, métricas) | 2026-10-11 | f7d08f5..a0d5164 | — |
+| 7 | Corrigir o diagrama mermaid do Fluxo 2 (GET /{code}) no guia 01 | 2026-10-12 | d0f3de9 | — |
 
 ## Deferred Items
 
