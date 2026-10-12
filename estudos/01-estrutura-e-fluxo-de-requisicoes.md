@@ -232,17 +232,31 @@ sequenceDiagram
     RC->>RS: resolve(code)
     RS->>LC: get(code)
     LC->>V: GET lp:link:{code}
-    alt achou no cache (hit)
-        LC-->>RS: Found / Missing / Gone
-    else não achou (miss) ou Valkey fora
+    V-->>LC: valor ou nada
+    alt hit: o cache tinha a resposta
+        LC-->>RS: Found, Missing ou Gone
+        Note over RS: Missing → 404<br/>Gone → 410<br/>Found já vencido → putGone + 410
+    else miss, ou Valkey fora (erro vira miss)
+        LC-->>RS: vazio
         RS->>S: find(code)
         S->>DB: SELECT ... WHERE code = ?
-        RS->>LC: putFound / putMissing / putGone
+        DB-->>S: linha ou nada
+        S-->>RS: Link ou vazio (Optional)
+        alt não existe
+            RS->>LC: putMissing(code)
+            Note over RS: 404
+        else expirou
+            RS->>LC: putGone(code, expiresAt)
+            Note over RS: 410
+        else válido
+            RS->>LC: putFound(code, url, expiresAt)
+        end
     end
-    Note over RS: não existe → 404<br/>expirou → 410
     RS-->>RC: targetUrl
-    RC->>P: publish(code, ip, referer, userAgent)
-    Note over P: só entrega a uma fila;<br/>não espera o Valkey
+    opt só em GET (HEAD não conta clique)
+        RC->>P: publish(code, ip, referer, userAgent)
+        Note over P: só entrega a uma fila em memória<br/>e volta na hora
+    end
     RC-->>C: 302 Location + Cache-Control: no-store, private
 ```
 
