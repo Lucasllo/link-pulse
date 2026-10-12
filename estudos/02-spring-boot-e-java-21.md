@@ -1,27 +1,62 @@
 # 02 · Spring Boot e Java 21
 
-**Em uma frase:** o Link Pulse roda em Spring Boot 4.1.1 sobre Java 21, e quase toda a infraestrutura (servidor web, DataSource, Liquibase, Actuator) vem de starters e auto-configuração, ajustada por arquivos `application*.yml` e por um record de propriedades próprio.
+**Em uma frase:** o Link Pulse roda em Spring Boot 4.1.1 sobre Java 21. Quase toda a infraestrutura (servidor web, conexões com Postgres, Valkey e MongoDB, Liquibase, Actuator) vem pronta dos starters e da auto-configuração, ajustada pelos arquivos `application*.yml` e por um record de propriedades próprio.
 
-## Conceitos
+## O que você vai aprender
+
+- O que é um framework e o que o Spring Boot faz por você.
+- O que são starters, auto-configuração, profiles e beans.
+- Como o projeto declara seus próprios objetos (`ApplicationConfig`) e lê a configuração (`LinkPulseProperties` e `application.yml`).
+- Duas novidades do Java usadas aqui: records e virtual threads.
+
+## Antes de começar: conceitos
+
+### Java, JDK e framework
+
+**Java** é a linguagem em que o programa é escrito. O **JDK** (*Java Development Kit*) é o kit que compila e roda programas Java; este projeto usa o **JDK 21** da distribuição Eclipse Temurin.
+
+Um **framework** é um esqueleto pronto de aplicação. Sem ele, para receber uma requisição HTTP você teria de abrir uma porta de rede, ler bytes, interpretar o protocolo HTTP, converter JSON... Milhares de linhas antes de escrever a primeira regra de negócio. O **Spring Boot** já faz tudo isso: você escreve só o que é específico do seu projeto.
 
 ### Starter
 
-Um starter é uma dependência Maven "guarda-chuva": ela puxa as bibliotecas de um tema e a auto-configuração correspondente. Você declara `spring-boot-starter-data-jpa` e ganha Hibernate, Spring Data JPA e pool de conexões, sem escolher versão (quem define é o BOM do Boot, ver guia 07).
+Um **starter** é uma dependência "guarda-chuva" do Maven. Em vez de listar dez bibliotecas compatíveis entre si, você declara uma só, e ela traz o pacote completo de um tema. Exemplo: declarar `spring-boot-starter-data-jpa` traz Hibernate, Spring Data JPA e o pool de conexões HikariCP. Você também não escolhe versões: quem decide é o **BOM** do Boot, uma lista de versões testadas juntas (guia 07).
 
-No Boot 4, os starters ficaram mais modulares. O antigo `spring-boot-starter-web` deu lugar a `spring-boot-starter-webmvc`, e a auto-configuração do Liquibase saiu do núcleo e passou a exigir `spring-boot-starter-liquibase`.
+No Boot 4, os starters ficaram mais "fatiados". O antigo `spring-boot-starter-web` virou `spring-boot-starter-webmvc`, e o Liquibase passou a exigir um starter próprio, `spring-boot-starter-liquibase`.
 
 ### Auto-configuração
 
-Na subida, o Boot olha o classpath e as propriedades e cria beans por conta própria. Se há driver JDBC e `spring.datasource.url`, ele cria o `DataSource`. Se há Liquibase e `spring.liquibase.change-log`, ele roda as migrações antes de a aplicação aceitar requisições. Se há Actuator, ele sobe os endpoints de gerenciamento. Você só escreve configuração quando quer algo diferente do padrão.
+Na subida, o Boot olha duas coisas, **quais bibliotecas estão no projeto** e **quais propriedades foram configuradas**, e monta os objetos necessários sozinho:
+
+- Há driver do Postgres e `spring.datasource.url`? Ele cria a conexão com o banco.
+- Há Liquibase e `spring.liquibase.change-log`? Ele roda as migrações antes de aceitar requisições.
+- Há o starter do Redis? Ele cria o cliente Lettuce e o `StringRedisTemplate`.
+- Há Actuator? Ele sobe os endpoints de saúde e métricas.
+
+Você só escreve configuração quando quer algo **diferente** do padrão. É por isso que o projeto tem pouquíssimo código de "ligação".
 
 ### Profiles
 
-`application.yml` é a base. `application-dev.yml` e `application-prod.yml` só valem quando o profile correspondente está ativo, e sobrescrevem as chaves que repetem. Formas comuns de ativar: a variável de ambiente `SPRING_PROFILES_ACTIVE=dev` ou, com o plugin Maven, `-Dspring-boot.run.profiles=dev`.
+Um **profile** é um nome para um conjunto de configurações de um ambiente. `application.yml` vale sempre. `application-dev.yml` só vale com o profile `dev` ativo, e `application-prod.yml` só com o `prod`. As chaves do arquivo do profile sobrescrevem as do arquivo base.
 
-### Records e virtual threads (Java 21)
+Formas de ativar um profile: a variável de ambiente `SPRING_PROFILES_ACTIVE=dev` ou, com o Maven, `-Dspring-boot.run.profiles=dev` (é o que o `make run` faz).
 
-- **Record** (Java 16+): `record Ponto(int x, int y) {}` gera construtor, acessores `x()`/`y()`, `equals`, `hashCode` e `toString`. Os campos são finais. Serve para DTOs e configurações sem precisar de Lombok.
-- **Virtual threads** (JEP 444, Java 21): threads leves gerenciadas pela JVM. Uma thread bloqueada em I/O (esperando o banco, por exemplo) libera a thread do sistema operacional, então dá para atender muitas requisições simultâneas no modelo "uma thread por requisição", sem programação reativa. Cuidado no Java 21: um bloqueio dentro de `synchronized` "prende" (pinning) a thread do sistema; a correção (JEP 491) só chega no Java 24.
+### Records (Java 16+)
+
+Um **record** é uma classe feita só para carregar dados. Esta linha:
+
+```java
+record Ponto(int x, int y) {}
+```
+
+gera sozinha o construtor, os métodos de leitura `x()` e `y()`, o `equals`, o `hashCode` e o `toString`. Os campos não podem mudar depois de criados (são *imutáveis*). Antes dos records, era comum usar a biblioteca Lombok para gerar esse código; aqui ela não é necessária.
+
+### Virtual threads (Java 21)
+
+Uma **thread** é uma "linha de execução": um trabalhador que executa código. Num servidor web tradicional, cada requisição ocupa uma thread do sistema operacional do começo ao fim, inclusive enquanto **espera** o banco responder. Threads do sistema são caras (memória, troca de contexto), então o servidor tem um número limitado delas.
+
+**Virtual threads** (JEP 444) são threads leves gerenciadas pela própria JVM. Quando uma virtual thread fica esperando (o banco, o Valkey), ela "solta" a thread do sistema para outra usar. Resultado: dá para atender muitas requisições simultâneas mantendo o código simples, no estilo "uma thread por requisição".
+
+Um cuidado no Java 21: se a espera acontece dentro de um bloco `synchronized`, a virtual thread fica **presa** à thread do sistema (*pinning*) e perde a vantagem. A correção (JEP 491) só chega no Java 24. Por isso o projeto usa `AtomicLong` em vez de `synchronized` em classes como `ValkeyAvailability` (guia 12).
 
 ## No Link Pulse
 
@@ -42,7 +77,24 @@ Na subida, o Boot olha o classpath e as propriedades e cria beans por conta pró
         <java.version>21</java.version>
 ```
 
-Dependências de produção: `spring-boot-starter-webmvc`, `spring-boot-starter-validation`, `spring-boot-starter-actuator`, `springdoc-openapi-starter-webmvc-ui` (versão 3.1.1 por property), `spring-boot-starter-data-jpa`, `spring-boot-starter-liquibase` e o driver `postgresql` (escopo `runtime`). O próprio pom comenta: "No Boot 4 a autoconfig do Liquibase saiu do core e precisa do starter próprio."
+O `<parent>` é o "pai" do projeto Maven: dele vêm o BOM de versões e a configuração dos plugins. `java.version` 21 diz ao compilador qual versão do Java usar.
+
+Dependências de produção e o que cada uma traz:
+
+| Dependência | Traz | Usada para |
+|-------------|------|------------|
+| `spring-boot-starter-webmvc` | Spring MVC + Tomcat embutido | Receber HTTP e devolver JSON |
+| `spring-boot-starter-validation` | Bean Validation (Hibernate Validator) | `@Valid`, `@NotBlank`... (guia 05) |
+| `spring-boot-starter-actuator` | Endpoints de saúde e métricas | `/actuator/health`, `/actuator/prometheus` |
+| `springdoc-openapi-starter-webmvc-ui` | Geração do OpenAPI + Swagger UI | Documentação interativa da API |
+| `spring-boot-starter-data-jpa` | Hibernate + Spring Data JPA + HikariCP | Tabela `links` no Postgres (guia 03) |
+| `spring-boot-starter-data-redis` | Spring Data Redis + cliente Lettuce | Cache, stream de cliques e rate limit no Valkey (guias 12, 13, 15) |
+| `spring-boot-starter-data-mongodb` | Spring Data MongoDB + driver | Coleção `click_events` (guias 13, 14) |
+| `spring-boot-starter-liquibase` | Liquibase | Migrações do schema (guia 03) |
+| `postgresql` (escopo `runtime`) | Driver JDBC | Conversar com o Postgres |
+| `micrometer-registry-prometheus` (escopo `runtime`) | Formato Prometheus para as métricas | `/actuator/prometheus` (guia 16) |
+
+O próprio pom comenta a dependência do Liquibase: "No Boot 4 a autoconfig do Liquibase saiu do core e precisa do starter próprio." Escopo `runtime` quer dizer "não é usada para compilar o código, só para rodá-lo".
 
 ### Ponto de entrada
 
@@ -58,7 +110,15 @@ public class LinkPulseApplication {
 }
 ```
 
-`@SpringBootApplication` liga três coisas: configuração, auto-configuração e varredura de componentes a partir do pacote `dev.linkpulse`. É por isso que `@RestController`, `@Service` e `@RestControllerAdvice` nos subpacotes são encontrados sem registro manual.
+Todo programa Java começa num método `main`. Aqui ele tem uma linha só: `SpringApplication.run(...)` liga o Spring, que faz todo o resto.
+
+`@SpringBootApplication` junta três anotações:
+
+- **configuração:** a classe pode declarar beans;
+- **auto-configuração:** o Boot monta a infraestrutura sozinho;
+- **varredura de componentes:** o Spring procura classes anotadas (`@RestController`, `@Service`, `@Component`, `@Configuration`) a partir do pacote `dev.linkpulse` e em todos os subpacotes.
+
+É por isso que `LinkController`, `LinkService`, `LinkCache` e os demais são encontrados sem registro manual.
 
 ### `ApplicationConfig`: os beans que o projeto declara
 
@@ -505,18 +565,25 @@ O `Makefile` ativa o profile dev com `-Dspring-boot.run.profiles=dev`. O que mud
 
 ### Actuator na porta 8081
 
-`management.server.port: 8081` sobe os endpoints do Actuator num servidor separado da API (8080), e `exposure.include: health,info,prometheus` publica só esses três. Na prática: `http://localhost:8081/actuator/health` e `http://localhost:8081/actuator/prometheus` (as métricas que o Prometheus coleta). Separar portas permite que, em produção, só a 8080 fique exposta ao público, enquanto health e métricas ficam numa porta interna. O `OpenApiIT` confere que a spec da API não expõe endpoints de gerenciamento (`apiDocsDoesNotExposeManagementEndpoints`).
+O **Actuator** é um "painel de instrumentos" da aplicação: endpoints prontos que dizem se ela está saudável (`/actuator/health`) e expõem métricas (`/actuator/prometheus`).
+
+`management.server.port: 8081` sobe esses endpoints num **segundo servidor**, separado da API (8080). `exposure.include: health,info,prometheus` publica só esses três. Na prática:
+
+- <http://localhost:8081/actuator/health>: responde `{"status":"UP"}` quando a aplicação está bem;
+- <http://localhost:8081/actuator/prometheus>: texto com todas as métricas, no formato que o Prometheus lê (guia 16).
+
+Por que duas portas? Em produção, só a 8080 fica exposta à internet; a 8081 fica numa rede interna, onde só o monitoramento a alcança. Ninguém de fora consegue ver as métricas. O `OpenApiIT` confere que a documentação da API não mostra endpoints de gerenciamento (`apiDocsDoesNotExposeManagementEndpoints`).
 
 > As probes de liveness/readiness para o Kubernetes ainda não estão configuradas no `application.yml`: chegam nas próximas fases (ver guia 10).
 
 ### Virtual threads e `open-in-view`
 
-- `spring.threads.virtual.enabled: true` faz o Tomcat atender cada requisição numa virtual thread.
-- `open-in-view: false` desliga o padrão "Open Session in View", que mantém a sessão do Hibernate (e a conexão) aberta até o fim da resposta HTTP. Desligado, o acesso ao banco fica restrito à transação do service: carregamento preguiçoso fora dela falha de forma explícita, em vez de disparar consultas escondidas na camada web.
+- `spring.threads.virtual.enabled: true` faz o Tomcat atender cada requisição numa virtual thread (veja "Conceitos" acima). O consumer de cliques também roda numa virtual thread própria (guia 13).
+- `open-in-view: false` desliga um padrão antigo do Spring chamado "Open Session in View". Ligado, ele mantém a conexão com o banco aberta até o fim da resposta HTTP, mesmo depois de o service terminar. Isso deixa o controller disparar consultas "escondidas" sem perceber e segura conexões por mais tempo. Desligado, o acesso ao banco fica restrito ao service, dentro da transação: um acesso fora dela falha de forma explícita, e o problema aparece na hora.
 
 ### Records no projeto
 
-`CreateLinkRequest`, `LinkResponse` e `LinkPulseProperties` (com `Code`, `Alias`, `Cache`, `Clicks` e `RateLimit`) são records. Não há Lombok no `app/pom.xml`.
+O projeto usa records para tudo o que só carrega dados: `CreateLinkRequest`, `LinkResponse`, `StatsResponse`, `CacheEntry.Found`, `ClickDocument`, `RateLimiter.Decision` e `LinkPulseProperties` (com `Code`, `Alias`, `Cache`, `Clicks` e `RateLimit`). Não há Lombok no `app/pom.xml`.
 
 `app/src/main/java/dev/linkpulse/link/CreateLinkRequest.java`
 
@@ -532,18 +599,26 @@ public record CreateLinkRequest(
 }
 ```
 
-O Jackson do Boot 4 é a versão 3. A decisão 01-06 em `.planning/STATE.md` registra que o Jackson 3 rejeita `OffsetDateTime` sem offset; por isso `expiresAt` sem fuso vira 400 `malformed-request` (guia 05).
+Cada componente do record é um campo do JSON do `POST /links`. As anotações dizem como validá-lo (guia 05) e como documentá-lo na Swagger UI (`@Schema`).
+
+O Boot 4 usa o **Jackson 3** para converter JSON em objetos. A decisão 01-06 no `.planning/STATE.md` registra que o Jackson 3 recusa um `OffsetDateTime` sem fuso horário (`2026-12-31T23:59:59`, sem o `Z` no fim). Por isso `expiresAt` sem fuso vira `400 malformed-request` (guia 05).
 
 ### Swagger UI
 
-`springdoc-openapi-starter-webmvc-ui` gera a especificação a partir das anotações `@Tag`, `@Operation` e `@ApiResponse` dos controllers. `app/src/main/java/dev/linkpulse/config/OpenApiConfig.java` só define o cabeçalho (título "Link Pulse API", versão "0.1.0"). Endereços, segundo o README: <http://localhost:8080/swagger-ui.html> e <http://localhost:8080/v3/api-docs>.
+O `springdoc-openapi-starter-webmvc-ui` lê as anotações `@Tag`, `@Operation`, `@ApiResponse` e `@Schema` dos controllers e gera duas coisas:
+
+- a **especificação OpenAPI**, um JSON que descreve toda a API: <http://localhost:8080/v3/api-docs>;
+- a **Swagger UI**, uma página onde você lê a documentação e testa cada endpoint pelo navegador: <http://localhost:8080/swagger-ui.html>.
+
+`app/src/main/java/dev/linkpulse/config/OpenApiConfig.java` só define o cabeçalho (título "Link Pulse API", versão "0.1.0").
 
 ## Por que assim?
 
-- **Boot 4.1.1 em vez de 3.5.x:** a tabela de decisões do `.planning/PROJECT.md` registra que a linha 3.x ficou sem suporte OSS desde 2026-06-30, enquanto a 4.1 é suportada até 2027-07.
-- **Configuração tipada e validada na subida:** `linkpulse.base-url` inválida ou multiplicador não coprimo derrubam a aplicação na hora (decisões 01-03 e 01-08 no `.planning/STATE.md`), em vez de gerar links quebrados em produção.
-- **`Clock` como bean:** a expiração depende do tempo; com um `Clock` injetado, os testes controlam o "agora".
-- **Sem URL de banco no yml base:** segredo de produção nunca fica no repositório.
+- **Boot 4.1.1 em vez de 3.5.x:** a tabela de decisões do `.planning/PROJECT.md` registra que a linha 3.x ficou sem suporte gratuito (correções de segurança) desde 2026-06-30, enquanto a 4.1 é suportada até 2027-07.
+- **Configuração tipada e validada na subida:** uma `linkpulse.base-url` inválida, um multiplicador não coprimo ou uma `ip-hash-key` curta derrubam a aplicação na hora, em vez de gerar links quebrados ou dados inseguros em produção.
+- **`Clock` como bean:** expiração, cache, rate limit e estatísticas dependem do tempo; com um `Clock` injetado, os testes controlam o "agora".
+- **Sem senha no yml base:** segredos de produção chegam por variável de ambiente e nunca ficam no repositório.
+- **Customizar em vez de substituir:** `RedisConfig` e `MongoConfig` só ajustam a auto-configuração (timeouts, comportamento com a conexão caída). Eles não criam a conexão do zero, para não desligar o que o Boot já faz, inclusive a ligação automática com os containers dos testes (guia 06).
 
 ## Experimente
 
@@ -564,6 +639,22 @@ O Jackson do Boot 4 é a versão 3. A decisão 01-06 em `.planning/STATE.md` reg
 8. O `application.yml` não tem bloco `linkpulse.ratelimit`. De onde vem o limite de 20 criações por minuto?
 9. Se `linkpulse.base-url` estiver no `application.yml` e também em `LINKPULSE_BASE_URL`, qual valor vale?
 10. Para que serve o `@Valid` em `@NotNull @Valid Code code`?
+
+<details>
+<summary>Respostas</summary>
+
+1. Só o nome e a modularidade: o Boot 4 dividiu os starters em módulos menores, e o de Spring MVC passou a se chamar `webmvc`.
+2. Porque o `ApplicationConfig` tem um método `@Bean` que o cria com `new` e o coloca no contexto; o `LinkService` o recebe pelo construtor.
+3. `LINKPULSE_SELF_HOSTS`, com os hosts separados por vírgula.
+4. Expor só a API (8080) ao público e deixar saúde e métricas (8081) numa rede interna.
+5. Uma espera dentro de `synchronized` prende a virtual thread à thread do sistema (pinning), e ela perde a vantagem.
+6. Os parâmetros são buscados no contexto e passados ao método; o objeto retornado vira um bean daquele tipo.
+7. Porque um `Clock` injetado pode ser trocado por um relógio fixo nos testes, e o "agora" vira um valor conhecido.
+8. Do `@DefaultValue("20")` no record `RateLimit` do `LinkPulseProperties`.
+9. A variável de ambiente: ela tem prioridade sobre os arquivos `.yml`.
+10. Faz a validação "entrar" no record `Code` e conferir as anotações dos campos dele (`@NotBlank`, `@Positive`).
+
+</details>
 
 ---
 

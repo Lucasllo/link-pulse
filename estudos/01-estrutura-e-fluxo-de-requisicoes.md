@@ -1,43 +1,78 @@
 # 01 · Estrutura e fluxo de requisições
 
-**Em uma frase:** o Link Pulse é uma API Spring Boot organizada por funcionalidade, em que `POST /links` cria um link no Postgres e `GET /{code}` o resolve e responde 302 para a URL original.
+**Em uma frase:** o Link Pulse é uma API Spring Boot organizada por funcionalidade. `POST /links` grava um link no Postgres; `GET /{code}` procura o destino primeiro no cache (Valkey), responde 302 e publica o clique numa fila; `GET /links/{code}/stats` soma os cliques guardados no MongoDB.
 
-## Conceitos
+## O que você vai aprender
 
-### API sem frontend, sem autenticação
+- O que é uma API e o que significam "requisição", "resposta" e "status HTTP".
+- Como o repositório está organizado e onde fica cada coisa.
+- O caminho completo, passo a passo, de cada um dos três endpoints.
+- Quais respostas de erro existem e quem as produz.
 
-O projeto é só backend: uma API HTTP que recebe e devolve JSON (e um redirect). Não há páginas, login nem usuários. Segundo o README da raiz, ela "cria links curtos (gerados ou com alias) e redireciona para a URL original com 302".
+## Antes de começar: conceitos
 
-### Camadas de uma aplicação web
+### O que é uma API
 
-Uma requisição costuma atravessar três papéis:
+Um site comum devolve páginas para uma pessoa ler. Uma **API** devolve dados para **outro programa** usar. O Link Pulse não tem telas: quem fala com ele é um programa (o `curl`, o Postman, o navegador seguindo um link, a Swagger UI).
 
-- **Controller:** recebe o HTTP, converte o JSON em objeto, valida e devolve a resposta.
-- **Service:** aplica as regras de negócio e coordena a transação.
-- **Repository:** conversa com o banco.
+A conversa acontece por **HTTP**, a mesma linguagem da web:
 
-Os erros "de negócio" (link inexistente, alias repetido) viram exceções que um tratador central traduz para respostas HTTP.
+- O cliente manda uma **requisição** (*request*) com um **método** (`GET` para ler, `POST` para criar), um **caminho** (`/links`) e, às vezes, um **corpo** em JSON.
+- O servidor devolve uma **resposta** (*response*) com um **status** (um número de três dígitos), **headers** (informações extras, como `Location`) e, às vezes, um corpo.
+
+Os status que você vai ver neste projeto:
+
+| Faixa | Significado | Exemplos aqui |
+|-------|-------------|---------------|
+| 2xx | Deu certo | `201 Created` (link criado), `200 OK` (estatísticas) |
+| 3xx | "Vá para outro lugar" | `302 Found` (o redirect do link curto) |
+| 4xx | O cliente pediu algo errado | `400` (dado inválido), `404` (não existe), `409` (alias repetido), `410` (expirou), `429` (pedidos demais) |
+| 5xx | O servidor falhou | `500` (erro inesperado), `503` (um banco está fora) |
+
+### API sem frontend e sem login
+
+O projeto é só backend. Não há páginas, login nem usuários: qualquer um pode criar links e ver estatísticas. É uma escolha de escopo de portfólio, registrada no `.planning/PROJECT.md`.
+
+### Camadas: controller, service, repository
+
+Pense num restaurante:
+
+- O **garçom** (controller) recebe o pedido, confere se faz sentido e entrega o prato.
+- O **cozinheiro** (service) aplica as regras: o que entra no prato, em que ordem.
+- O **estoquista** (repository) busca e guarda os ingredientes na despensa (o banco de dados).
+
+No código:
+
+- **Controller:** recebe o HTTP, transforma o JSON em objeto Java, valida e monta a resposta.
+- **Service:** aplica as regras de negócio e coordena a transação com o banco.
+- **Repository:** lê e grava no banco.
+
+Quando algo dá errado ("esse link não existe"), o service **lança uma exceção**, e um tratador central (o `GlobalExceptionHandler`) a transforma numa resposta HTTP de erro.
 
 ### Organização por funcionalidade × por camada
 
-Há dois jeitos comuns de montar pacotes. Por **camada técnica** (`controllers/`, `services/`, `repositories/`), cada funcionalidade fica espalhada em várias pastas. Por **funcionalidade** (`link/`), tudo o que trata de links fica junto, e só o que é transversal (configuração, tratamento de erro) fica fora. O Link Pulse usa a segunda forma.
+Há dois jeitos comuns de montar pastas (que em Java se chamam **pacotes**):
+
+- **Por camada técnica:** `controllers/`, `services/`, `repositories/`. Tudo sobre links fica espalhado em três pastas.
+- **Por funcionalidade:** `link/`, `cache/`, `click/`, `stats/`. Tudo sobre um assunto fica junto.
+
+O Link Pulse usa a segunda forma. Só o que é transversal (configuração, tratamento de erro) fica em pacotes próprios.
 
 ## No Link Pulse
 
 ### Mapa do repositório
 
-Gerado a partir de `git ls-files` (só arquivos versionados):
-
 ```text
 .
-├── .github/            # CI (workflows/ci.yml) e Dependabot (dependabot.yml)
-├── .planning/          # Planejamento do projeto: ROADMAP, STATE, planos de cada fase
+├── .github/            # CI (workflows/ci.yml) e Dependabot (dependabot.yml), guias 08 e 11
+├── .planning/          # Planejamento: ROADMAP, STATE e os planos de cada fase
 ├── app/                # A aplicação Java (projeto Maven)
-├── .gitattributes      # Fim de linha por tipo de arquivo (LF/CRLF), ver guia 07
+├── estudos/            # Estes guias
+├── .gitattributes      # Fim de linha por tipo de arquivo (LF/CRLF), guia 07
 ├── .gitignore
 ├── Makefile            # Atalhos: help, build, test, verify, run, db-up, db-down
 ├── README.md           # Documentação principal da API
-└── compose.dev.yaml    # Postgres 18 local para desenvolvimento
+└── compose.dev.yaml    # Postgres 18, Valkey 8.1 e MongoDB 8.0 locais, guia 09
 ```
 
 Dentro de `app/`:
@@ -48,7 +83,7 @@ app/
 ├── config/
 │   ├── checkstyle/checkstyle.xml          # Regras de estilo
 │   └── spotbugs/exclude.xml               # Exclusões justificadas do SpotBugs
-├── mvnw / mvnw.cmd                        # Maven wrapper (POSIX e Windows)
+├── mvnw / mvnw.cmd                        # Maven wrapper (Git Bash e Windows)
 ├── pom.xml                                # Dependências e plugins
 └── src/
     ├── main/java/dev/linkpulse/           # Código da aplicação
@@ -56,62 +91,68 @@ app/
     └── test/java/dev/linkpulse/           # Testes unitários (*Test) e de integração (*IT)
 ```
 
-### Pacotes `dev.linkpulse.*`
+### Os pacotes `dev.linkpulse.*`
 
-| Pacote | Conteúdo | Papel |
-|--------|----------|-------|
-| `dev.linkpulse` | `LinkPulseApplication` | Ponto de entrada (`main`) |
-| `dev.linkpulse.config` | `ApplicationConfig`, `LinkPulseProperties`, `OpenApiConfig` | Beans de infraestrutura, propriedades `linkpulse.*` e metadados do OpenAPI |
-| `dev.linkpulse.common` | `GlobalExceptionHandler` | Tradução central de exceções para Problem Details |
-| `dev.linkpulse.common.validation` | `HttpUrl`, `HttpUrlValidator` | Constraint própria de Bean Validation para URLs |
-| `dev.linkpulse.link` | `LinkController`, `RedirectController`, `LinkService`, `LinkRepository`, `Link`, `CodeGenerator`, `AliasPolicy`, `TargetHostPolicy`, `LinkProblems`, `CreateLinkRequest`, `LinkResponse` | Tudo sobre links: HTTP, regras, persistência e erros |
+Um **pacote** é uma pasta de classes Java com nome em pontos. `dev.linkpulse.link` é a pasta `dev/linkpulse/link/`.
 
-O pacote `link/` concentra a funcionalidade inteira. Quando a Phase 2 trouxer cliques e estatísticas, a tendência é ganhar pacotes irmãos em vez de inchar pastas por camada (ver guia 10).
+| Pacote | Principais classes | Para que serve | Guia |
+|--------|--------------------|----------------|------|
+| `dev.linkpulse` | `LinkPulseApplication` | Ponto de entrada: o `main` que liga tudo | 02 |
+| `dev.linkpulse.config` | `ApplicationConfig`, `LinkPulseProperties`, `RedisConfig`, `MongoConfig`, `ClickConfig`, `WebMvcConfig`, `OpenApiConfig` | Monta os objetos de infraestrutura e lê a configuração `linkpulse.*` | 02 |
+| `dev.linkpulse.common` | `GlobalExceptionHandler`, `IpHasher` | Tradução central de erros; hash do IP do cliente | 05, 13 |
+| `dev.linkpulse.common.validation` | `HttpUrl`, `HttpUrlValidator` | Regra própria de validação de URL | 05 |
+| `dev.linkpulse.link` | `LinkController`, `RedirectController`, `LinkService`, `RedirectService`, `LinkRepository`, `Link`, `CodeGenerator`, `AliasPolicy`, `TargetHostPolicy`, `LinkProblems` e os DTOs | Criar e resolver links | 01, 03, 04, 05 |
+| `dev.linkpulse.cache` | `LinkCache`, `CacheEntry`, `ValkeyAvailability` | Cache do redirect no Valkey e o "disjuntor" para quando ele cai | 12 |
+| `dev.linkpulse.click` | `ClickPublisher`, `ClickStreamConsumer`, `ClickDocument`, `MongoClickEventWriter`, `ClickIndexes`, `ReferrerNormalizer`, `UserAgentClassifier` | Registrar cada clique e gravá-lo no MongoDB | 13 |
+| `dev.linkpulse.stats` | `StatsController`, `StatsService`, `StatsPeriod`, `StatsResponse`, `StatsProblems` | Estatísticas de cliques por link | 14 |
+| `dev.linkpulse.ratelimit` | `RateLimiter`, `RateLimitInterceptor`, `RateLimitProblems` | Limite de criações de link por IP | 15 |
 
-### Fluxo de `POST /links`
+### Fluxo 1: criar um link (`POST /links`)
+
+O cliente manda:
+
+```json
+{ "url": "https://example.com/promo", "alias": "minha-promo", "expiresAt": "2026-12-31T23:59:59Z" }
+```
+
+Só `url` é obrigatória. `alias` é um código escolhido pelo cliente; `expiresAt` é quando o link deixa de funcionar.
 
 ```mermaid
 sequenceDiagram
     participant C as Cliente
+    participant RL as RateLimitInterceptor
     participant LC as LinkController
     participant S as LinkService
-    participant TH as TargetHostPolicy
-    participant AP as AliasPolicy
     participant R as LinkRepository
-    participant G as CodeGenerator
     participant DB as Postgres
+    participant V as Valkey
 
-    C->>LC: POST /links {url, alias?, expiresAt?}
+    C->>RL: POST /links {url, alias?, expiresAt?}
+    Note over RL: passou do limite por IP → 429
+    RL->>LC: segue
     Note over LC: @Valid (Bean Validation)<br/>falha → 400 validation-error
     LC->>S: create(request)
-    S->>TH: check(url)
-    alt com alias
-        S->>AP: check(alias)
-        S->>R: existsByCode(alias)
-        R->>DB: SELECT
-        Note over S: já existe → LinkProblems.aliasConflict (409)
-    end
+    Note over S: TargetHostPolicy, AliasPolicy,<br/>alias repetido → 409
     S->>R: nextId()
     R->>DB: select nextval('link_id_seq')
-    alt sem alias
-        S->>G: encode(id)
-    end
     S->>R: saveAndFlush(Link.create(...))
     R->>DB: INSERT
-    Note over S: violação de uk_links_code → 409
+    Note over S: depois do commit:<br/>apaga lp:link:{code} do cache
+    S-->>V: DEL lp:link:{code}
     S-->>LC: Link
     LC-->>C: 201 Created + Location + LinkResponse
 ```
 
-Passo a passo, conferido em `app/src/main/java/dev/linkpulse/link/LinkService.java`:
+Passo a passo:
 
-1. `LinkController.create` recebe `@Valid @RequestBody CreateLinkRequest`. Se a validação falhar, o controller nem é chamado e a resposta é 400 (guia 05).
-2. `LinkService.create` (anotado com `@Transactional`) chama primeiro `TargetHostPolicy.check(request.url())`: o destino não pode ser o próprio encurtador, loopback nem IP numérico ofuscado.
-3. Se veio alias: `AliasPolicy.check(alias)` (formato e palavras reservadas) e depois `LinkRepository.existsByCode(alias)`. Se já existe, lança `LinkProblems.aliasConflict(alias)`, que vira 409.
-4. `LinkRepository.nextId()` pega o próximo valor da sequência `link_id_seq`.
-5. O código é o alias ou `CodeGenerator.encode(id)` (guia 04).
-6. `repository.saveAndFlush(Link.create(id, code, request.url(), expiresAt, now))` grava e força o INSERT na hora.
-7. O controller monta a URL curta a partir de `linkpulse.base-url` e responde `201 Created` com `Location` e o corpo `LinkResponse`.
+1. **Rate limit.** Antes de chegar ao controller, o `RateLimitInterceptor` conta quantas criações aquele IP fez no último minuto. Passou de 20, a resposta é `429` (guia 15).
+2. **Validação.** `LinkController.create` recebe `@Valid @RequestBody CreateLinkRequest`. `@RequestBody` diz "transforme o JSON do corpo neste objeto"; `@Valid` diz "confira as regras dele". Se uma regra falha, o método nem roda e a resposta é `400` (guia 05).
+3. **Regras de domínio.** `LinkService.create` confere o destino com o `TargetHostPolicy` (o link não pode apontar para o próprio encurtador) e, se veio alias, o formato e as palavras reservadas com o `AliasPolicy`. Depois pergunta ao banco se o alias já existe (`existsByCode`); se existe, a resposta é `409`.
+4. **Número novo.** `LinkRepository.nextId()` pede ao Postgres o próximo número da sequência `link_id_seq` (guia 03).
+5. **Código curto.** O código é o alias ou `CodeGenerator.encode(id)`, que transforma o número em 7 caracteres embaralhados (guia 04).
+6. **Gravação.** `repository.saveAndFlush(...)` grava na tabela `links` na hora.
+7. **Limpeza do cache.** Depois que a gravação é confirmada (*commit*), o service apaga a chave `lp:link:{code}` do Valkey. Por quê: alguém pode ter pedido esse código antes de ele existir, e o cache guardou "não existe" (guia 12).
+8. **Resposta.** O controller monta a URL curta a partir de `linkpulse.base-url` e responde `201 Created` com o header `Location` e o JSON do link.
 
 O trecho central do service:
 
@@ -131,8 +172,9 @@ O trecho central do service:
         long id = repository.nextId();
         String code = alias != null ? alias : codeGenerator.encode(id);
         // ...
+        Link saved;
         try {
-            return repository.saveAndFlush(Link.create(id, code, request.url(), expiresAt, now));
+            saved = repository.saveAndFlush(Link.create(id, code, request.url(), expiresAt, now));
         } catch (DataIntegrityViolationException e) {
             if (alias != null && isCodeConflict(e)) {
                 throw LinkProblems.aliasConflict(alias);
@@ -140,10 +182,18 @@ O trecho central do service:
             // Código gerado colidindo é impossível (D-05): se acontecer, é bug e vira 500.
             throw e;
         }
+        TransactionSynchronizationManager.registerSynchronization(
+                new EvictAfterCommit(linkCache, code));
+        return saved;
     }
 ```
 
-**A corrida de alias.** Duas requisições com o mesmo alias podem passar juntas pelo `existsByCode` (as duas veem "não existe"). Só uma consegue o INSERT: a outra bate na constraint `uk_links_code` da tabela `links`. O `saveAndFlush` faz o erro aparecer dentro do `try`, e `isCodeConflict` percorre a cadeia de causas procurando o nome da constraint (ou o SQLSTATE `23505` com o nome na mensagem). Resultado: 409 nos dois caminhos. O `LinkApiIT` tem um teste só para isso (`concurrentCreationsOfTheSameAliasYieldOneSuccessAndConflicts`).
+Leitura guiada:
+
+- **`@Transactional`** abre uma **transação**: tudo o que acontece no banco dentro do método vale junto ou não vale nada. Se der erro no meio, nada fica gravado pela metade.
+- **`throw LinkProblems.aliasConflict(alias)`** interrompe o método e "joga" um erro para cima. Quem o pega é o `GlobalExceptionHandler`, que responde `409`.
+- **O `try/catch`** existe por causa da **corrida de alias**: duas pessoas pedem o mesmo alias no mesmo instante, e as duas passam pelo `existsByCode` ("não existe"). Só uma consegue gravar; a outra bate na regra de unicidade da tabela (`uk_links_code`). O `catch` reconhece esse caso e devolve `409` também. O `LinkApiIT` testa isso em `concurrentCreationsOfTheSameAliasYieldOneSuccessAndConflicts`.
+- **`registerSynchronization(new EvictAfterCommit(...))`** agenda a limpeza do cache para **depois** do commit. Se fosse antes, um `GET` simultâneo poderia ler o banco ainda sem o link e gravar "não existe" de novo.
 
 E o controller:
 
@@ -160,31 +210,40 @@ E o controller:
     }
 ```
 
-A URL curta sai sempre de `linkpulse.base-url`, nunca do header `Host` nem de `X-Forwarded-*` (javadoc do método). Assim, um cliente não consegue forjar a URL devolvida.
+`ResponseEntity.created(shortUrl)` monta o `201` com o header `Location`. A URL curta sai sempre de `linkpulse.base-url` e nunca do header `Host` da requisição: assim, um cliente não consegue forjar a URL devolvida.
 
-### Fluxo de `GET /{code}`
+### Fluxo 2: alguém clica no link (`GET /{code}`)
+
+Este é o **caminho quente** (*hot path*): o endpoint mais chamado, que precisa ser o mais rápido.
 
 ```mermaid
 sequenceDiagram
     participant C as Cliente
     participant RC as RedirectController
+    participant RS as RedirectService
+    participant LC as LinkCache
+    participant V as Valkey
     participant S as LinkService
-    participant R as LinkRepository
     participant DB as Postgres
+    participant P as ClickPublisher
 
     C->>RC: GET /{code}
     Note over RC: regex [A-Za-z0-9_-]+<br/>"." ou "/" nem chegam aqui
-    RC->>S: resolve(code)
-    S->>R: findByCode(code)
-    R->>DB: SELECT ... WHERE code = ?
-    alt não existe
-        S-->>C: LinkProblems.notFound → 404
-    else expirado
-        S-->>C: LinkProblems.expired → 410
-    else válido
-        S-->>RC: targetUrl
-        RC-->>C: 302 Location + Cache-Control: no-store, private
+    RC->>RS: resolve(code)
+    RS->>LC: get(code)
+    LC->>V: GET lp:link:{code}
+    alt achou no cache (hit)
+        LC-->>RS: Found / Missing / Gone
+    else não achou (miss) ou Valkey fora
+        RS->>S: find(code)
+        S->>DB: SELECT ... WHERE code = ?
+        RS->>LC: putFound / putMissing / putGone
     end
+    Note over RS: não existe → 404<br/>expirou → 410
+    RS-->>RC: targetUrl
+    RC->>P: publish(code, ip, referer, userAgent)
+    Note over P: só entrega a uma fila;<br/>não espera o Valkey
+    RC-->>C: 302 Location + Cache-Control: no-store, private
 ```
 
 `app/src/main/java/dev/linkpulse/link/RedirectController.java`
@@ -192,8 +251,13 @@ sequenceDiagram
 ```java
     @GetMapping("/{code:[A-Za-z0-9_-]+}")
     // ...
-    public ResponseEntity<Void> redirect(@PathVariable String code) {
-        String target = linkService.resolve(code);
+    public ResponseEntity<Void> redirect(@PathVariable String code, HttpServletRequest request) {
+        String target = redirectService.resolve(code);
+        if (HttpMethod.GET.matches(request.getMethod())) {
+            clickPublisher.publish(code, request.getRemoteAddr(),
+                    request.getHeader(HttpHeaders.REFERER),
+                    request.getHeader(HttpHeaders.USER_AGENT));
+        }
         return ResponseEntity.status(HttpStatus.FOUND)
                 .location(URI.create(target))
                 .cacheControl(CacheControl.noStore().cachePrivate())
@@ -201,37 +265,68 @@ sequenceDiagram
     }
 ```
 
-- **A regex do path** aceita só letras, dígitos, `_` e `-`. Segundo o javadoc, ela "não aceita `.` nem `/`": `favicon.ico`, `swagger-ui.html` e caminhos com vários segmentos (`/a/b`) nem chegam ao controller e caem no 404 padrão do Spring. O `RedirectIT` prova isso em `pathWithDotIsNotRedirectRoute` e `multiSegmentPathIsNotRedirectRoute`.
-- **`LinkService.resolve`** roda com `@Transactional(readOnly = true)`, busca com `findByCode` (igualdade exata, case-sensitive) e usa `Link.isExpiredAt(clock.instant())`. O instante exato da expiração já conta como expirado.
-- **`Cache-Control: no-store, private`** impede que navegador ou proxy guardem o 302. Segundo o README, assim "um link expirado para de redirecionar na hora".
+Leitura guiada:
 
-### Respostas HTTP
+- **`@GetMapping("/{code:[A-Za-z0-9_-]+}")`**: `{code}` é uma variável no caminho, e o trecho depois dos dois-pontos é uma **regex** (um padrão de texto) que só aceita letras, dígitos, `_` e `-`. Por isso `/favicon.ico` e `/swagger-ui.html` (que têm ponto) nem chegam aqui. O `RedirectIT` prova isso em `pathWithDotIsNotRedirectRoute` e `multiSegmentPathIsNotRedirectRoute`.
+- **`redirectService.resolve(code)`** descobre o destino. Primeiro no cache; se não achar, no Postgres (guia 12). Se o código não existe, lança o erro `404`; se expirou, `410`.
+- **`if (HttpMethod.GET.matches(...))`**: o `@GetMapping` também atende o método `HEAD`, que navegadores e apps de mensagem usam para "espiar" um link sem abri-lo. Esses acessos não contam como clique.
+- **`clickPublisher.publish(...)`** entrega o clique a uma fila em memória e volta na hora. Quem grava o clique de verdade é outro processo, depois (guia 13). O redirect nunca espera o registro do clique.
+- **`HttpStatus.FOUND`** é o `302`. O header `Location` diz ao navegador para onde ir.
+- **`Cache-Control: no-store, private`** proíbe o navegador e os proxies de guardar o redirect. Sem isso, um link expirado continuaria funcionando para quem já clicou antes.
 
-| Status | Quando | Problem type |
-|--------|--------|--------------|
-| 201 | Link criado | — (corpo `LinkResponse`) |
-| 302 | Código existe e não expirou | — (header `Location`) |
-| 400 | Campo inválido (URL, alias, `expiresAt` no passado, host recusado) | `/problems/validation-error` |
-| 400 | JSON malformado ou campo em formato errado | `/problems/malformed-request` |
-| 404 | Código inexistente | `/problems/link-not-found` |
-| 409 | Alias já existe | `/problems/alias-conflict` |
-| 410 | Link expirado | `/problems/link-expired` |
-| 500 | Erro inesperado (detalhe só no log) | `/problems/internal-error` |
+### Fluxo 3: ver estatísticas (`GET /links/{code}/stats`)
 
-Quem monta cada erro: `app/src/main/java/dev/linkpulse/link/LinkProblems.java` (404, 409, 410 e o 400 de regras de domínio) e `app/src/main/java/dev/linkpulse/common/GlobalExceptionHandler.java` (400 de Bean Validation, `malformed-request` e 500). Detalhes no guia 05.
+```mermaid
+sequenceDiagram
+    participant C as Cliente
+    participant SC as StatsController
+    participant SS as StatsService
+    participant DB as Postgres
+    participant M as MongoDB
 
-> Cache Valkey no redirect, registro de cliques e estatísticas chegam na Phase 2 (ver guia 10). Hoje, todo `GET /{code}` vai ao Postgres.
+    C->>SC: GET /links/{code}/stats?from=&to=&includeBots=
+    SC->>SS: stats(code, from, to, includeBots)
+    SS->>DB: existsByCode(code)
+    Note over SS: não existe → 404<br/>período inválido → 400
+    SS->>M: aggregate($match + $facet) em click_events
+    Note over SS: Mongo fora → 503
+    SS-->>SC: StatsResponse
+    SC-->>C: 200 + JSON (total, daily, tops)
+```
+
+O service confere no Postgres se o código existe, calcula o período (padrão: últimos 30 dias) e faz **uma única consulta** ao MongoDB, que devolve o total, os cliques por dia e os "tops" de site de origem, navegador e sistema operacional. Detalhes no guia 14.
+
+### Todas as respostas HTTP
+
+| Status | Quando | `type` do erro | Quem produz |
+|--------|--------|----------------|-------------|
+| 201 | Link criado | — | `LinkController` |
+| 200 | Estatísticas | — | `StatsController` |
+| 302 | Código existe e não expirou | — | `RedirectController` |
+| 400 | Campo inválido (URL, alias, `expiresAt` no passado, host recusado) | `/problems/validation-error` | `GlobalExceptionHandler`, `LinkProblems` |
+| 400 | JSON malformado ou campo em formato errado | `/problems/malformed-request` | `GlobalExceptionHandler` |
+| 400 | Parâmetro de query/caminho em formato errado (`from=2026-13-01`) | `/problems/invalid-parameter` | `GlobalExceptionHandler` |
+| 400 | Período de estatísticas inválido | `/problems/invalid-period` | `StatsProblems` |
+| 404 | Código inexistente | `/problems/link-not-found` | `LinkProblems` |
+| 409 | Alias já existe | `/problems/alias-conflict` | `LinkProblems` |
+| 410 | Link expirado | `/problems/link-expired` | `LinkProblems` |
+| 429 | Criações demais do mesmo IP | `/problems/rate-limited` | `RateLimitProblems` |
+| 500 | Erro inesperado (detalhe só no log) | `/problems/internal-error` | `GlobalExceptionHandler` |
+| 503 | MongoDB fora ao pedir estatísticas | `/problems/stats-unavailable` | `StatsProblems` |
+
+O formato desses erros (Problem Details) está no guia 05.
 
 ## Por que assim?
 
-- **ID antes do INSERT.** O javadoc de `LinkService.create` explica: "O ID sai do `nextval('link_id_seq')` antes do INSERT, então o código existe antes do commit e um único INSERT grava `id` e `code`."
-- **Checagem prévia + constraint.** A checagem com `existsByCode` dá a resposta rápida no caso comum; a constraint `uk_links_code` é a garantia final quando há corrida (decisão 01-04 em `.planning/STATE.md`).
-- **302 com `no-store`.** O redirect usa `HttpStatus.FOUND` (302) e proíbe cache. Pela semântica HTTP, um 301 (permanente) pode ser guardado pelo navegador por padrão, o que faria um link expirado continuar funcionando para quem já clicou. O `.planning/ROADMAP.md` lista "302 vs 301" entre os trade-offs que o README final da Phase 5 vai explicar.
-- **Nada de URL de destino em log.** O javadoc de `LinkService` avisa: "query strings podem carregar tokens e dados pessoais".
+- **O ID existe antes do INSERT.** O código curto é calculado a partir do número da sequência, então ele já existe antes de gravar, e um único INSERT grava número e código juntos (guia 03).
+- **Checagem prévia + regra no banco.** O `existsByCode` responde rápido no caso comum; a constraint `uk_links_code` é a garantia final quando duas requisições chegam juntas.
+- **302 com `no-store`, e não 301.** Um `301` (permanente) pode ser guardado pelo navegador para sempre, e o link continuaria funcionando depois de expirar.
+- **Clique fora do caminho do redirect.** Gravar o clique no MongoDB antes de responder deixaria cada redirect mais lento e faria o redirect falhar quando o MongoDB caísse. Com a fila, o redirect só depende de achar o destino.
+- **Nada de URL de destino em log.** O javadoc do `LinkService` avisa que "query strings podem carregar tokens e dados pessoais".
 
 ## Experimente
 
-Com a API rodando (`make run`; ver guia 09 para cmd e PowerShell), num terminal Git Bash ou WSL:
+Com a API rodando (`make run`; o guia 09 mostra como fazer no cmd e no PowerShell), num terminal Git Bash ou WSL:
 
 ```bash
 curl -i http://localhost:8080/demo-link
@@ -259,19 +354,31 @@ curl -i -X POST http://localhost:8080/links \
 
 Exercícios:
 
-1. Repita o segundo `POST` e observe o 409 `alias-conflict`.
-2. Peça `curl -i http://localhost:8080/Minha-Promo` e explique o 404 (lookup case-sensitive).
+1. Repita o segundo `POST` e observe o `409 alias-conflict`.
+2. Peça `curl -i http://localhost:8080/Minha-Promo` e explique o `404` (o código diferencia maiúsculas de minúsculas).
 3. Peça `curl -i http://localhost:8080/favicon.ico` e compare o corpo com o de um código inexistente.
-4. Abra a Swagger UI em <http://localhost:8080/swagger-ui.html> e encontre os dois endpoints.
+4. Clique três vezes em `/minha-promo` e depois peça `curl -s 'http://localhost:8080/links/minha-promo/stats?includeBots=true'`. Por que o `includeBots=true`? (Dica: guia 14.)
+5. Abra a Swagger UI em <http://localhost:8080/swagger-ui.html> e encontre os três endpoints.
 
 ## Perguntas para fixar
 
-1. Em que ordem `LinkService.create` chama `TargetHostPolicy`, `AliasPolicy`, `existsByCode` e `nextId`? Por que a política de host vem primeiro?
+1. Em que ordem `LinkService.create` chama `TargetHostPolicy`, `AliasPolicy`, `existsByCode` e `nextId`?
 2. Se duas requisições com o mesmo alias passam juntas pelo `existsByCode`, o que garante que só uma é gravada?
 3. Por que `/favicon.ico` não chega ao `RedirectController`?
-4. Qual header impede que um navegador continue redirecionando um link depois que ele expira?
-5. De onde vem a URL do header `Location` no `201 Created`, e por que não do header `Host`?
+4. Por que um `HEAD /{code}` não conta como clique?
+5. Por que o redirect não espera o clique ser gravado no MongoDB?
+
+<details>
+<summary>Respostas</summary>
+
+1. Primeiro o `TargetHostPolicy`, depois (se houver alias) o `AliasPolicy` e o `existsByCode`, e por fim o `nextId`. As checagens baratas vêm antes de gastar um número da sequência.
+2. A constraint `uk_links_code` da tabela `links`: o segundo INSERT falha, e o `catch` transforma a falha em `409`.
+3. A regex do caminho (`[A-Za-z0-9_-]+`) não aceita ponto.
+4. O controller só publica quando o método é `GET`. `HEAD` vem de prefetch e de preview de link, não de uma pessoa clicando.
+5. Para o redirect ficar rápido e continuar funcionando mesmo com o MongoDB fora. O clique vai para uma fila e é gravado depois.
+
+</details>
 
 ---
 
-[Índice](README.md) · [Próximo: 02 · Spring Boot e Java 21 →](02-spring-boot-e-java-21.md)
+[← Anterior: 00 · Visão geral](00-visao-geral-do-projeto.md) · [Índice](README.md) · [Próximo: 02 · Spring Boot e Java 21 →](02-spring-boot-e-java-21.md)
