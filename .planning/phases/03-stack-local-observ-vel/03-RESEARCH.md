@@ -841,19 +841,25 @@ tests:
 | A10 | As requisições à porta de gerenciamento (8081) podem aparecer em `http_server_requests` com `uri="/actuator/…"`; por isso o filtro `uri!~"/actuator.*"` | Padrão 3/4 | Sem efeito se não aparecerem (o filtro é defensivo) |
 | A11 | `uri` do `/stats` é `/links/{code:[A-Za-z0-9_-]+}/stats` (visto por grep, arquivo não aberto) | Métricas reais | Só afeta um painel opcional |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **Grafana 13.2.3 ou 13.2.4?**
+As quatro questões foram resolvidas no planejamento (03-01 a 03-04). Abaixo de cada recomendação está a decisão que os planos adotaram, com o plano e a task de origem.
+
+1. **Grafana 13.2.3 ou 13.2.4?** (RESOLVED)
    - O que se sabe: D-17 trava a 13.2.3; a 13.2.4 saiu em 2026-10-13 (patch).
    - Recomendação: manter 13.2.3 (decisão travada). Se A1 falhar na 13.2.3, testar a 13.2.4 antes de mudar de formato.
-2. **Digest ou tag nas imagens?**
+   - **Decisão adotada:** `grafana/grafana:13.2.3`, por D-17 (03-01 Task 2, `image: grafana/grafana:13.2.3` com critério de aceite próprio). A 13.2.4 não entra, porque trocar a versão reabriria a decisão travada D-17, e o passo "testar a 13.2.4" da recomendação não foi adotado. Se A1 falhar, a contingência é `GF_FEATURE_TOGGLES_DISABLE` com as toggles de dashboards novos, nunca o formato v2 (03-02 Task 2). O resultado de A1 vai para o SUMMARY da 03-02.
+2. **Digest ou tag nas imagens?** (RESOLVED)
    - O que se sabe: as tags existem; os digests foram coletados nesta sessão (tabela Standard Stack).
    - Recomendação: tag exata (legível) e Dependabot `docker-compose` + `docker` (`/app`) em `.github/dependabot.yml` para manter as versões atualizadas. Digest só se o planejador quiser reforçar supply chain.
-3. **Mexer no `compose.dev.yaml` (`name:` e `pg_isready -h`)?**
+   - **Decisão adotada:** tag exata, sem digest (03-01, discricionariedade registrada no `<context>`: "digest fica de fora"). O `.github/dependabot.yml` ganha os blocos `package-ecosystem: docker-compose` (diretório `/`, cobre `compose.yaml` e `compose.dev.yaml`) e `package-ecosystem: docker` (diretório `/app`, imagens base do Dockerfile) (03-01 Task 3). A mitigação de supply chain fica na ameaça T-03-SC da 03-01: imagens oficiais ou de organizações verificadas, por tag exata, atualizadas pelo Dependabot.
+3. **Mexer no `compose.dev.yaml` (`name:` e `pg_isready -h`)?** (RESOLVED)
    - Recomendação: sim, as duas mudanças são pequenas e cumprem D-05. Atualizar o README onde ele cita os volumes, se necessário.
-4. **Validação no CI nesta fase?**
+   - **Decisão adotada:** sim. A 03-01 Task 3 insere `name: linkpulse-dev` antes de `services:` e troca o healthcheck do Postgres por `pg_isready -h 127.0.0.1 -U linkpulse -d linkpulse`, sem mudar portas, tags ou volumes. O `compose.yaml` novo usa `name: linkpulse` e o mesmo `pg_isready -h 127.0.0.1` (03-01 Task 1). A mesma Task 3 atualiza o README: a linha do `make db-down` passa a citar os volumes `linkpulse-dev_pgdata` e `linkpulse-dev_mongodata`, e a seção "Stack completa (make up)" explica os volumes separados (`linkpulse_*` e `linkpulse-dev_*`) e os volumes antigos `projeto4_*`, que ficam órfãos.
+4. **Validação no CI nesta fase?** (RESOLVED)
    - O que se sabe: CI-02..04 são da Phase 4.
    - Recomendação: opcional e barato, um job `docker compose config -q` + `promtool` (pela imagem). Se entrar, actions fixadas por SHA.
+   - **Decisão adotada:** nenhum job novo de CI nesta fase. Nenhum plano mexe em `.github/workflows/ci.yml`; o único arquivo de `.github/` alterado é o `dependabot.yml` (03-01 Task 3). A validação roda localmente, sem ferramenta extra no host: `make obs-check` executa `promtool check config` e `promtool test rules` dentro da imagem `prom/prometheus:v3.15.0` (03-03 Task 1), e `docker compose config` confere as montagens de `observability/` (03-03 Task 3). O CI de imagem e de cluster fica na Phase 4 (CI-02..04), que pode reaproveitar o alvo `obs-check`.
 
 ## Environment Availability
 
