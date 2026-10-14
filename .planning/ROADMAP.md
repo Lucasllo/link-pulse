@@ -125,7 +125,24 @@ Plans:
   4. Dashboards, regras de alerta e datasource (UID fixo) vivem só em `observability/`, e o compose os carrega de lá, sem cópias, prontos para o kind reaproveitar
   5. O teste k6 (redirect e criação, sem seguir redirects) roda contra o compose e passa nos thresholds de p95/p99 e de taxa de erro
 
-**Plans**: TBD
+**Plans**: 4 plans
+
+Plans:
+**Wave 1**
+
+- [ ] 03-01-PLAN.md — Imagem multi-stage (layered jar, usuário 10001, HEALTHCHECK) e make up com os 6 serviços na ordem dos healthchecks, portas só em 127.0.0.1, Grafana com datasource de UID fixo e compose.dev.yaml isolado (wave 1)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 03-02-PLAN.md — make seed (k6 em container, UA de navegador, sem 429) e dashboards da aplicação e do pipeline em JSON clássico provisionados de observability/ (wave 2)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
+- [ ] 03-03-PLAN.md — Alertas de 5xx, p99, lag e target down com runbooks, promtool test rules, make obs-check e mapa da fonte única para o kind (wave 3)
+
+**Wave 4** *(blocked on Wave 3 completion)*
+
+- [ ] 03-04-PLAN.md — make load (k6 sem seguir o 302, thresholds de D-10, resumo JSON versionado) e prova da sequência limpa make clean → up → seed → load (wave 4)
 
 ### Phase 4: Kubernetes no kind e entrega contínua
 
@@ -167,6 +184,6 @@ As fases seguem a ordem numérica: 1 → 2 → 3 → 4 → 5 (a parte Terraform 
 |-------|----------------|--------|-----------|
 | 1. Fundação e núcleo de links | 8/8 | Complete    | 2026-10-09 |
 | 2. Hot path no Valkey e pipeline de cliques | 9/9 | Complete    | 2026-10-11 |
-| 3. Stack local observável | 0/TBD | Not started | - |
+| 3. Stack local observável | 0/4 | Not started | - |
 | 4. Kubernetes no kind e entrega contínua | 0/TBD | Not started | - |
 | 5. Terraform AWS e vitrine | 0/TBD | Not started | - |
