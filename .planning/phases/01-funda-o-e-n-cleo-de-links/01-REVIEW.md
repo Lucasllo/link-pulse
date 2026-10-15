@@ -32,7 +32,7 @@ status: issues_found
 
 ## Summary
 
-Esta é uma revisão incremental do plano de fechamento de gaps 01-08 (diff `8fed18a..HEAD`). O plano extrai as regras de host de destino para `TargetHostPolicy`, valida `linkpulse.base-url` na subida, cria `linkpulse.self-hosts` e reescreve o README. Testei os casos de borda com o `java.net.URI` e o `InetAddress` do JDK 21.0.10, os mesmos que a aplicação usa.
+Esta é uma revisão incremental do plano de fechamento de gaps 01-08 (diff `106940a..HEAD`). O plano extrai as regras de host de destino para `TargetHostPolicy`, valida `linkpulse.base-url` na subida, cria `linkpulse.self-hosts` e reescreve o README. Testei os casos de borda com o `java.net.URI` e o `InetAddress` do JDK 21.0.10, os mesmos que a aplicação usa.
 
 **Status dos achados anteriores:**
 

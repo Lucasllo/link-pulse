@@ -102,7 +102,7 @@ Output: 11 arquivos em `estudos/`. É só documentação: nenhuma alteração em
 @README.md
 @.claude/CLAUDE.md
 
-## Estado observado no planejamento (git HEAD 182bcc9, 2026-10-09)
+## Estado observado no planejamento (git HEAD dcbfaea, 2026-10-09)
 
 O escopo foi autorizado pela listagem real feita no planejamento (`git ls-files`). Antes de escrever, rode `git ls-files app .github Makefile compose.dev.yaml .gitattributes` de novo. Se a listagem divergir desta, vale a listagem ao vivo: escreva sobre o que existe e registre a diferença no SUMMARY.
 
@@ -372,9 +372,9 @@ Escreva os 5 arquivos seguindo as "Regras comuns" e o rodapé de navegação: 05
 Por fim, rode o `<verify>`. Ele confere o conjunto inteiro: todos os links (inclusive os pendentes das tarefas 1 e 2), todos os caminhos, as citações mínimas, o pt-BR e que nada fora de `estudos/` mudou. Corrija o que for apontado e faça o commit.
   </action>
   <verify>
-    <automated>cd "$(git rev-parse --show-toplevel)" && chk(){ f=$1; shift; test -s "estudos/$f" || { echo "FALTA $f"; return 1; }; for k in "$@"; do grep -qF -- "$k" "estudos/$f" || { echo "SEM '$k' em $f"; return 1; }; done; } && chk 06-testes.md '@ServiceConnection' surefire failsafe AbstractIT TestcontainersConfiguration testcontainers-postgresql && chk 07-build-e-qualidade.md distributionSha256Sum 3.9.16 Checkstyle 14.3.0 SpotBugs exclude.xml .gitattributes && chk 08-ci-github-actions.md 'contents: read' dependabot.yml 3d3c42e5aac5ba805825da76410c181273ba90b1 concurrency && chk 09-ambiente-local-e-windows.md mvnw.cmd '"-Dspring-boot.run.profiles=dev"' PowerShell 'Git Bash' compose.dev.yaml db-up curl.exe && chk 10-proximas-fases.md '../.planning/ROADMAP.md' Valkey 'Redis Streams' MongoDB k6 kind Helm Terraform && test "$(ls estudos/*.md | wc -l)" -eq 11 && test -z "$(grep -L -E ' (não|é|são) ' estudos/*.md)" || { echo "FALHOU checagem de arquivos/palavras-chave/pt-BR"; exit 1; }; bad=$( grep -ohE '`(app|\.github|\.planning)/[^`[:space:]]*`' estudos/*.md | tr -d '`' | grep -vE '[*{]|/target/' | sort -u | while read -r p; do [ -e "$p" ] || echo "MISSING $p"; done; for f in estudos/0*.md; do n=$(grep -oE '(app|\.github)/[A-Za-z0-9_./-]+' "$f" | sort -u | wc -l); [ "$n" -ge 3 ] || echo "POUCAS-CITACOES $f $n"; done; cd estudos && for f in *.md; do grep -oE '\]\([^)]+\)' "$f" | grep -v '://' | sed -E 's/^\]\(//; s/\)$//; s/#.*//; s/ .*//' | while read -r p; do [ -z "$p" ] || [ -e "$p" ] || echo "BROKEN $f -> $p"; done; done ); echo "$bad"; test -z "$bad" && test -z "$(git status --porcelain -- . ':(exclude)estudos' ':(exclude).planning' ':(exclude).gsd')" && test -z "$(git diff --name-only 182bcc9 HEAD -- . ':(exclude)estudos' ':(exclude).planning')"</automated>
+    <automated>cd "$(git rev-parse --show-toplevel)" && chk(){ f=$1; shift; test -s "estudos/$f" || { echo "FALTA $f"; return 1; }; for k in "$@"; do grep -qF -- "$k" "estudos/$f" || { echo "SEM '$k' em $f"; return 1; }; done; } && chk 06-testes.md '@ServiceConnection' surefire failsafe AbstractIT TestcontainersConfiguration testcontainers-postgresql && chk 07-build-e-qualidade.md distributionSha256Sum 3.9.16 Checkstyle 14.3.0 SpotBugs exclude.xml .gitattributes && chk 08-ci-github-actions.md 'contents: read' dependabot.yml 3d3c42e5aac5ba805825da76410c181273ba90b1 concurrency && chk 09-ambiente-local-e-windows.md mvnw.cmd '"-Dspring-boot.run.profiles=dev"' PowerShell 'Git Bash' compose.dev.yaml db-up curl.exe && chk 10-proximas-fases.md '../.planning/ROADMAP.md' Valkey 'Redis Streams' MongoDB k6 kind Helm Terraform && test "$(ls estudos/*.md | wc -l)" -eq 11 && test -z "$(grep -L -E ' (não|é|são) ' estudos/*.md)" || { echo "FALHOU checagem de arquivos/palavras-chave/pt-BR"; exit 1; }; bad=$( grep -ohE '`(app|\.github|\.planning)/[^`[:space:]]*`' estudos/*.md | tr -d '`' | grep -vE '[*{]|/target/' | sort -u | while read -r p; do [ -e "$p" ] || echo "MISSING $p"; done; for f in estudos/0*.md; do n=$(grep -oE '(app|\.github)/[A-Za-z0-9_./-]+' "$f" | sort -u | wc -l); [ "$n" -ge 3 ] || echo "POUCAS-CITACOES $f $n"; done; cd estudos && for f in *.md; do grep -oE '\]\([^)]+\)' "$f" | grep -v '://' | sed -E 's/^\]\(//; s/\)$//; s/#.*//; s/ .*//' | while read -r p; do [ -z "$p" ] || [ -e "$p" ] || echo "BROKEN $f -> $p"; done; done ); echo "$bad"; test -z "$bad" && test -z "$(git status --porcelain -- . ':(exclude)estudos' ':(exclude).planning' ':(exclude).gsd')" && test -z "$(git diff --name-only dcbfaea HEAD -- . ':(exclude)estudos' ':(exclude).planning')"</automated>
   </verify>
-  <done>Os 11 arquivos existem. Todos os links relativos de `estudos/*.md` resolvem e todo caminho em crase existe. Cada guia de 01 a 09 cita pelo menos 3 caminhos reais. O guia 09 tem comandos para Git Bash, cmd e PowerShell. O guia 10 aponta para `../.planning/ROADMAP.md` e trata tudo como planejado. `git status` e `git diff` desde 182bcc9 não mostram mudança fora de `estudos/` e `.planning/`. Commit feito só com os 5 arquivos.</done>
+  <done>Os 11 arquivos existem. Todos os links relativos de `estudos/*.md` resolvem e todo caminho em crase existe. Cada guia de 01 a 09 cita pelo menos 3 caminhos reais. O guia 09 tem comandos para Git Bash, cmd e PowerShell. O guia 10 aponta para `../.planning/ROADMAP.md` e trata tudo como planejado. `git status` e `git diff` desde dcbfaea não mostram mudança fora de `estudos/` e `.planning/`. Commit feito só com os 5 arquivos.</done>
 </task>
 
 </tasks>
@@ -394,7 +394,7 @@ Por fim, rode o `<verify>`. Ele confere o conjunto inteiro: todos os links (incl
 | T-q261009-01 | Information Disclosure | estudos/*.md | low | mitigate | Regra comum 8: nenhum token ou segredo nos guias. Só as credenciais de dev `linkpulse`/`linkpulse`, já públicas em `compose.dev.yaml` e marcadas como "só desenvolvimento local". `LOCALSTACK_AUTH_TOKEN` só aparece pelo nome |
 | T-q261009-02 | Tampering (integridade do ensino) | estudos/04-codigo-curto-base62.md, 05-validacao-e-erros.md | low | mitigate | O guia 04 afirma que a permutação é ofuscação e não segurança (gate `ofusca`). O guia 05 reproduz as limitações reais (mitigação parcial por DNS do README "Riscos conhecidos"), sem vender proteção que o código não dá |
 | T-q261009-03 | Denial of Service (dados locais do leitor) | estudos/09-ambiente-local-e-windows.md | low | mitigate | Os comandos de parada documentados mantêm o volume (`make db-down`, `down`). `down -v` só aparece com aviso explícito de que apaga os dados |
-| T-q261009-04 | Tampering (escopo) | app/, .github/, Makefile, compose.dev.yaml, README.md | low | mitigate | O gate final da tarefa 3 exige `git status` e `git diff 182bcc9..HEAD` vazios fora de `estudos/` e `.planning/` |
+| T-q261009-04 | Tampering (escopo) | app/, .github/, Makefile, compose.dev.yaml, README.md | low | mitigate | O gate final da tarefa 3 exige `git status` e `git diff dcbfaea..HEAD` vazios fora de `estudos/` e `.planning/` |
 | T-q261009-05 | Spoofing (conteúdo inventado) | estudos/*.md | low | mitigate | Regras comuns 1, 3 e 4 (Grep antes de citar, trechos literais), gate automático de caminhos MISSING e links BROKEN e mínimo de 3 citações reais por guia |
 </threat_model>
 
@@ -406,7 +406,7 @@ O `<automated>` da Tarefa 3 é a verificação do conjunto. Ele cobre:
 - todos os caminhos em crase existem;
 - todos os links relativos resolvem;
 - pelo menos 3 citações reais por guia de 01 a 09;
-- nada alterado fora de `estudos/` (base 182bcc9, observada no planejamento).
+- nada alterado fora de `estudos/` (base dcbfaea, observada no planejamento).
 
 Os `<automated>` das Tarefas 1 e 2 cobrem as palavras-chave dos guias 01 a 05.
 

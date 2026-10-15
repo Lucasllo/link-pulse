@@ -18,7 +18,7 @@ provides:
   - "application.yml sem o handler de Problem Details do Boot"
 affects: [01-07, phase-02-cache, k6, smoke-test]
 
-plan_head_before: e650dd5a834959f0c9505aa99c868fce8ce5f59f
+plan_head_before: 10590bb69282012e69285a4fe1ab4f7427160e13
 actuals:
   tokens: 5800
   tasks: 2
@@ -81,11 +81,11 @@ completed: 2026-10-08
 ## Task Commits
 
 1. **Task 1 (tracer): URL inválida de ponta a ponta**
-   - RED `8eb19a9`: `test(01-06): URL fora da allow-list, longa demais ou com credenciais vira 400 com errors[]`
-   - GREEN `2282686`: `feat(01-06): @HttpUrl e GlobalExceptionHandler com errors[] em Problem Details`
+   - RED `eb4baf9`: `test(01-06): URL fora da allow-list, longa demais ou com credenciais vira 400 com errors[]`
+   - GREEN `aa304c8`: `feat(01-06): @HttpUrl e GlobalExceptionHandler com errors[] em Problem Details`
 2. **Task 2 (tdd): expiração, próprio host, JSON malformado e 500 genérico**
-   - RED `11e2007`: `test(01-06): próprio host, expiração passada, JSON malformado e 500 em Problem Details`
-   - GREEN `7d2efa3`: `feat(01-06): expiração futura, rejeição do próprio host, malformed-request e 500 genérico`
+   - RED `6c18ea1`: `test(01-06): próprio host, expiração passada, JSON malformado e 500 em Problem Details`
+   - GREEN `37382eb`: `feat(01-06): expiração futura, rejeição do próprio host, malformed-request e 500 genérico`
 
 Nenhuma task precisou de commit de REFACTOR.
 
@@ -115,7 +115,7 @@ Nenhuma task precisou de commit de REFACTOR.
 - **Found during:** Task 1 (RED)
 - **Issue:** sem `HttpUrl`/`HttpUrlValidator`, o `HttpUrlValidatorTest` não compila, e falha de compilação é INVALID_RED pela regra da tdd.md.
 - **Fix:** o commit RED leva a anotação completa e um validador que devolve sempre `true`. Assim o RED falhou nas asserções certas: 11 rejeições com "Expecting value to be false but was true", e as 5 aceitações passando.
-- **Commit:** `8eb19a9`
+- **Commit:** `eb4baf9`
 
 **2. [Rule 2 - Cobertura] Casos extras no HttpUrlValidatorTest**
 - Além dos casos do plano, entraram `file:///etc/passwd` (T-06-01) e `https://banco.com@evil.com/login` (T-06-02, o exemplo do threat model). O cenário de 500 também confere a ausência de `SQL` no corpo.
@@ -126,8 +126,8 @@ Fora isso, o plano foi executado como escrito.
 
 | Task | RED | GREEN | Evidência do RED |
 |------|-----|-------|------------------|
-| 1 | `8eb19a9` | `2282686` | `./mvnw -B -ntp -Dtest=HttpUrlValidatorTest test`: exit 1, 16 testes / 11 falhas por asserção (`rejects*`). `-Dit.test=LinkApiIT verify`: exit 1, `urlOutsideTheAllowList...` (esperado 400, veio 201) e `urlLongerThan2048...` (esperado `/problems/validation-error`, veio o `type` padrão). |
-| 2 | `11e2007` | `7d2efa3` | `-Dit.test='LinkApiIT*' verify`: exit 1, 18 testes / 5 falhas, só nos cenários novos: próprio host (esperado 400, veio 201), passado (esperado 400, veio 201), sem offset e malformado (esperado `/problems/malformed-request`, veio o padrão), 500 (`RuntimeException` não tratada). Os 13 cenários anteriores passaram. |
+| 1 | `eb4baf9` | `aa304c8` | `./mvnw -B -ntp -Dtest=HttpUrlValidatorTest test`: exit 1, 16 testes / 11 falhas por asserção (`rejects*`). `-Dit.test=LinkApiIT verify`: exit 1, `urlOutsideTheAllowList...` (esperado 400, veio 201) e `urlLongerThan2048...` (esperado `/problems/validation-error`, veio o `type` padrão). |
+| 2 | `6c18ea1` | `37382eb` | `-Dit.test='LinkApiIT*' verify`: exit 1, 18 testes / 5 falhas, só nos cenários novos: próprio host (esperado 400, veio 201), passado (esperado 400, veio 201), sem offset e malformado (esperado `/problems/malformed-request`, veio o padrão), 500 (`RuntimeException` não tratada). Os 13 cenários anteriores passaram. |
 
 O verificador `gsd_run check tdd-red-evidence` interpreta só saída TAP (node:test) e não lê relatórios do Surefire/Failsafe. Por isso a evidência acima foi registrada à mão, sem forjar TAP.
 
@@ -137,7 +137,7 @@ Nenhum. O gate do tracer (Task 1; modo interativo, `human_verify_mode: end-of-ph
 
 ## Known Stubs
 
-Nenhum. O esqueleto que aceitava tudo existiu só no commit RED `8eb19a9` e foi trocado pela implementação no `2282686`.
+Nenhum. O esqueleto que aceitava tudo existiu só no commit RED `eb4baf9` e foi trocado pela implementação no `aa304c8`.
 
 ## Threat Model Coverage
 
@@ -158,4 +158,4 @@ Nenhum.
 - FOUND: app/src/main/java/dev/linkpulse/common/validation/HttpUrlValidator.java
 - FOUND: app/src/main/java/dev/linkpulse/common/GlobalExceptionHandler.java
 - FOUND: app/src/test/java/dev/linkpulse/common/validation/HttpUrlValidatorTest.java
-- FOUND commits: 8eb19a9, 2282686, 11e2007, 7d2efa3
+- FOUND commits: eb4baf9, aa304c8, 6c18ea1, 37382eb

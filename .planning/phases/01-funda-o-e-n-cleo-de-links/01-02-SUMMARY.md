@@ -16,7 +16,7 @@ provides:
   - "Infra de ITs: TestcontainersConfiguration (postgres:18.6 @Bean @ServiceConnection) e AbstractIT (MockMvcTester)"
 affects: [01-03, 01-04, 01-05, 01-06, phase-02-cache, phase-03-containers]
 
-plan_head_before: 47f876469689d276a46e94263ff2f4042f87c33f
+plan_head_before: fad1a5804fa2e725f3096ca8e8682ec2cee40b11
 actuals:
   tokens: 4900
   tasks: 2
@@ -129,10 +129,10 @@ status: complete
 
 ## Task Commits
 
-1. **Task 1 (tracer): Seguir um link gravado no Postgres** - `931d2ae` (feat)
+1. **Task 1 (tracer): Seguir um link gravado no Postgres** - `4d03f54` (feat)
 2. **Task 2 (TDD): 404/410 em Problem Details, Clock e rotas**
-   - RED - `4731561` (test)
-   - GREEN - `0c61827` (feat)
+   - RED - `7486788` (test)
+   - GREEN - `7db0c69` (feat)
    - REFACTOR: não houve; o código já saiu limpo.
 
 **Plan metadata:** commit `docs(01-02)` logo após este SUMMARY
@@ -153,7 +153,7 @@ status: complete
 
 ## TDD Gate Compliance
 
-- RED `4731561` → GREEN `0c61827`, nessa ordem.
+- RED `7486788` → GREEN `7db0c69`, nessa ordem.
 - Evidência RED (comando do `<verify>`, exit 1, failsafe convertido em TAP) validada com `gsd-tools check tdd-red-evidence`:
   - `unknownCodeIsNotFoundProblem`: `RED_EVIDENCE_OK` (`target_test_failed`). Antes da implementação, o corpo era `{"instance":"/nao-existe1","status":404,"title":"Not Found"}`, sem `type`.
   - `expiredLinkIsGoneProblem`: `RED_EVIDENCE_OK` (`target_test_failed`). Antes da implementação, a resposta era `expected: 410 but was: 302`.
@@ -174,14 +174,14 @@ status: complete
 - **Issue:** Com a assinatura do plano numa linha só, a linha ficava com 109 caracteres e violava o `LineLength` (máximo 100), o que derrubava o build em `validate`.
 - **Fix:** Parâmetros na linha seguinte, com indentação de continuação de 8. A assinatura pública não mudou.
 - **Files modified:** `app/src/main/java/dev/linkpulse/link/Link.java`
-- **Commit:** `931d2ae`
+- **Commit:** `4d03f54`
 
 **2. [Rule 1 - Bug] Nomes de teste sem `ARedirect`**
 - **Found during:** Task 2 (RED)
 - **Issue:** `pathWithDotIsNotARedirectRoute` violava o `AbbreviationAsWordInName` (2 maiúsculas seguidas).
 - **Fix:** Renomeei para `pathWithDotIsNotRedirectRoute` e `multiSegmentPathIsNotRedirectRoute`.
 - **Files modified:** `app/src/test/java/dev/linkpulse/link/RedirectIT.java`
-- **Commit:** `4731561`
+- **Commit:** `7486788`
 
 ---
 
@@ -210,4 +210,4 @@ Nenhum.
 
 ## Self-Check: PASSED
 
-- 11/11 arquivos criados encontrados; commits 931d2ae, 4731561 e 0c61827 presentes no histórico.
+- 11/11 arquivos criados encontrados; commits 4d03f54, 7486788 e 7db0c69 presentes no histórico.

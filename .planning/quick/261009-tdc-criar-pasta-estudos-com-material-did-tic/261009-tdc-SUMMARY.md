@@ -35,7 +35,7 @@ metrics:
   completed: 2026-10-10
   tasks: 3
   files: 11
-plan_head_before: 182bcc9e4345c9a21fcbd4543bc85b3664db1001
+plan_head_before: dcbfaeab0b6e39c2d5752f76b42012af4a1d112b
 actuals:
   tokens: 27800
   tasks: 3
@@ -50,15 +50,15 @@ Pasta `estudos/` com índice e 10 guias em pt-BR (cerca de 2000 linhas) que expl
 
 | # | Tarefa | Commit | Arquivos |
 |---|--------|--------|----------|
-| 1 | Índice + guia 01 (estrutura e fluxo, 2 `sequenceDiagram`) | 040c96f | `estudos/README.md`, `estudos/01-estrutura-e-fluxo-de-requisicoes.md` |
-| 2 | Guias 02–05 (Boot/Java 21, Postgres/JPA/Liquibase, Base62, validação/erros) | 92aef46 | `estudos/02-*.md` a `estudos/05-*.md` |
-| 3 | Guias 06–10 (testes, build, CI, ambiente local/Windows, próximas fases) + verificação final | 4d759c6 | `estudos/06-*.md` a `estudos/10-*.md` |
+| 1 | Índice + guia 01 (estrutura e fluxo, 2 `sequenceDiagram`) | 800ac1d | `estudos/README.md`, `estudos/01-estrutura-e-fluxo-de-requisicoes.md` |
+| 2 | Guias 02–05 (Boot/Java 21, Postgres/JPA/Liquibase, Base62, validação/erros) | ad97769 | `estudos/02-*.md` a `estudos/05-*.md` |
+| 3 | Guias 06–10 (testes, build, CI, ambiente local/Windows, próximas fases) + verificação final | 5a5c520 | `estudos/06-*.md` a `estudos/10-*.md` |
 
 ## Verificação
 
 - O `<verify>` da Tarefa 1 passou (tracer gate: re-executado e verde antes de expandir).
 - O `<verify>` da Tarefa 2 passou.
-- O `<verify>` da Tarefa 3 (conjunto inteiro) passou: 11 arquivos, palavras-chave, heurística de pt-BR, nenhum caminho MISSING, nenhum link BROKEN, pelo menos 3 citações reais por guia de 01 a 09, nada alterado fora de `estudos/` desde 182bcc9.
+- O `<verify>` da Tarefa 3 (conjunto inteiro) passou: 11 arquivos, palavras-chave, heurística de pt-BR, nenhum caminho MISSING, nenhum link BROKEN, pelo menos 3 citações reais por guia de 01 a 09, nada alterado fora de `estudos/` desde dcbfaea.
 - Todos os arquivos estão em UTF-8 e LF (0 CR).
 
 ## Execuções registradas (pedido do `<output>`)
@@ -77,18 +77,18 @@ Pasta `estudos/` com índice e 10 guias em pt-BR (cerca de 2000 linhas) que expl
 - **Found during:** Tarefa 3 (guia 07)
 - **Issue:** o rascunho sugeria provocar uma violação com um import não usado, mas `app/config/checkstyle/checkstyle.xml` não tem `UnusedImports`.
 - **Fix:** o exercício passou a usar um import com `*`, que é barrado por `AvoidStarImport` (confirmado por grep).
-- **Commit:** 4d759c6
+- **Commit:** 5a5c520
 
 **2. [Rule 1 - Bug] Descrição da regra do sufixo IT no Checkstyle**
 - **Found during:** Tarefa 3 (guia 06)
 - **Issue:** o rascunho dizia que o Checkstyle "confere" o sufixo `IT`. Na verdade, a regra `AbbreviationAsWordInName` só **libera** a sigla `IT` (`allowedAbbreviations`).
 - **Fix:** o texto foi corrigido para refletir o arquivo.
-- **Commit:** 4d759c6
+- **Commit:** 5a5c520
 
 **3. [Rule 3 - Blocking] Guia 09 com menos de 3 citações `app/`**
 - **Found during:** Tarefa 3
 - **Fix:** o guia passou a citar `app/mvnw`, `app/mvnw.cmd` e `app/.mvn/wrapper/maven-wrapper.properties` na introdução dos comandos por terminal.
-- **Commit:** 4d759c6
+- **Commit:** 5a5c520
 
 ### Observações (sem mudança de escopo)
 
@@ -113,5 +113,5 @@ Nenhuma superfície nova (só Markdown). As mitigações do threat model foram a
 ## Self-Check: PASSED
 
 - 11 arquivos em `estudos/` encontrados.
-- Commits 040c96f, 92aef46 e 4d759c6 presentes em `git log`.
-- `git rev-list --count 182bcc9..HEAD` = 3.
+- Commits 800ac1d, ad97769 e 5a5c520 presentes em `git log`.
+- `git rev-list --count dcbfaea..HEAD` = 3.

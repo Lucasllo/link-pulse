@@ -16,7 +16,7 @@ provides:
   - "Testes: CodeGeneratorTest (unit, sem Docker), LinkApiIT e ConcurrencyIT"
 affects: [01-04, 01-05, 01-06, 01-07, phase-02-cache, phase-03-k6]
 
-plan_head_before: e0057b18c6b4956a32eca79ff581c779bbed25a2
+plan_head_before: b416d247256754ea88cdf548c708ee83ce5bbe7d
 actuals:
   tokens: 7700
   tasks: 2
@@ -136,8 +136,8 @@ status: complete
 
 ## Task Commits
 
-1. **Task 1 (tracer): POST /links de ponta a ponta** - `81dc3a4` (feat). O gate do tracer (`end-of-phase`, verify só automatizado) foi feito re-rodando `-Dit.test=LinkApiIT verify`: 4/4 verde, e só então a expansão começou.
-2. **Task 2: Gerador bijetivo/não enumerável + concorrência** - `6fc6122` (test)
+1. **Task 1 (tracer): POST /links de ponta a ponta** - `46c0242` (feat). O gate do tracer (`end-of-phase`, verify só automatizado) foi feito re-rodando `-Dit.test=LinkApiIT verify`: 4/4 verde, e só então a expansão começou.
+2. **Task 2: Gerador bijetivo/não enumerável + concorrência** - `ebe26a6` (test)
 
 **Plan metadata:** commit `docs(01-03)` logo após este SUMMARY
 
@@ -167,14 +167,14 @@ status: complete
 - **Issue:** Na Task 1, o `IllegalArgumentException("multiplicador deve ser coprimo de 62^7", e)` encadeava a `ArithmeticException`. Assim, a causa raiz do `getStartupFailure()` seria `ArithmeticException: BigInteger not invertible.`, e não a mensagem pt-BR que o plano exige.
 - **Fix:** Relançar sem encadear a causa, com um comentário explicando o porquê. O algoritmo, o alfabeto e o M não mudaram.
 - **Files modified:** `app/src/main/java/dev/linkpulse/link/CodeGenerator.java`
-- **Commit:** `6fc6122`
+- **Commit:** `ebe26a6`
 
 **2. [Rule 1 - Bug] Checkstyle `VariableDeclarationUsageDistance` no `ConcurrencyIT`**
 - **Found during:** Task 2
 - **Issue:** `long before = links.count()` ficava a 4 instruções do primeiro uso (máximo 3), o que derrubava o build em `validate`.
 - **Fix:** Declarar como `final long before`. Ela precisa mesmo ser lida antes das criações.
 - **Files modified:** `app/src/test/java/dev/linkpulse/link/ConcurrencyIT.java`
-- **Commit:** `6fc6122`
+- **Commit:** `ebe26a6`
 
 ---
 
@@ -205,4 +205,4 @@ Nenhuma superfície nova fora do `<threat_model>`. O `POST /links` é o T-03-0x 
 
 ## Self-Check: PASSED
 
-- 8/8 arquivos criados encontrados; commits 81dc3a4 e 6fc6122 presentes no histórico.
+- 8/8 arquivos criados encontrados; commits 46c0242 e ebe26a6 presentes no histórico.

@@ -17,7 +17,7 @@ provides:
   - "LiquibaseContextsIT: prova de contexts default/prod/dev"
 affects: [01-07, phase-03-compose, phase-04-kind, phase-05-terraform]
 
-plan_head_before: f18b0567eb1a8ad2b9d328d252d2f4e1b2ee941a
+plan_head_before: 3290810c89624ec2b6cfe977aa34c1d4227d625e
 actuals:
   tokens: 2000
   tasks: 1
@@ -136,7 +136,7 @@ completed: 2026-10-08
 
 ## Task Commits
 
-1. **Task 1: Rodar local com dados de demo (tracer)** - `63b86a3` (feat)
+1. **Task 1: Rodar local com dados de demo (tracer)** - `b38f3f3` (feat)
 
 ## Files Created/Modified
 
@@ -176,7 +176,7 @@ completed: 2026-10-08
 - **Found during:** Task 1 (primeira execução do verify)
 - **Fix:** Argumentos do `queryForObject` quebrados em várias linhas antes do commit.
 - **Files modified:** `app/src/test/java/dev/linkpulse/LiquibaseContextsIT.java`
-- **Commit:** `63b86a3`
+- **Commit:** `b38f3f3`
 
 **Total deviations:** 2 auto-fixed (1 blocking de ambiente, 1 bug de estilo). **Impact:** nenhum no escopo.
 
@@ -202,5 +202,5 @@ Nenhuma superfície nova além do threat model: T-05-02 mitigada (`127.0.0.1:543
 ## Self-Check: PASSED
 
 - FOUND: compose.dev.yaml, application-dev.yml, application-prod.yml, 002-seed-dev.yaml, LiquibaseContextsIT.java
-- FOUND: commit 63b86a3
-- commits medidos: `git rev-list --count f18b056..HEAD` = 1
+- FOUND: commit b38f3f3
+- commits medidos: `git rev-list --count 3290810..HEAD` = 1

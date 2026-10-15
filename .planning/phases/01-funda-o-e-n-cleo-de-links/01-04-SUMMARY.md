@@ -16,7 +16,7 @@ provides:
   - "LinkService(LinkRepository, CodeGenerator, AliasPolicy, Clock): alias validado, existsByCode → 409 e violação de uk_links_code traduzida em 409 (corrida)"
 affects: [01-05, 01-06, 01-07, phase-02-cache]
 
-plan_head_before: 0767a3d3ab548bbb80689419456366286489c5c8
+plan_head_before: 5c397d4e49b06dca952fb7816036921fd70badb0
 actuals:
   tokens: 7100
   tasks: 1
@@ -138,7 +138,7 @@ status: complete
 
 ## Task Commits
 
-1. **Task 1 (tracer): Alias customizado de ponta a ponta** - `1a23dc8` (feat). Gate do tracer (`end-of-phase`, verify só automatizado): os três comandos de `<verify>` (`AliasPolicyTest`, `LinkApiIT` e `verify` completo) passaram. Esta é a única task do plano, então não houve expansão depois do gate.
+1. **Task 1 (tracer): Alias customizado de ponta a ponta** - `0cd366e` (feat). Gate do tracer (`end-of-phase`, verify só automatizado): os três comandos de `<verify>` (`AliasPolicyTest`, `LinkApiIT` e `verify` completo) passaram. Esta é a única task do plano, então não houve expansão depois do gate.
 
 **Plan metadata:** commit `docs(01-04)` logo após este SUMMARY
 
@@ -166,7 +166,7 @@ status: complete
 - **Issue:** `"a-" + "b".repeat(30)` não é uma expressão constante, e o `javac` rejeita esse valor em anotação. Além disso, `containsEntry` sobre `Map<?, ?>` não compilava (captura de wildcard).
 - **Fix:** Literais de 32 e 33 caracteres e `assertThat(((Map<?, ?>) errors.get(0)).get("field")).isEqualTo("alias")`.
 - **Files modified:** `app/src/test/java/dev/linkpulse/link/AliasPolicyTest.java`
-- **Commit:** `1a23dc8`
+- **Commit:** `0cd366e`
 
 ---
 

@@ -20,7 +20,7 @@ provides:
   - "PROJECT.md: decisão Liquibase 5.0.3 / FSL-1.1-ALv2 registrada"
 affects: [phase-02-readme, phase-05-vitrine, verify-work]
 
-plan_head_before: 4bbd8eb52881a25d7b6a5551dae986bca0461124
+plan_head_before: 11c305d6a181f94723e2d5c1cc78b3cdba985f45
 actuals:
   tokens: 5600
   tasks: 2
@@ -77,9 +77,9 @@ completed: 2026-10-08
 
 ## Task Commits
 
-1. **Task 1 (tracer): Swagger UI de ponta a ponta** - `79277c1` (feat). Gate do tracer (`end-of-phase`, verify só automatizado): `-Dit.test=OpenApiIT verify` re-rodado depois do commit, 6/6 verde, antes de seguir para a Task 2.
-2. **Task 2: README pt-BR e licença do Liquibase** - `99464b3` (docs)
-3. **Ajuste da Task 2: exemplos do README conferidos contra a API rodando** - `e4848c3` (docs)
+1. **Task 1 (tracer): Swagger UI de ponta a ponta** - `34eaec3` (feat). Gate do tracer (`end-of-phase`, verify só automatizado): `-Dit.test=OpenApiIT verify` re-rodado depois do commit, 6/6 verde, antes de seguir para a Task 2.
+2. **Task 2: README pt-BR e licença do Liquibase** - `88ee7fe` (docs)
+3. **Ajuste da Task 2: exemplos do README conferidos contra a API rodando** - `03a2908` (docs)
 
 **Plan metadata:** commit `docs(01-07)` logo após este SUMMARY
 
@@ -108,7 +108,7 @@ completed: 2026-10-08
 - **Issue:** O primeiro exemplo mostrava o código `cJinsNv` (ID 1), mas num banco dev o ID 1 é do seed `demo-link`, e o primeiro POST recebe `EdRbklq`. O exemplo de erro também omitia o campo `instance`, que a API devolve.
 - **Fix:** Exemplos substituídos pela saída observada, com uma frase explicando a origem do código. Antes da prova, duas afirmações não verificadas já tinham sido removidas da primeira versão (licença LGPL do Hibernate, que na linha 7 é Apache 2.0, e o `instance`, depois confirmado e recolocado).
 - **Files modified:** `README.md`
-- **Commit:** `e4848c3`
+- **Commit:** `03a2908`
 
 ### Ajustes de ambiente (não alteram o escopo)
 
@@ -141,4 +141,4 @@ O `<human-check>` da Task 2 fica para o fim da fase (`human_verify_mode: end-of-
 - FOUND: app/src/main/java/dev/linkpulse/config/OpenApiConfig.java
 - FOUND: app/src/test/java/dev/linkpulse/OpenApiIT.java
 - FOUND: README.md
-- FOUND: commits 79277c1, 99464b3, e4848c3
+- FOUND: commits 34eaec3, 88ee7fe, 03a2908

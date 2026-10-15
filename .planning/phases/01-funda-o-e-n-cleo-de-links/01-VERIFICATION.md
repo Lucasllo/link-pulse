@@ -121,13 +121,13 @@ Não confiei na mensagem do orquestrador. Conferi cada fato:
 
 | Fato | Comando | Resultado |
 |------|---------|-----------|
-| Branch padrão renomeada | `git ls-remote --symref origin HEAD` | `ref: refs/heads/main HEAD` → `8b57425`. As heads do remoto são `main`, o branch da fase e um branch do Dependabot. Não existe mais `master` |
-| PR #1 rodou o `ci.yml` em `pull_request` | `GET /repos/Lucasllo/link-pulse/actions/runs?per_page=5` | `38005181081 ci pull_request gsd/phase-01-... bef3cf3 completed success` |
-| PR #1 foi mergeado em `main` | `GET /repos/Lucasllo/link-pulse/pulls/1` | `closed`, `merged: true`, `merge_commit_sha 8b57425`, `gsd/phase-01-... -> main` |
-| O push na `main` rodou o `ci.yml` | mesma API | `38005385906 ci push main 8b57425 completed success` |
+| Branch padrão renomeada | `git ls-remote --symref origin HEAD` | `ref: refs/heads/main HEAD` → `8619efc`. As heads do remoto são `main`, o branch da fase e um branch do Dependabot. Não existe mais `master` |
+| PR #1 rodou o `ci.yml` em `pull_request` | `GET /repos/Lucasllo/link-pulse/actions/runs?per_page=5` | `38005181081 ci pull_request gsd/phase-01-... 7777dbe completed success` |
+| PR #1 foi mergeado em `main` | `GET /repos/Lucasllo/link-pulse/pulls/1` | `closed`, `merged: true`, `merge_commit_sha 8619efc`, `gsd/phase-01-... -> main` |
+| O push na `main` rodou o `ci.yml` | mesma API | `38005385906 ci push main 8619efc completed success` |
 | Steps do job | `GET .../actions/runs/{id}/jobs` (nas duas execuções) | `build-test` success em `ubuntu-latest`: Checkout, Java 21 (Temurin), "mvnw é executável e LF", "Makefile parseia no Linux" e "Build, Checkstyle, testes unitários + Testcontainers, SpotBugs", todos success |
 | Conteúdo do log (push na main) | `gh run view 38005385906 --log` | Checkout em `.../link pulse` (caminho com espaço); `make -n verify` imprime `cd app && ./mvnw -B -ntp verify`; `make help` lista help/build/test/verify/run/db-up/db-down; `0 Checkstyle violations`; `Tests run: 103, Failures: 0` (TargetHostPolicyTest 37, LinkPulsePropertiesTest 14…); `Connected to docker`; `Tests run: 50, Failures: 0` (LinkApiIT 27, RedirectIT 9, ConcurrencyIT 1, OpenApiIT 6, LiquibaseContextsIT 5+2); `BugInstance size is 0`; `BUILD SUCCESS` |
-| O código testado no CI é o mesmo verificado aqui | `git diff --quiet 76b698b origin/main -- app .github Makefile README.md compose.dev.yaml` | Sem diferença. O único arquivo novo em `main` é este relatório |
+| O código testado no CI é o mesmo verificado aqui | `git diff --quiet 84e1a9d origin/main -- app .github Makefile README.md compose.dev.yaml` | Sem diferença. O único arquivo novo em `main` é este relatório |
 
 O `ci.yml` não mudou: o filtro continua `push: branches: [main]`, e agora casa com a branch padrão. O README (linha 196, "todo push na `main`") passou a estar correto sem edição.
 
@@ -286,7 +286,7 @@ Dois itens da rodada anterior saíram desta lista. O "CI no GitHub" e o "verify 
 Não há gaps. O bloqueio do SC5/CI-01 foi resolvido pela opção (a): a branch padrão do remoto agora é `main`, e o `ci.yml` (sem mudança) casa com ela. Conferi pela API pública do GitHub e pelo `gh`:
 
 - o PR #1 rodou o CI em `pull_request` (run `38005181081`, success);
-- o PR foi mergeado como `8b57425`;
+- o PR foi mergeado como `8619efc`;
 - o push na `main` rodou o CI (run `38005385906`, success).
 
 O log mostra checkout em `link pulse/`, `make help` no Linux, 103 unitários, 50 ITs com Testcontainers, Checkstyle e SpotBugs limpos e BUILD SUCCESS. O código testado é o mesmo verificado aqui. Com isso também ficam verificados o build no Linux, o `make help` e o verify completo da 01-08.

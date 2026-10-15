@@ -149,7 +149,7 @@ None yet.
 
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
-| 261009-tdc | Criar pasta estudos com material didático sobre estrutura e tecnologias | 2026-10-09 | 4d759c6 | [261009-tdc-criar-pasta-estudos-com-material-did-tic](./quick/261009-tdc-criar-pasta-estudos-com-material-did-tic/) |
+| 261009-tdc | Criar pasta estudos com material didático sobre estrutura e tecnologias | 2026-10-09 | 5a5c520 | [261009-tdc-criar-pasta-estudos-com-material-did-tic](./quick/261009-tdc-criar-pasta-estudos-com-material-did-tic/) |
 | 2 | Configurar Dependabot para ignorar apache-maven 3.10.x e fechar o PR #2 | 2026-10-11 | 9e5adc5 | — |
 | 3 | Adicionar estudos/00-visao-geral-do-projeto.md (visão geral para iniciantes) | 2026-10-11 | 5dbeb90 | — |
 | 4 | Adicionar estudos/11-dependabot.md (Dependabot para iniciantes) | 2026-10-11 | 2b12c4d | — |

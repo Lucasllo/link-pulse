@@ -14,7 +14,7 @@ provides:
   - "Dependabot (github-actions e maven) e Makefile base (help, build, test, verify, run)"
 affects: [01-02, 01-03, 01-04, 01-05, phase-03-containers, ci]
 
-plan_head_before: 171fd8253ef884b0daa1219d698d1254ebfa0104
+plan_head_before: c97c37781ab5ca0ee1b9dc664f1008c5f21c5e69
 actuals:
   tokens: 14400
   tasks: 3
@@ -124,9 +124,9 @@ status: complete
 
 ## Task Commits
 
-1. **Task 1: Do clone ao jar rodando (wrapper, pom e app mínima com health)** - `247f826` (feat)
-2. **Task 2: O build quebra em violação (Checkstyle em validate, SpotBugs em verify)** - `e0cf8e6` (feat)
-3. **Task 3: CI em cada push/PR, Dependabot e Makefile base** - `e4a987e` (feat)
+1. **Task 1: Do clone ao jar rodando (wrapper, pom e app mínima com health)** - `2d323ff` (feat)
+2. **Task 2: O build quebra em violação (Checkstyle em validate, SpotBugs em verify)** - `44f9493` (feat)
+3. **Task 3: CI em cada push/PR, Dependabot e Makefile base** - `0f72c77` (feat)
 
 **Plan metadata:** commit `docs(01-01)` logo após este SUMMARY
 
@@ -177,14 +177,14 @@ OS name: "windows 11", version: "10.0", arch: "amd64", family: "windows"
 - **Issue:** O google_checks 14.3.0 tem um filtro com `checks=MissingJavadocMethod` logo depois do módulo. Remover só o módulo deixaria uma supressão morta apontando para uma check inexistente.
 - **Fix:** Removi o módulo e o filtro, e deixei no lugar um comentário explicando a remoção. `grep -c 'name="MissingJavadocMethod"'` dá 0.
 - **Files modified:** `app/config/checkstyle/checkstyle.xml`
-- **Committed in:** `e0cf8e6`
+- **Committed in:** `44f9493`
 
 **2. [Rule 2 - Missing Critical] `if-no-files-found: ignore` no upload de relatórios**
 - **Found during:** Task 3
 - **Issue:** Quando o build falha no Checkstyle (fase validate), surefire, failsafe e spotbugs ainda não geraram relatórios. Sem essa opção, o step de upload emitiria um warning por arquivo ausente.
 - **Fix:** Adicionei `if-no-files-found: ignore` ao step `if: failure()`.
 - **Files modified:** `.github/workflows/ci.yml`
-- **Committed in:** `e4a987e`
+- **Committed in:** `0f72c77`
 
 ---
 
@@ -215,4 +215,4 @@ O plano declara `user_setup`, mas nenhum USER-SETUP.md foi gerado. Os dois itens
 
 ## Self-Check: PASSED
 
-- 13/13 arquivos encontrados; commits 247f826, e0cf8e6 e e4a987e presentes no histórico.
+- 13/13 arquivos encontrados; commits 2d323ff, 44f9493 e 0f72c77 presentes no histórico.

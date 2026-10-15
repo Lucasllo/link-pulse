@@ -18,7 +18,7 @@ provides:
   - "README: regra de URL exata e bullet 'Loop de redirect via DNS (mitigação parcial)'"
 affects: [phase-02-rate-limit, phase-03-compose, phase-04-helm, phase-05-terraform-ecs, verify-work]
 
-plan_head_before: 2e233afb40c0f29e55c020319601392d97ecb869
+plan_head_before: 5d28c35333931df6e0be9ce5615db85fbd37b4a6
 actuals:
   tokens: 9316
   tasks: 3
@@ -150,15 +150,15 @@ completed: 2026-10-09
 ## Task Commits
 
 1. **Task 1: Loop com ponto final fechado de ponta a ponta (tracer)**
-   - `b05d90e` test(01-08): reproduz loop de redirect com ponto final no host (RED: esperado 400, recebido 201)
-   - `5540855` fix(01-08): normaliza o host de destino e centraliza a regra do próprio encurtador no TargetHostPolicy (GREEN)
+   - `a7e78b1` test(01-08): reproduz loop de redirect com ponto final no host (RED: esperado 400, recebido 201)
+   - `535a94c` fix(01-08): normaliza o host de destino e centraliza a regra do próprio encurtador no TargetHostPolicy (GREEN)
 2. **Task 2: Loopback e IP numérico ofuscado recusados sem DNS (TDD)**
-   - `a7ea96c` test(01-08): loopback e IP ofuscado como destino (RED: 11 + 5 vetores unitários e 7 ITs falhando)
-   - `a1889cd` feat(01-08): recusa loopback e IP numérico ofuscado como destino, sem DNS (GREEN)
+   - `fa05a5c` test(01-08): loopback e IP ofuscado como destino (RED: 11 + 5 vetores unitários e 7 ITs falhando)
+   - `c5e23f7` feat(01-08): recusa loopback e IP numérico ofuscado como destino, sem DNS (GREEN)
 3. **Task 3: base-url validada, self-hosts por env, README fiel (TDD)**
-   - `fa36a93` test(01-08): base-url inválida derruba a subida e self-hosts por env (RED)
-   - `dd4fd09` fix(01-08): valida linkpulse.base-url na subida e expõe linkpulse.self-hosts (GREEN)
-   - `884bb6f` docs(01-08): regra de URL e riscos fiéis ao código (mitigação parcial por DNS)
+   - `cbef331` test(01-08): base-url inválida derruba a subida e self-hosts por env (RED)
+   - `5b93690` fix(01-08): valida linkpulse.base-url na subida e expõe linkpulse.self-hosts (GREEN)
+   - `881ccb9` docs(01-08): regra de URL e riscos fiéis ao código (mitigação parcial por DNS)
 
 **Plan metadata:** commit `docs(01-08)` deste SUMMARY
 
@@ -193,7 +193,7 @@ completed: 2026-10-09
 - **Fix:** o commit `test(01-08)` declara só as duas constantes `static final String`, sem comportamento. A falha do RED veio das asserções: nenhuma exceção nos 11 vetores de loopback e nos 5 numéricos (`check tdd-red-evidence` deu `RED_EVIDENCE_OK` para os dois grupos).
 - **Files modified:** `app/src/main/java/dev/linkpulse/link/TargetHostPolicy.java`
 - **Verification:** RED com 16 falhas de asserção nos unitários e 7 nos ITs; GREEN com 37/37 unitários e 27/27 no `LinkApiIT`.
-- **Committed in:** `a7ea96c`
+- **Committed in:** `fa05a5c`
 
 ---
 
@@ -202,9 +202,9 @@ completed: 2026-10-09
 
 ## TDD Gate Compliance
 
-- Task 1 (tracer): RED `b05d90e` (o IT falhou com "expected: 400 but was: 201") → GREEN `5540855` (tipo `fix`, conforme o plano).
-- Task 2: RED `a7ea96c` → GREEN `a1889cd`. A evidência de RED foi validada por `gsd-tools check tdd-red-evidence` (`RED_EVIDENCE_OK` para `rejectsLoopbackDestinations` e `rejectsNonCanonicalNumericHosts`), a partir do XML do Surefire transcrito para TAP.
-- Task 3: RED `fa36a93` → GREEN `dd4fd09` (tipo `fix`, conforme o plano). `RED_EVIDENCE_OK` para `contextFailsOnStartupWhenBaseUrlIsInvalid` e `startupFailureDoesNotEchoTheBaseUrl`. No RED, 4 dos 7 vetores inválidos falharam (ftp, credenciais, query e fragmento). Os outros 3 (`lnk.example.com`, `/caminho`, `mailto:a@b.com`, todos sem host) já derrubavam a subida pela defesa em profundidade que a Task 1 pôs no construtor do `TargetHostPolicy`, cuja mensagem também cita `linkpulse.base-url`. Isso era esperado depois da Task 1, e não é um teste errado.
+- Task 1 (tracer): RED `a7e78b1` (o IT falhou com "expected: 400 but was: 201") → GREEN `535a94c` (tipo `fix`, conforme o plano).
+- Task 2: RED `fa05a5c` → GREEN `c5e23f7`. A evidência de RED foi validada por `gsd-tools check tdd-red-evidence` (`RED_EVIDENCE_OK` para `rejectsLoopbackDestinations` e `rejectsNonCanonicalNumericHosts`), a partir do XML do Surefire transcrito para TAP.
+- Task 3: RED `cbef331` → GREEN `5b93690` (tipo `fix`, conforme o plano). `RED_EVIDENCE_OK` para `contextFailsOnStartupWhenBaseUrlIsInvalid` e `startupFailureDoesNotEchoTheBaseUrl`. No RED, 4 dos 7 vetores inválidos falharam (ftp, credenciais, query e fragmento). Os outros 3 (`lnk.example.com`, `/caminho`, `mailto:a@b.com`, todos sem host) já derrubavam a subida pela defesa em profundidade que a Task 1 pôs no construtor do `TargetHostPolicy`, cuja mensagem também cita `linkpulse.base-url`. Isso era esperado depois da Task 1, e não é um teste errado.
 - Não houve REFACTOR separado.
 
 ## Issues Encountered
@@ -232,7 +232,7 @@ None - no external service configuration required. (Os ambientes que expõem o e
 ## Self-Check: PASSED
 
 - FOUND: `TargetHostPolicy.java`, `TargetHostPolicyTest.java`, `LinkPulsePropertiesTest.java`
-- FOUND: commits `b05d90e`, `5540855`, `a7ea96c`, `a1889cd`, `fa36a93`, `dd4fd09`, `884bb6f`
+- FOUND: commits `a7e78b1`, `535a94c`, `fa05a5c`, `c5e23f7`, `cbef331`, `5b93690`, `881ccb9`
 
 ---
 *Phase: 01-funda-o-e-n-cleo-de-links*
