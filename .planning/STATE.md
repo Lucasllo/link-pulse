@@ -4,10 +4,10 @@ current_phase: 03
 current_phase_name: Stack local observável
 status: executing
 stopped_at: Phase 3 context gathered
-last_updated: "2026-10-14T23:38:07.174Z"
+last_updated: "2026-10-15T01:55:24.619Z"
 last_activity: 2026-10-11
 last_activity_desc: Phase 02 complete, transitioned to Phase 3
-state_head: d239f7d508cc01a314a40f423e1ee6ec7e4f52fb
+state_head: 6deeaf4bc0fdba3fb7bd2a08ac0cb9ead469dcf9
 progress:
   total_phases: 5
   completed_phases: 2
@@ -156,6 +156,7 @@ None yet.
 | 5 | Detalhar ApplicationConfig, LinkPulseProperties e application.yml no guia 02 (para iniciantes) | 2026-10-11 | 25bdd44 | — |
 | 6 | Reescrever estudos/ para iniciantes (00-11) e adicionar guias 12-16 da Phase 2 (cache, cliques, stats, rate limit, métricas) | 2026-10-11 | f7d08f5..a0d5164 | — |
 | 7 | Corrigir o diagrama mermaid do Fluxo 2 (GET /{code}) no guia 01 | 2026-10-12 | d0f3de9 | — |
+| 8 | Atualizar hashes de commits na documentação para o histórico reescrito | 2026-10-15 | 6deeaf4 | — |
 
 ## Deferred Items
 
