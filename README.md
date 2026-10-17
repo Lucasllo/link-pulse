@@ -38,6 +38,7 @@ Rode da raiz do repositório.
 | `make clean` | `docker compose down -v --remove-orphans` | Para a stack completa e apaga os volumes |
 | `make image` | `docker compose build app` | Builda só a imagem local do app (`link-pulse:local`) |
 | `make seed` | `docker compose run --rm -T k6 run --quiet seed.js` | Popula links e cliques de demonstração com o k6 em container (rode depois do `make up`) |
+| `make obs-check` | `docker compose run --rm --no-deps -T --entrypoint promtool prometheus check config /etc/prometheus/prometheus.yml` e `docker compose run --rm --no-deps -T --entrypoint promtool prometheus test rules /etc/prometheus/tests/link-pulse-alerts-test.yml` | Valida a config e as regras de alerta do Prometheus com o `promtool` da própria imagem (no Git Bash sem make, prefixe cada comando com `MSYS_NO_PATHCONV=1`) |
 
 No **PowerShell**, use o `mvnw.cmd`:
 
@@ -127,6 +128,40 @@ Depois, abra <http://localhost:3000>. A home é o dashboard "Link Pulse — Apli
 - **Abaixo do rate limit**: o app aceita 20 criações por minuto por IP. A primeira execução faz 12 `POST /links`, e as seguintes, 4. Se outra ordem de comandos encostar no limite, o seed espera o `Retry-After` e tenta uma vez de novo. A última linha do seed mostra quantos 429 vieram (o esperado é 0).
 - **Limitação: "cliques por dia" mostra só o dia de hoje.** O instante do clique é definido pelo servidor, e o seed não faz backfill de dias anteriores (nem insere nada direto no MongoDB). No `daily` do `/stats`, só o dia de hoje tem cliques; os dias anteriores aparecem zerados.
 - No fim, o seed imprime as URLs curtas (por exemplo <http://localhost:8080/spring-docs>), os totais do `spring-docs` com e sem bots e a URL do Grafana.
+
+## Observabilidade
+
+Tudo vem de arquivos versionados em [`observability/`](observability/README.md), montados pelo compose sem cópia: config do Prometheus, regras de alerta, datasource e dashboards do Grafana, e runbooks. O [`observability/README.md`](observability/README.md) é o mapa dessa fonte única: o que cada arquivo faz no compose e como a Phase 4 o reaproveita no kind.
+
+### Dashboards
+
+Em <http://localhost:3000>, pasta "Link Pulse" (leitura sem login):
+
+- **Link Pulse — Aplicação** (a home): requisições/s por rota e status, p95/p99 do redirect e da criação, cache hit ratio, cliques/min, respostas 5xx/s, 429/s do rate limit e quedas do Valkey.
+- **Link Pulse — Pipeline de cliques**: lag e pendentes do consumer, tamanho do stream, fila do publisher, publicados x gravados por segundo, descartados, duplicados, reclaim, erros e tempo de gravação do lote.
+
+### Alertas
+
+O Prometheus carrega quatro regras de [`observability/prometheus/rules/link-pulse-alerts.yml`](observability/prometheus/rules/link-pulse-alerts.yml). Cada uma leva ao seu runbook pela annotation `runbook_url`, clicável na UI do Prometheus:
+
+| Alerta | Dispara quando | Severidade | Runbook |
+|--------|----------------|------------|---------|
+| `LinkPulseHigh5xxRate` | Mais de 5% das respostas da API são 5xx por 5 min | critical | [observability/runbooks/LinkPulseHigh5xxRate.md](observability/runbooks/LinkPulseHigh5xxRate.md) |
+| `LinkPulseHighP99Latency` | p99 do redirect acima de 500 ms por 5 min | warning | [observability/runbooks/LinkPulseHighP99Latency.md](observability/runbooks/LinkPulseHighP99Latency.md) |
+| `LinkPulseClickConsumerLag` | Lag ou pendentes do consumer de cliques acima de 1000 por 5 min | warning | [observability/runbooks/LinkPulseClickConsumerLag.md](observability/runbooks/LinkPulseClickConsumerLag.md) |
+| `LinkPulseTargetDown` | O Prometheus não consegue raspar o app há mais de 1 min | critical | [observability/runbooks/LinkPulseTargetDown.md](observability/runbooks/LinkPulseTargetDown.md) |
+
+Não há Alertmanager: o estado firing aparece em <http://localhost:9090/alerts>. As regras têm testes de unidade (`make obs-check`) com casos que disparam e casos que não disparam.
+
+### Demonstração: o alerta de target down
+
+```bash
+docker compose stop app
+# espere cerca de 2 min (scrape de 15 s + for de 1 min) e abra http://localhost:9090/alerts:
+# LinkPulseTargetDown aparece como firing, com o link do runbook
+docker compose start app
+# o alerta some quando o scrape volta a funcionar
+```
 
 ## API
 
