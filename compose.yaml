@@ -111,8 +111,13 @@ services:
       GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
       GF_ANALYTICS_REPORTING_ENABLED: "false"
       GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+      # Home do Grafana: o dashboard da aplicação.
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /etc/grafana/dashboards/link-pulse-overview.json
     volumes:
       - ./observability/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./observability/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
+      # JSONs versionados, sem cópia: os mesmos viram ConfigMaps no kind (Phase 4).
+      - ./observability/grafana/dashboards:/etc/grafana/dashboards:ro
     ports:
       - "127.0.0.1:3000:3000"
     depends_on:
@@ -123,6 +128,23 @@ services:
       interval: 5s
       timeout: 3s
       retries: 30
+
+  # Ferramenta: não sobe no up. make seed / make load
+  k6:
+    image: grafana/k6:2.3.0
+    profiles: ["tools"]
+    # Caminhos relativos ao working_dir: sem problema com espaço no caminho nem com a conversão
+    # de argumentos do Git Bash.
+    working_dir: /work
+    volumes:
+      - ./load:/work
+    environment:
+      BASE_URL: http://app:8080
+      PUBLIC_BASE_URL: http://localhost:8080
+      GRAFANA_URL: http://localhost:3000
+    depends_on:
+      app:
+        condition: service_healthy
 
 volumes:
   pgdata: {}

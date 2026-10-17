@@ -1,0 +1,18 @@
+# Provider de dashboards do Grafana do compose (make up): lê os JSONs montados de
+# observability/grafana/dashboards, sem cópia. Arquivo só do compose: no kind (Phase 4) os mesmos
+# JSONs entram como ConfigMaps com o label grafana_dashboard: "1", lidos pelo sidecar do chart.
+apiVersion: 1
+providers:
+  - name: link-pulse
+    orgId: 1
+    folder: Link Pulse
+    # UID fixo da pasta: links e prints do README não mudam entre recriações.
+    folderUid: link-pulse
+    type: file
+    # O repositório é a fonte única: nada de apagar nem salvar alterações pela UI.
+    disableDeletion: true
+    allowUiUpdates: false
+    updateIntervalSeconds: 30
+    options:
+      path: /etc/grafana/dashboards
+      foldersFromFilesStructure: false
