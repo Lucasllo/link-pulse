@@ -31,26 +31,22 @@ Um avaliador clona o repositório, roda `make up` (compose) ou `make k8s` (kind 
 - ✓ Rate limit por IP em `POST /links` (script Lua no Valkey, 429 + `Retry-After`, fail-open documentado) — Phase 2
 - ✓ MongoDB para eventos de clique (TTL de retenção); Valkey para cache, stream e rate limit — Phase 2
 - ✓ Testes de integração com Testcontainers (Postgres + Mongo + Valkey) — Phases 1-2
+- ✓ Dockerfile multi-stage com layered jar, usuário não-root (10001) e HEALTHCHECK no readiness — Phase 3
+- ✓ `make up` sobe a stack local via Docker Compose (app, Postgres, Mongo, Valkey, Prometheus, Grafana), portas só no loopback — Phase 3
+- ✓ Micrometer + Prometheus: scrape de `/actuator/prometheus` (8081) pelo job `link-pulse` — Phases 2-3
+- ✓ Dashboards Grafana versionados em JSON (aplicação e pipeline de cliques), anônimo Viewer, `make seed` com dados de demonstração pela API — Phase 3
+- ✓ Alertas no Prometheus (5xx, p99 do redirect, lag/pendentes do consumer, TargetDown) com testes `promtool` (`make obs-check`) e runbooks — Phase 3
+- ✓ Teste de carga com k6 (`make load`), thresholds por cenário e resumo versionado; resultados no README — Phase 3
 
 ### Ativos
 
-**Qualidade**
-- [ ] Teste de carga com k6 e resultados documentados no README
-
 **Container e Kubernetes**
-- [ ] Dockerfile multi-stage com layered jar, usuário não-root e HEALTHCHECK
-- [ ] `make up` sobe a stack local via Docker Compose (app, Postgres, Mongo, Redis, Prometheus, Grafana)
 - [ ] Helm chart do app com Deployment, Service, Ingress, ConfigMap, Secret, HPA, liveness/readiness via Actuator; values para dev/prod
 - [ ] `make k8s` cria cluster kind, instala dependências e o app via Helm, com kube-prometheus-stack (Prometheus/Grafana)
 
 **CI/CD**
 - [ ] GitHub Actions: build + testes (Testcontainers) + Checkstyle/SpotBugs + build da imagem + publicação no GHCR
 - [ ] Job de verificação que faz deploy em kind e roda smoke test
-
-**Observabilidade**
-- [ ] Micrometer + Prometheus expondo métricas da aplicação (requisições, latência, cache hit/miss, cliques) — métricas da app e `/actuator/prometheus` na 8081 entregues na Phase 2; scrape e dashboards na Phase 3
-- [ ] Dashboards Grafana versionados em JSON: taxa de requisições, latência p95/p99, cache hit ratio, cliques/min
-- [ ] Alertas básicos no Prometheus (ex.: taxa de erro 5xx, latência p99 alta, lag do consumer)
 
 **AWS / Terraform**
 - [ ] Terraform provisionando ECR, ECS Fargate, RDS (Postgres), ElastiCache (Redis) e rede necessária
@@ -103,6 +99,9 @@ Um avaliador clona o repositório, roda `make up` (compose) ou `make k8s` (kind 
 | IP do clique como HMAC-SHA256 com chave + dia UTC | Sem PII crua no stream, no Mongo nem nas chaves de rate limit; rotação diária limita correlação | ✓ Phase 2 |
 | Rate limit e cache em fail-open com Valkey fora (D-08) | Disponibilidade do redirect/criação vale mais que o limite; queda visível em métricas e no README | ✓ Phase 2 (limitação WR-01 aceita na UAT) |
 | Sem limite de reentregas no consumer | Inválidas são confirmadas na conversão; falha de infraestrutura espera no PEL | ✓ Phase 2 |
+| Grafana anônimo como Viewer, dashboards/datasource read-only por provisioning | Avaliador vê os painéis sem login e sem poder alterá-los | ✓ Phase 3 |
+| Alertas sem Alertmanager, com runbook por `runbook_url` e testes `promtool` | Regras verificáveis no CI e no kind sem infra extra | ✓ Phase 3 |
+| k6 com `redirects: 0` e `--summary-export` (sem jslib remoto) | Mede só a API e evita import remoto em runtime | ✓ Phase 3 (redirect p95 3,18 ms / p99 9,29 ms) |
 
 ## Evolução
 
@@ -122,4 +121,4 @@ Este documento evolui nas transições de fase e nos fechamentos de milestone.
 4. Atualizar Contexto com o estado atual
 
 ---
-*Última atualização: 2026-10-11 após a Phase 2*
+*Última atualização: 2026-10-17 após a Phase 3*

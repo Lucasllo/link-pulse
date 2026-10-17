@@ -1,9 +1,10 @@
 ---
 phase: 03-stack-local-observ-vel
 verified: 2026-10-17T14:33:00Z
-status: human_needed
+status: passed
 score: 5/5 must-haves verified
 covered_files:
+
   - ".github/dependabot.yml"
   - ".gitignore"
   - ".planning/REQUIREMENTS.md"
@@ -37,10 +38,12 @@ covered_files:
   - "observability/runbooks/LinkPulseHigh5xxRate.md"
   - "observability/runbooks/LinkPulseHighP99Latency.md"
   - "observability/runbooks/LinkPulseTargetDown.md"
+
 covered_digest: "v1:sha256:ff28314a2f055a735d53bf6f7281cac240f5508e4c918118da23e927bc873a19"
 behavior_unverified: 0
 overrides_applied: 0
 human_verification:
+
   - test: "Com a stack de pé e depois de `make seed`, abrir http://localhost:3000 sem login e percorrer os dashboards 'Link Pulse — Aplicação' e 'Link Pulse — Pipeline de cliques'"
     expected: "A home redireciona para o dashboard da aplicação; os painéis de requisições/s, p95/p99 do redirect e da criação, cache hit ratio e cliques/min mostram séries; o pipeline mostra lag, pendentes, tamanho do stream, publicados x gravados e descartados; sem tráfego o hit ratio exibe 'sem tráfego' e o lag NaN exibe 'indefinido'; nenhum painel em erro"
     why_human: "O verificador conferiu por API (busca, datasource, consultas via /api/ds/query do anônimo) que os dados chegam, mas a renderização, legibilidade e layout dos painéis só se avaliam visualmente"

@@ -1,44 +1,44 @@
 ---
 gsd_state_version: "1.0"
-current_phase: 03
-current_phase_name: Stack local observável
-status: executing
-stopped_at: Completed 03-04-PLAN.md
-last_updated: "2026-10-17T14:10:51.292Z"
+current_phase: 4
+current_phase_name: Kubernetes no kind e entrega contínua
+status: planning
+stopped_at: Phase 03 complete, ready to plan Phase 4
+last_updated: "2026-10-17T14:52:04.275Z"
 last_activity: 2026-10-17
-last_activity_desc: Phase 03 execution started
-state_head: b8d105947510e172f5263f75eb14a19c5150739a
+last_activity_desc: Phase 03 complete, transitioned to Phase 4
+state_head: 7e705b5974eab1edfdf58f46cb21adbad09c9275
 progress:
   total_phases: 5
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 21
   completed_plans: 21
-  percent: 40
+  percent: 60
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-10-11)
+See: .planning/PROJECT.md (updated 2026-10-17)
 
 **Core value:** Um avaliador clona o repositório, roda `make up` (compose) ou `make k8s` (kind + Prometheus/Grafana) e vê um encurtador funcionando de ponta a ponta, com redirect rápido via cache e métricas reais nos dashboards versionados.
-**Current focus:** Phase 03 — Stack local observável
+**Current focus:** Phase 4 — Kubernetes no kind e entrega contínua
 
 ## Current Position
 
-Phase: 03 (Stack local observável) — EXECUTING
-Plan: 4 of 4
-Status: Ready to execute
-Last activity: 2026-10-17 — Phase 03 execution started
+Phase: 4 — Kubernetes no kind e entrega contínua
+Plan: Not started
+Status: Ready to plan
+Last activity: 2026-10-17 — Phase 03 complete, transitioned to Phase 4
 
-Progress: [████░░░░░░] 40%
+Progress: [██████░░░░] 60%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 17
+- Total plans completed: 21
 - Average duration: -
 - Total execution time: 0.0 hours
 
@@ -48,6 +48,7 @@ Progress: [████░░░░░░] 40%
 |-------|-------|-------|----------|
 | 1 | 8 | - | - |
 | 02 | 9 | - | - |
+| 03 | 4 | - | - |
 
 **Recent Trend:**
 
@@ -150,7 +151,8 @@ None yet.
 
 - [Phase 1 → todas]: `linkpulse.code.alphabet`/`multiplier` são contrato one-way: mudar depois altera os códigos já emitidos
 - [Phase 1]: Loop de redirect via DNS segue como mitigação parcial (T-08-06), agora reforçada pelo rate limit por IP entregue na Phase 2
-- [Phase 2 → 3]: `maxmemory-policy volatile-lru` precisa ir para o Valkey do `make up` (e do kind na Phase 4); `LINKPULSE_IP_HASH_KEY` obrigatória fora do dev; seed/k6 precisam de UA de navegador ou `includeBots=true`
+- [Phase 3 → 4]: levar ao kind `maxmemory-policy volatile-lru` no Valkey, `LINKPULSE_IP_HASH_KEY` obrigatória e o job `link-pulse` no ServiceMonitor; smoke precisa de UA de navegador ou `includeBots=true`
+- [Phase 3]: WR-04 aceito na UAT: o runbook de lag não menciona que entradas nunca entregues e aparadas pelo MAXLEN não entram em `linkpulse_clicks_lost_total`
 - [Phase 2]: WR-01 aceito na UAT: com Valkey pausado/particionado, requisições concorrentes no fim da janela de bypass pagam ~150 ms (limitação conhecida, documentada)
 - [Phase 4]: Pesquisar versões atuais dos charts Traefik, kube-prometheus-stack e metrics-server, seletores (`*SelectorNilUsesHelmValues`) e sidecar de dashboards
 - [Phase 5]: Spike do token do LocalStack Hobby e do `mock_provider`; sem token, a validação fica nas camadas lint + `terraform test`
@@ -178,6 +180,6 @@ Itens reconhecidos e adiados no fechamento de milestone, do mais recente para o 
 
 ## Session Continuity
 
-Last session: 2026-10-17T14:10:51.134Z
-Stopped at: Completed 03-04-PLAN.md
+Last session: 2026-10-17
+Stopped at: Phase 03 complete, ready to plan Phase 4
 Resume file: None
