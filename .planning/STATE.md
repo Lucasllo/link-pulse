@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 03
 current_phase_name: Stack local observável
 status: executing
-stopped_at: Completed 03-02-PLAN.md
-last_updated: "2026-10-17T13:43:05.568Z"
+stopped_at: Completed 03-03-PLAN.md
+last_updated: "2026-10-17T13:57:18.271Z"
 last_activity: 2026-10-17
 last_activity_desc: Phase 03 execution started
-state_head: 23b98a2ba3cc81d42e8742b44c04c3f1c07ebcd2
+state_head: 32394a47a157f0826335ca8409cd31d51ae61876
 progress:
   total_phases: 5
   completed_phases: 2
   total_plans: 21
-  completed_plans: 19
+  completed_plans: 20
   percent: 40
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-10-11)
 ## Current Position
 
 Phase: 03 (Stack local observável) — EXECUTING
-Plan: 2 of 4
+Plan: 3 of 4
 Status: Ready to execute
 Last activity: 2026-10-17 — Phase 03 execution started
 
@@ -77,6 +77,7 @@ Progress: [████░░░░░░] 40%
 | Phase 02 P08 | 28min | 3 tasks | 6 files |
 | Phase 02 P09 | 21 min | 3 tasks | 14 files |
 | Phase 03 P02 | 14min | 3 tasks | 8 files |
+| Phase 03 P03 | 9min | 3 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -134,6 +135,9 @@ Decisões recentes que afetam o trabalho atual:
 - [Phase 02]: A2 confirmada: ErrorResponseException no preHandle vira 429 problem+json com Retry-After pelo GlobalExceptionHandler
 - [Phase 03]: 03-02: home do Grafana por GF_USERS_HOME_PAGE=/d/link-pulse-overview; no Grafana 13 o GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH vira o dashboard sintético default-home-dashboard, que o anônimo não lê (403)
 - [Phase 03]: 03-02: Grafana 13.2.3 carrega dashboards em JSON clássico pelo provisioning por arquivo sem feature toggles (A1 confirmado)
+- [Phase 03]: 03-03: alertas com limiares 5xx>5%/5m, p99 redirect>500ms/5m, lag ou pendentes>1000/5m (max + or), TargetDown up==0 or absent (1m); runbooks por runbook_url na main do GitHub; sem Alertmanager
+- [Phase 03]: 03-03: make obs-check roda promtool check config + test rules na imagem prom/prometheus:v3.15.0; NaN no promtool usa a notação NaN+0x40
+- [Phase 03]: 03-03: Phase 4 deve manter o job link-pulse no ServiceMonitor (nome do Service ou jobLabel) e levar observability/ ao kind sem cópia (ConfigMaps grafana_dashboard, PrometheusRule a partir de groups:)
 
 ### Pending Todos
 
@@ -171,6 +175,6 @@ Itens reconhecidos e adiados no fechamento de milestone, do mais recente para o 
 
 ## Session Continuity
 
-Last session: 2026-10-17T13:43:05.416Z
-Stopped at: Completed 03-02-PLAN.md
+Last session: 2026-10-17T13:57:18.113Z
+Stopped at: Completed 03-03-PLAN.md
 Resume file: None

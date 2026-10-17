@@ -83,8 +83,8 @@ Requisitos da entrega inicial. Cada um é mapeado para uma fase do roadmap.
 - [x] **OBS-01**: App expõe métricas Micrometer/Prometheus (requisições, latência, cache hit/miss, cliques, pipeline) sem tags de alta cardinalidade
 - [x] **OBS-02**: Dashboard Grafana versionado em JSON com taxa de requisições, latência p95/p99, cache hit ratio e cliques/min
 - [x] **OBS-03**: Dashboard de saúde do pipeline de cliques (lag, pendentes, descartados)
-- [ ] **OBS-04**: Alertas Prometheus: taxa de 5xx, latência p99 alta, lag do consumer e target down, cada um com runbook
-- [ ] **OBS-05**: Dashboards e regras vêm de uma fonte única (`observability/`), usada pelo compose e pelo kind
+- [x] **OBS-04**: Alertas Prometheus: taxa de 5xx, latência p99 alta, lag do consumer e target down, cada um com runbook
+- [x] **OBS-05**: Dashboards e regras vêm de uma fonte única (`observability/`), usada pelo compose e pelo kind
 
 ### AWS / Terraform
 
@@ -187,8 +187,8 @@ Rastreabilidade: quais fases cobrem quais requisitos. Preenchido na criação do
 | OBS-01 | Phase 2 | Complete |
 | OBS-02 | Phase 3 | Complete |
 | OBS-03 | Phase 3 | Complete |
-| OBS-04 | Phase 3 | Pending |
-| OBS-05 | Phase 3 | Pending |
+| OBS-04 | Phase 3 | Complete |
+| OBS-05 | Phase 3 | Complete |
 | IAC-01 | Phase 5 | Pending |
 | IAC-02 | Phase 5 | Pending |
 | IAC-03 | Phase 5 | Pending |
