@@ -10,7 +10,7 @@ COMPOSE := docker compose -f compose.dev.yaml
 NOCONV := MSYS_NO_PATHCONV=1 MSYS2_ARG_CONV_EXCL='*'
 STACK := $(NOCONV) docker compose
 
-.PHONY: help build test verify run db-up db-down up down clean image seed
+.PHONY: help build test verify run db-up db-down up down clean image seed obs-check
 
 help: ## Lista os alvos disponíveis
 	@grep -E '^[a-zA-Z_-]+:.*?## ' Makefile | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-10s %s\n", $$1, $$2}'
@@ -49,3 +49,10 @@ image: ## Builda só a imagem local do app (link-pulse:local)
 # os logs do seed continuam.
 seed: ## Popula links e cliques de demonstração (k6 em container)
 	$(STACK) run --rm -T k6 run --quiet seed.js
+
+# promtool da própria imagem do Prometheus: nenhuma ferramenta nova no host. --no-deps: só o
+# container efêmero, sem subir a stack. Os caminhos absolutos chegam intactos ao docker.exe no
+# Git Bash por causa do NOCONV dentro de STACK.
+obs-check: ## Valida a config e as regras do Prometheus (promtool da imagem oficial)
+	$(STACK) run --rm --no-deps -T --entrypoint promtool prometheus check config /etc/prometheus/prometheus.yml
+	$(STACK) run --rm --no-deps -T --entrypoint promtool prometheus test rules /etc/prometheus/tests/link-pulse-alerts-test.yml

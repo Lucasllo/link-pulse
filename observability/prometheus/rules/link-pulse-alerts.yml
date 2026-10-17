@@ -1,0 +1,20 @@
+# Regras de alerta do Link Pulse. Fonte única: o compose monta ./observability/prometheus em
+# /etc/prometheus (rule_files: /etc/prometheus/rules/*.yml). No kind (Phase 4), o conteúdo de
+# groups: vira o spec de um PrometheusRule, sem cópia deste arquivo.
+# No compose, o Prometheus só relê as regras com SIGHUP: docker compose kill -s SIGHUP prometheus
+# As descrições não usam $value: os testes do promtool comparam o texto exato, e o valor atual
+# aparece na UI do Prometheus.
+groups:
+  - name: link-pulse
+    rules:
+      - alert: LinkPulseTargetDown
+        # == 0 cobre o compose (o scrape falha e up vai a 0). absent() cobre o kind: quando o pod
+        # some, os endpoints do ServiceMonitor somem e a série up deixa de existir.
+        expr: up{job="link-pulse"} == 0 or absent(up{job="link-pulse"})
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Prometheus não consegue raspar o Link Pulse"
+          description: "O target do job link-pulse está fora há mais de 1 min."
+          runbook_url: https://github.com/Lucasllo/link-pulse/blob/main/observability/runbooks/LinkPulseTargetDown.md

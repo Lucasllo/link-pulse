@@ -1,0 +1,47 @@
+# Testes de unidade das regras de alerta. Rodar com make obs-check (promtool da imagem do
+# Prometheus, nenhuma ferramenta no host). O caminho de rule_files é relativo a este arquivo.
+rule_files:
+  - ../rules/link-pulse-alerts.yml
+
+evaluation_interval: 15s
+
+tests:
+  # TargetDown no compose: o scrape falha e up vai a 0.
+  - interval: 15s
+    input_series:
+      - series: 'up{job="link-pulse", instance="app:8081"}'
+        values: '1 1 0x10'
+    alert_rule_test:
+      # 1 min depois: ainda dentro do for de 1 min, nada firing.
+      - eval_time: 1m
+        alertname: LinkPulseTargetDown
+        exp_alerts: []
+      - eval_time: 2m
+        alertname: LinkPulseTargetDown
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              job: link-pulse
+              instance: "app:8081"
+            exp_annotations:
+              summary: "Prometheus não consegue raspar o Link Pulse"
+              description: "O target do job link-pulse está fora há mais de 1 min."
+              runbook_url: https://github.com/Lucasllo/link-pulse/blob/main/observability/runbooks/LinkPulseTargetDown.md
+
+  # TargetDown no kind: a série up do job some junto com o pod (Pitfall 15).
+  - interval: 15s
+    input_series:
+      - series: 'up{job="prometheus", instance="localhost:9090"}'
+        values: '1x10'
+    alert_rule_test:
+      - eval_time: 2m
+        alertname: LinkPulseTargetDown
+        exp_alerts:
+          # absent() deriva o rótulo job do matcher de igualdade.
+          - exp_labels:
+              severity: critical
+              job: link-pulse
+            exp_annotations:
+              summary: "Prometheus não consegue raspar o Link Pulse"
+              description: "O target do job link-pulse está fora há mais de 1 min."
+              runbook_url: https://github.com/Lucasllo/link-pulse/blob/main/observability/runbooks/LinkPulseTargetDown.md
