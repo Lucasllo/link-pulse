@@ -10,7 +10,7 @@ COMPOSE := docker compose -f compose.dev.yaml
 NOCONV := MSYS_NO_PATHCONV=1 MSYS2_ARG_CONV_EXCL='*'
 STACK := $(NOCONV) docker compose
 
-.PHONY: help build test verify run db-up db-down up down clean image
+.PHONY: help build test verify run db-up db-down up down clean image seed
 
 help: ## Lista os alvos disponíveis
 	@grep -E '^[a-zA-Z_-]+:.*?## ' Makefile | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-10s %s\n", $$1, $$2}'
@@ -44,3 +44,8 @@ clean: ## Para a stack completa e apaga os volumes
 
 image: ## Builda só a imagem local do app (link-pulse:local)
 	$(STACK) build app
+
+# -T: sem TTY (funciona no Git Bash/mintty e no CI); --quiet: sem barra de progresso, o resumo e
+# os logs do seed continuam.
+seed: ## Popula links e cliques de demonstração (k6 em container)
+	$(STACK) run --rm -T k6 run --quiet seed.js

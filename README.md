@@ -37,6 +37,7 @@ Rode da raiz do repositório.
 | `make down` | `docker compose down` | Para a stack completa (mantém os volumes) |
 | `make clean` | `docker compose down -v --remove-orphans` | Para a stack completa e apaga os volumes |
 | `make image` | `docker compose build app` | Builda só a imagem local do app (`link-pulse:local`) |
+| `make seed` | `docker compose run --rm -T k6 run --quiet seed.js` | Popula links e cliques de demonstração com o k6 em container (rode depois do `make up`) |
 
 No **PowerShell**, use o `mvnw.cmd`:
 
@@ -100,7 +101,7 @@ O `compose.yaml` da raiz builda a imagem `link-pulse:local` (multi-stage, layere
 | `valkey` | Cache do redirect, stream de cliques e rate limit | — |
 | `mongo` | Eventos de clique (`click_events`) | — |
 | `prometheus` | Raspa as métricas do app a cada 15 s e guarda 7 dias | <http://localhost:9090> |
-| `grafana` | Datasource Prometheus provisionado por arquivo; leitura anônima, admin `admin`/`admin` por padrão | <http://localhost:3000> |
+| `grafana` | Datasource Prometheus e dashboards "Link Pulse" provisionados por arquivo; leitura anônima, admin `admin`/`admin` por padrão | <http://localhost:3000> |
 
 - **Portas**: só 8080, 3000 e 9090 são publicadas, e todas em `127.0.0.1`. A 8081 (actuator) e os bancos ficam só na rede interna do compose; o Prometheus raspa `app:8081/actuator/prometheus` por dentro dela. Para ver o health: `docker compose exec app curl -s http://localhost:8081/actuator/health`.
 - **Profile `prod`**: o app recebe conexões e chaves por variável de ambiente e **não** aplica o seed `demo-link` do Liquibase (ele é só do profile dev). Crie links com o `POST /links` da seção "API".
@@ -108,6 +109,24 @@ O `compose.yaml` da raiz builda a imagem `link-pulse:local` (multi-stage, layere
 - **`make run` e `make up` não rodam ao mesmo tempo**: os dois usam a 8080. Já `make db-up` e `make up` convivem, porque são projetos compose separados: `linkpulse` (`compose.yaml`, volumes `linkpulse_*`) e `linkpulse-dev` (`compose.dev.yaml`, volumes `linkpulse-dev_*`). Um `COMPOSE_PROJECT_NAME` definido no ambiente sobrescreve os dois nomes, e aí as stacks voltam a se misturar.
 - **Volumes antigos**: antes do nome de projeto, o `compose.dev.yaml` criava `projeto4_pgdata` e `projeto4_mongodata`. Se existirem, ficaram órfãos (só dados de dev) e saem com `docker volume rm projeto4_pgdata projeto4_mongodata`.
 - `make down` para a stack e mantém os volumes (links, cliques e histórico do Prometheus); `make clean` apaga tudo. O Grafana não tem volume: ele é reconstruído do provisioning a cada recriação.
+
+### Dados de demonstração (make seed)
+
+Roteiro da demonstração:
+
+```bash
+make up      # sobe a stack e espera os healthchecks
+make seed    # sem make: docker compose run --rm -T k6 run --quiet seed.js
+```
+
+Depois, abra <http://localhost:3000>. A home é o dashboard "Link Pulse — Aplicação", e a pasta "Link Pulse" também tem o "Link Pulse — Pipeline de cliques". Os dois vêm do provisioning por arquivo (`observability/grafana/`), sem nenhum clique de configuração.
+
+- **O que o seed cria**: 8 links com alias legível (`spring-docs`, `link-pulse-repo`, `valkey-io`, `k6-docs`, `prometheus-docs`, `grafana-dash`, `mongo-agg` e `promo-30-dias`, este com expiração em 30 dias) e 4 links com código gerado. Depois gera cerca de 1.350 cliques em 45 s, com pesos diferentes por link, para os tops ficarem visíveis. Tudo passa pela API pública (`POST /links`, `HEAD`/`GET /{code}`): nada é escrito direto nos bancos.
+- **User-Agent de navegador**: clientes de linha de comando, inclusive o próprio k6, contam como bot e somem do `/stats` padrão. Por isso os cliques usam User-Agents de navegador variados (Chrome, Safari, Firefox e Edge, em Windows, iPhone, Linux, Android e macOS) e Referers variados (Hacker News, Google, X/Twitter, LinkedIn e acesso direto). Cerca de 5% dos cliques são do Googlebot, de propósito: compare `GET /links/spring-docs/stats` com `GET /links/spring-docs/stats?includeBots=true`.
+- **Pode rodar de novo**: antes de criar cada alias, o seed faz `HEAD /{alias}` (não conta clique nem passa pelo rate limit) e pula os que já existem. Nas execuções seguintes, só os 4 links de código gerado são criados de novo.
+- **Abaixo do rate limit**: o app aceita 20 criações por minuto por IP. A primeira execução faz 12 `POST /links`, e as seguintes, 4. Se outra ordem de comandos encostar no limite, o seed espera o `Retry-After` e tenta uma vez de novo. A última linha do seed mostra quantos 429 vieram (o esperado é 0).
+- **Limitação: "cliques por dia" mostra só o dia de hoje.** O instante do clique é definido pelo servidor, e o seed não faz backfill de dias anteriores (nem insere nada direto no MongoDB). No `daily` do `/stats`, só o dia de hoje tem cliques; os dias anteriores aparecem zerados.
+- No fim, o seed imprime as URLs curtas (por exemplo <http://localhost:8080/spring-docs>), os totais do `spring-docs` com e sem bots e a URL do Grafana.
 
 ## API
 
