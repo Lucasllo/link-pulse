@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 03
 current_phase_name: Stack local observável
 status: executing
-stopped_at: Completed 03-03-PLAN.md
-last_updated: "2026-10-17T13:57:18.271Z"
+stopped_at: Completed 03-04-PLAN.md
+last_updated: "2026-10-17T14:10:51.292Z"
 last_activity: 2026-10-17
 last_activity_desc: Phase 03 execution started
-state_head: 32394a47a157f0826335ca8409cd31d51ae61876
+state_head: b8d105947510e172f5263f75eb14a19c5150739a
 progress:
   total_phases: 5
   completed_phases: 2
   total_plans: 21
-  completed_plans: 20
+  completed_plans: 21
   percent: 40
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-10-11)
 ## Current Position
 
 Phase: 03 (Stack local observável) — EXECUTING
-Plan: 3 of 4
+Plan: 4 of 4
 Status: Ready to execute
 Last activity: 2026-10-17 — Phase 03 execution started
 
@@ -78,6 +78,7 @@ Progress: [████░░░░░░] 40%
 | Phase 02 P09 | 21 min | 3 tasks | 14 files |
 | Phase 03 P02 | 14min | 3 tasks | 8 files |
 | Phase 03 P03 | 9min | 3 tasks | 9 files |
+| Phase 03 P04 | 11min | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -138,6 +139,8 @@ Decisões recentes que afetam o trabalho atual:
 - [Phase 03]: 03-03: alertas com limiares 5xx>5%/5m, p99 redirect>500ms/5m, lag ou pendentes>1000/5m (max + or), TargetDown up==0 or absent (1m); runbooks por runbook_url na main do GitHub; sem Alertmanager
 - [Phase 03]: 03-03: make obs-check roda promtool check config + test rules na imagem prom/prometheus:v3.15.0; NaN no promtool usa a notação NaN+0x40
 - [Phase 03]: 03-03: Phase 4 deve manter o job link-pulse no ServiceMonitor (nome do Service ou jobLabel) e levar observability/ ao kind sem cópia (ConfigMaps grafana_dashboard, PrometheusRule a partir de groups:)
+- [Phase 03]: 03-04: k6 2.3.0 confirma --summary-export (A5) e a tag scenario (A4); perfil de D-10 passa num i7-4790/Docker Desktop com redirect p95 3,18 ms/p99 9,29 ms, create p95 39,31 ms, 0 erro e zero 429 na sequência clean→up→seed→load
+- [Phase 03]: 03-04: K6_USER (uid:gid do host) exportado pelo Makefile vira o user do serviço k6; o load-summary.json é versionado como saída crua do make load
 
 ### Pending Todos
 
@@ -175,6 +178,6 @@ Itens reconhecidos e adiados no fechamento de milestone, do mais recente para o 
 
 ## Session Continuity
 
-Last session: 2026-10-17T13:57:18.113Z
-Stopped at: Completed 03-03-PLAN.md
+Last session: 2026-10-17T14:10:51.134Z
+Stopped at: Completed 03-04-PLAN.md
 Resume file: None

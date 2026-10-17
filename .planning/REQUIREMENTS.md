@@ -96,7 +96,7 @@ Requisitos da entrega inicial. Cada um é mapeado para uma fase do roadmap.
 
 ### Carga e documentação
 
-- [ ] **LOAD-01**: Teste de carga k6 (redirect e criação) sem seguir redirects, com thresholds de p95/p99 e taxa de erro
+- [x] **LOAD-01**: Teste de carga k6 (redirect e criação) sem seguir redirects, com thresholds de p95/p99 e taxa de erro
 - [ ] **DOC-01**: README em pt-BR com diagrama de arquitetura, instruções `make up`/`make k8s`, resultados do k6 e prints dos dashboards
 - [ ] **DOC-02**: README documenta os trade-offs (302 vs 301, Valkey, coleção normal vs time-series, validação do Terraform em camadas, Boot 4.1, Mongo na AWS via DocumentDB/Atlas)
 
@@ -194,7 +194,7 @@ Rastreabilidade: quais fases cobrem quais requisitos. Preenchido na criação do
 | IAC-03 | Phase 5 | Pending |
 | IAC-04 | Phase 5 | Pending |
 | IAC-05 | Phase 5 | Pending |
-| LOAD-01 | Phase 3 | Pending |
+| LOAD-01 | Phase 3 | Complete |
 | DOC-01 | Phase 5 | Pending |
 | DOC-02 | Phase 5 | Pending |
 
