@@ -38,6 +38,7 @@ Rode da raiz do repositório.
 | `make clean` | `docker compose down -v --remove-orphans` | Para a stack completa e apaga os volumes |
 | `make image` | `docker compose build app` | Builda só a imagem local do app (`link-pulse:local`) |
 | `make seed` | `docker compose run --rm -T k6 run --quiet seed.js` | Popula links e cliques de demonstração com o k6 em container (rode depois do `make up`) |
+| `make load` | `K6_USER="$(id -u):$(id -g)" docker compose run --rm -T k6 run --quiet --summary-export=results/load-summary.json load.js` | Teste de carga k6 com resumo em `load/results/load-summary.json` (rode depois do `make up`) |
 | `make obs-check` | `docker compose run --rm --no-deps -T --entrypoint promtool prometheus check config /etc/prometheus/prometheus.yml` e `docker compose run --rm --no-deps -T --entrypoint promtool prometheus test rules /etc/prometheus/tests/link-pulse-alerts-test.yml` | Valida a config e as regras de alerta do Prometheus com o `promtool` da própria imagem (no Git Bash sem make, prefixe cada comando com `MSYS_NO_PATHCONV=1`) |
 
 No **PowerShell**, use o `mvnw.cmd`:
@@ -128,6 +129,29 @@ Depois, abra <http://localhost:3000>. A home é o dashboard "Link Pulse — Apli
 - **Abaixo do rate limit**: o app aceita 20 criações por minuto por IP. A primeira execução faz 12 `POST /links`, e as seguintes, 4. Se outra ordem de comandos encostar no limite, o seed espera o `Retry-After` e tenta uma vez de novo. A última linha do seed mostra quantos 429 vieram (o esperado é 0).
 - **Limitação: "cliques por dia" mostra só o dia de hoje.** O instante do clique é definido pelo servidor, e o seed não faz backfill de dias anteriores (nem insere nada direto no MongoDB). No `daily` do `/stats`, só o dia de hoje tem cliques; os dias anteriores aparecem zerados.
 - No fim, o seed imprime as URLs curtas (por exemplo <http://localhost:8080/spring-docs>), os totais do `spring-docs` com e sem bots e a URL do Grafana.
+
+### Teste de carga (make load)
+
+```bash
+make up      # se a stack ainda não estiver de pé
+make seed    # opcional: pode rodar logo antes, sem 429
+make load    # sem make: K6_USER="$(id -u):$(id -g)" docker compose run --rm -T k6 run --quiet --summary-export=results/load-summary.json load.js
+```
+
+O script é o [`load/load.js`](load/load.js), e o k6 (`grafana/k6:2.3.0`) roda em container na rede do compose, sem nada instalado no host. São cerca de 2,5 min:
+
+| Cenário | Carga | Quando |
+|---------|-------|--------|
+| `warmup` | `GET /{code}` a 50 req/s | 0 a 30 s; aquece a JVM e fica fora dos thresholds |
+| `redirect` | `GET /{code}` a 200 req/s | 30 s a 2 min 30 s |
+| `create` | `POST /links` a 12 por minuto | 60 s a 2 min 30 s |
+
+- **Thresholds**: redirect com p95 < 50 ms e p99 < 100 ms; criação com p95 < 200 ms; taxa de erro (`http_req_failed`) abaixo de 1% em cada cenário; e mais de 99% dos checks passando. Se algum falhar, o k6 sai com erro (código 99) e o `make load` também.
+- **Mede só a API**: o k6 nunca segue o 302 (`maxRedirects: 0` e `redirects: 0` em cada requisição) e confere `status === 302`, então nenhuma requisição chega aos sites de destino. Ele também manda User-Agent de navegador; com o UA padrão do k6, os cliques contariam como bot. Por isso os cerca de 25 mil cliques da carga entram no pipeline e aparecem nos dashboards e no `/stats` padrão dos 5 links que o teste cria.
+- **Abaixo do rate limit**: o app aceita 20 criações por minuto por IP. O setup cria 5 links, e o cenário de criação faz 12 por minuto e só começa 60 s depois do setup, sempre numa janela posterior. Por isso `make load` logo depois do `make seed` não recebe 429.
+- **Resumo**: o resumo nativo do k6 sai no terminal, e a mesma execução grava [`load/results/load-summary.json`](load/results/load-summary.json), com p95/p99 por cenário. O arquivo é versionado e regravado a cada execução, e os números dependem da máquina. Não há remote write para o Prometheus: os dashboards mostram a carga pelo lado do servidor.
+- **Linux**: o container grava o JSON no diretório `load/results` do host. O `make load` exporta `K6_USER` com o seu `uid:gid`, para o container ter permissão de escrita ali; sem make, passe `K6_USER="$(id -u):$(id -g)"` como no comando acima. No Docker Desktop (Windows e macOS), qualquer usuário grava.
+- **Durante o teste**, abra o dashboard "Link Pulse — Aplicação" em <http://localhost:3000> para ver, pelo lado do servidor, as requisições por segundo, o p95/p99 do redirect e da criação, o hit ratio do cache e os cliques por minuto. O "Link Pulse — Pipeline de cliques" mostra os pendentes subindo e voltando a 0 depois da carga.
 
 ## Observabilidade
 
