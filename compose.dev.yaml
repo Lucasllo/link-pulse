@@ -2,6 +2,8 @@
 # MongoDB 8.0. Sem make: docker compose -f compose.dev.yaml up -d --wait
 # Credenciais fixas só para desenvolvimento local; prod recebe SPRING_DATASOURCE_*,
 # SPRING_DATA_REDIS_HOST/SPRING_DATA_REDIS_PORT e SPRING_MONGODB_URI por env.
+name: linkpulse-dev
+
 services:
   postgres:
     image: postgres:18.6
@@ -16,7 +18,7 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U linkpulse -d linkpulse"]
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U linkpulse -d linkpulse"]
       interval: 5s
       timeout: 3s
       retries: 10

@@ -1,0 +1,130 @@
+# Stack completa do make up: app, Postgres 18, Valkey 8.1, MongoDB 8.0, Prometheus e Grafana.
+# Sem make: docker compose up -d --build --wait
+# Os valores com default abaixo são de demonstração e não são segredo; sobrescreva por variável
+# de ambiente ou .env (ignorado pelo git). Para trocar a senha do Postgres depois do primeiro up,
+# rode make clean: a senha só vale na criação do volume.
+# Só 8080 (API), 3000 (Grafana) e 9090 (Prometheus) são publicadas, e só no loopback.
+name: linkpulse
+
+services:
+  # Dependências duplicadas do compose.dev.yaml, sem portas publicadas: manter as tags iguais às
+  # do compose.dev.yaml.
+  postgres:
+    image: postgres:18.6
+    environment:
+      POSTGRES_DB: linkpulse
+      POSTGRES_USER: linkpulse
+      # Não é segredo: default de demonstração.
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-linkpulse}
+    # Postgres 18 mudou o PGDATA para /var/lib/postgresql/18/docker; monta-se o diretório pai.
+    volumes:
+      - pgdata:/var/lib/postgresql
+    healthcheck:
+      # -h 127.0.0.1: por TCP, para não dar "pronto" no servidor temporário do initdb (só socket).
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U linkpulse -d linkpulse"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  # Cache do redirect e stream de cliques. volatile-lru só despeja chaves com TTL, como no ElastiCache.
+  valkey:
+    image: valkey/valkey:8.1
+    command: ["valkey-server", "--maxmemory", "256mb", "--maxmemory-policy", "volatile-lru"]
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  # Eventos de clique (click_events). Sem autenticação: fica só na rede interna.
+  mongo:
+    image: mongo:8.0
+    # Cache do WiredTiger pequeno: amigável a laptop.
+    command: ["mongod", "--wiredTigerCacheSizeGB", "0.25"]
+    volumes:
+      - mongodata:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping')"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  app:
+    build: ./app
+    # Tag fixa (nunca latest): a Phase 4 faz kind load dela sem o Kubernetes tentar puxar.
+    image: link-pulse:local
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/linkpulse
+      SPRING_DATASOURCE_USERNAME: linkpulse
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-linkpulse}
+      SPRING_DATA_REDIS_HOST: valkey
+      SPRING_DATA_REDIS_PORT: "6379"
+      SPRING_MONGODB_URI: mongodb://mongo:27017/linkpulse
+      # Não é segredo: default de demonstração (fora do compose a chave continua obrigatória).
+      LINKPULSE_IP_HASH_KEY: ${LINKPULSE_IP_HASH_KEY:-compose-demo-ip-hash-key-not-a-secret}
+      LINKPULSE_BASE_URL: http://localhost:8080
+      # Impede link apontando para o próprio app pela rede interna.
+      LINKPULSE_SELF_HOSTS: app
+    # 8081 (actuator) fica só na rede interna; o Prometheus raspa app:8081.
+    ports:
+      - "127.0.0.1:8080:8080"
+    # Cada fase do shutdown espera até 30 s; o default de 10 s mataria o lote em andamento.
+    stop_grace_period: 45s
+    depends_on:
+      postgres:
+        condition: service_healthy
+      valkey:
+        condition: service_healthy
+      mongo:
+        condition: service_healthy
+
+  # Sem depends_on do app: a observabilidade sobe mesmo se o app falhar.
+  prometheus:
+    image: prom/prometheus:v3.15.0
+    # Substituir o command apaga o CMD da imagem: --config.file e --storage.tsdb.path precisam voltar.
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=7d
+    volumes:
+      # Diretório, não arquivo único: o bind de arquivo perde edições que trocam o inode.
+      - ./observability/prometheus:/etc/prometheus:ro
+      - promdata:/prometheus
+    ports:
+      - "127.0.0.1:9090:9090"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://localhost:9090/-/ready"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  # Sem volume de dados: o Grafana é reconstruído do provisioning a cada recriação.
+  grafana:
+    image: grafana/grafana:13.2.3
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      # Não é segredo: default de demonstração.
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      # Leitura sem login; o papel anônimo é só Viewer, nunca Editor nem Admin.
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+    volumes:
+      - ./observability/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
+    ports:
+      - "127.0.0.1:3000:3000"
+    depends_on:
+      prometheus:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://localhost:3000/api/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+volumes:
+  pgdata: {}
+  mongodata: {}
+  promdata: {}

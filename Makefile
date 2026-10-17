@@ -4,8 +4,13 @@
 # Dependências locais sem make: docker compose -f compose.dev.yaml up -d --wait (e ... down)
 MVNW := cd app && ./mvnw -B -ntp
 COMPOSE := docker compose -f compose.dev.yaml
+# Stack completa (compose.yaml). Sem make: docker compose up -d --build --wait (e down, down -v, build app)
+STACK := docker compose
+# Git Bash: impede a conversão de argumentos /caminho quando o sh chama o docker.exe.
+export MSYS_NO_PATHCONV := 1
+export MSYS2_ARG_CONV_EXCL := *
 
-.PHONY: help build test verify run db-up db-down
+.PHONY: help build test verify run db-up db-down up down clean image
 
 help: ## Lista os alvos disponíveis
 	@grep -E '^[a-zA-Z_-]+:.*?## ' Makefile | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-10s %s\n", $$1, $$2}'
@@ -27,3 +32,15 @@ db-up: ## Sobe as dependências locais do compose.dev.yaml e espera os healthche
 
 db-down: ## Para as dependências locais (mantém os volumes)
 	$(COMPOSE) down
+
+up: ## Builda a imagem e sobe a stack completa, esperando os healthchecks
+	$(STACK) up -d --build --wait
+
+down: ## Para a stack completa (mantém os volumes)
+	$(STACK) down
+
+clean: ## Para a stack completa e apaga os volumes
+	$(STACK) down -v --remove-orphans
+
+image: ## Builda só a imagem local do app (link-pulse:local)
+	$(STACK) build app
