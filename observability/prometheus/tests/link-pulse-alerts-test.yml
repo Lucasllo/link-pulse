@@ -45,3 +45,102 @@ tests:
               summary: "Prometheus não consegue raspar o Link Pulse"
               description: "O target do job link-pulse está fora há mais de 1 min."
               runbook_url: https://github.com/Lucasllo/link-pulse/blob/main/observability/runbooks/LinkPulseTargetDown.md
+
+  # 5xx: 10% das respostas da API são 500 (dispara). A série do actuator, com muito volume e só
+  # 200, fica fora do cálculo; se entrasse no denominador, a taxa cairia abaixo de 5%.
+  - interval: 15s
+    input_series:
+      - series: 'http_server_requests_seconds_count{uri="/{code:[A-Za-z0-9_-]+}", method="GET", status="302"}'
+        values: '0+90x40'
+      - series: 'http_server_requests_seconds_count{uri="/{code:[A-Za-z0-9_-]+}", method="GET", status="500"}'
+        values: '0+10x40'
+      - series: 'http_server_requests_seconds_count{uri="/actuator/prometheus", method="GET", status="200"}'
+        values: '0+1000x40'
+    alert_rule_test:
+      - eval_time: 10m
+        alertname: LinkPulseHigh5xxRate
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+            exp_annotations:
+              summary: "Mais de 5% das respostas da API são 5xx"
+              description: "A taxa de respostas 5xx da API passou de 5% por 5 min."
+              runbook_url: https://github.com/Lucasllo/link-pulse/blob/main/observability/runbooks/LinkPulseHigh5xxRate.md
+
+  # 5xx: 1% das respostas são 500 (não dispara).
+  - interval: 15s
+    input_series:
+      - series: 'http_server_requests_seconds_count{uri="/{code:[A-Za-z0-9_-]+}", method="GET", status="302"}'
+        values: '0+99x40'
+      - series: 'http_server_requests_seconds_count{uri="/{code:[A-Za-z0-9_-]+}", method="GET", status="500"}'
+        values: '0+1x40'
+    alert_rule_test:
+      - eval_time: 10m
+        alertname: LinkPulseHigh5xxRate
+        exp_alerts: []
+
+  # p99 do redirect: todas as requisições entre 100 ms e 1 s, p99 perto de 1 s (dispara).
+  - interval: 15s
+    input_series:
+      - series: 'http_server_requests_seconds_bucket{uri="/{code:[A-Za-z0-9_-]+}", le="0.1"}'
+        values: '0x40'
+      - series: 'http_server_requests_seconds_bucket{uri="/{code:[A-Za-z0-9_-]+}", le="1.0"}'
+        values: '0+60x40'
+      - series: 'http_server_requests_seconds_bucket{uri="/{code:[A-Za-z0-9_-]+}", le="+Inf"}'
+        values: '0+60x40'
+    alert_rule_test:
+      - eval_time: 10m
+        alertname: LinkPulseHighP99Latency
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+            exp_annotations:
+              summary: "p99 do redirect acima de 500 ms"
+              description: "O p99 do GET /{code} ficou acima de 500 ms por 5 min."
+              runbook_url: https://github.com/Lucasllo/link-pulse/blob/main/observability/runbooks/LinkPulseHighP99Latency.md
+
+  # p99 do redirect: todas as requisições abaixo de 100 ms (não dispara).
+  - interval: 15s
+    input_series:
+      - series: 'http_server_requests_seconds_bucket{uri="/{code:[A-Za-z0-9_-]+}", le="0.1"}'
+        values: '0+60x40'
+      - series: 'http_server_requests_seconds_bucket{uri="/{code:[A-Za-z0-9_-]+}", le="1.0"}'
+        values: '0+60x40'
+      - series: 'http_server_requests_seconds_bucket{uri="/{code:[A-Za-z0-9_-]+}", le="+Inf"}'
+        values: '0+60x40'
+    alert_rule_test:
+      - eval_time: 10m
+        alertname: LinkPulseHighP99Latency
+        exp_alerts: []
+
+  # Lag: Mongo fora. O consumer segue lendo (lag 0) e os pendentes crescem; os pendentes
+  # sozinhos disparam.
+  - interval: 15s
+    input_series:
+      - series: 'linkpulse_clicks_stream_lag{job="link-pulse", instance="app:8081"}'
+        values: '0x40'
+      - series: 'linkpulse_clicks_stream_pending{job="link-pulse", instance="app:8081"}'
+        values: '0+500x40'
+    alert_rule_test:
+      - eval_time: 10m
+        alertname: LinkPulseClickConsumerLag
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+            exp_annotations:
+              summary: "Consumer de cliques atrasado"
+              description: "Lag ou pendentes do grupo acima de 1000 entradas por 5 min."
+              runbook_url: https://github.com/Lucasllo/link-pulse/blob/main/observability/runbooks/LinkPulseClickConsumerLag.md
+
+  # Lag: indefinido (NaN) e nada pendente (não dispara: NaN > 1000 é falso). A notação de série
+  # não aceita NaNx40; NaN+0x40 repete o NaN nas 41 amostras.
+  - interval: 15s
+    input_series:
+      - series: 'linkpulse_clicks_stream_lag{job="link-pulse", instance="app:8081"}'
+        values: 'NaN+0x40'
+      - series: 'linkpulse_clicks_stream_pending{job="link-pulse", instance="app:8081"}'
+        values: '0x40'
+    alert_rule_test:
+      - eval_time: 10m
+        alertname: LinkPulseClickConsumerLag
+        exp_alerts: []
