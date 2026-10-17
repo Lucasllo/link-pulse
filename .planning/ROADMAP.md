@@ -125,7 +125,7 @@ Plans:
   4. Dashboards, regras de alerta e datasource (UID fixo) vivem só em `observability/`, e o compose os carrega de lá, sem cópias, prontos para o kind reaproveitar
   5. O teste k6 (redirect e criação, sem seguir redirects) roda contra o compose e passa nos thresholds de p95/p99 e de taxa de erro
 
-**Plans**: 1/4 plans executed
+**Plans**: 2/4 plans executed
 
 Plans:
 **Wave 1**
@@ -134,7 +134,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 03-02-PLAN.md — make seed (k6 em container, UA de navegador, sem 429) e dashboards da aplicação e do pipeline em JSON clássico provisionados de observability/ (wave 2)
+- [x] 03-02-PLAN.md — make seed (k6 em container, UA de navegador, sem 429) e dashboards da aplicação e do pipeline em JSON clássico provisionados de observability/ (wave 2)
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
@@ -184,6 +184,6 @@ As fases seguem a ordem numérica: 1 → 2 → 3 → 4 → 5 (a parte Terraform 
 |-------|----------------|--------|-----------|
 | 1. Fundação e núcleo de links | 8/8 | Complete    | 2026-10-09 |
 | 2. Hot path no Valkey e pipeline de cliques | 9/9 | Complete    | 2026-10-11 |
-| 3. Stack local observável | 1/4 | In Progress|  |
+| 3. Stack local observável | 2/4 | In Progress|  |
 | 4. Kubernetes no kind e entrega contínua | 0/TBD | Not started | - |
 | 5. Terraform AWS e vitrine | 0/TBD | Not started | - |

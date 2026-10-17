@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 03
 current_phase_name: Stack local observável
 status: executing
-stopped_at: Phase 3 context gathered
-last_updated: "2026-10-17T12:43:54.079Z"
+stopped_at: Completed 03-02-PLAN.md
+last_updated: "2026-10-17T13:43:05.568Z"
 last_activity: 2026-10-17
 last_activity_desc: Phase 03 execution started
-state_head: 491228b5247a34e07e6de3ffa0addb95196e8aef
+state_head: 23b98a2ba3cc81d42e8742b44c04c3f1c07ebcd2
 progress:
   total_phases: 5
   completed_phases: 2
   total_plans: 21
-  completed_plans: 17
+  completed_plans: 19
   percent: 40
 ---
 
@@ -28,8 +28,8 @@ See: .planning/PROJECT.md (updated 2026-10-11)
 ## Current Position
 
 Phase: 03 (Stack local observável) — EXECUTING
-Plan: 1 of 4
-Status: Executing Phase 03
+Plan: 2 of 4
+Status: Ready to execute
 Last activity: 2026-10-17 — Phase 03 execution started
 
 Progress: [████░░░░░░] 40%
@@ -76,6 +76,7 @@ Progress: [████░░░░░░] 40%
 | Phase 02 P07 | 18min | 3 tasks | 10 files |
 | Phase 02 P08 | 28min | 3 tasks | 6 files |
 | Phase 02 P09 | 21 min | 3 tasks | 14 files |
+| Phase 03 P02 | 14min | 3 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -131,6 +132,8 @@ Decisões recentes que afetam o trabalho atual:
 - [Phase 02]: Rate limit do POST /links: script Lua de janela fixa (INCR + PEXPIRE quando sem TTL), chave lp:rl:{hmac}:{janela}, fail-open pelo ValkeyAvailability e linkpulse.ratelimit.requests{result}
 - [Phase 02]: IP real só via RemoteIpValve: forward-headers-strategy native e internal-proxies vazio por padrão; SERVER_TOMCAT_REMOTEIP_INTERNAL_PROXIES (forma com _) faz binding; Phase 4 usa o CIDR dos pods do Traefik
 - [Phase 02]: A2 confirmada: ErrorResponseException no preHandle vira 429 problem+json com Retry-After pelo GlobalExceptionHandler
+- [Phase 03]: 03-02: home do Grafana por GF_USERS_HOME_PAGE=/d/link-pulse-overview; no Grafana 13 o GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH vira o dashboard sintético default-home-dashboard, que o anônimo não lê (403)
+- [Phase 03]: 03-02: Grafana 13.2.3 carrega dashboards em JSON clássico pelo provisioning por arquivo sem feature toggles (A1 confirmado)
 
 ### Pending Todos
 
@@ -168,6 +171,6 @@ Itens reconhecidos e adiados no fechamento de milestone, do mais recente para o 
 
 ## Session Continuity
 
-Last session: 2026-10-14T22:39:47.519Z
-Stopped at: Phase 3 context gathered
-Resume file: .planning/phases/03-stack-local-observ-vel/03-CONTEXT.md
+Last session: 2026-10-17T13:43:05.416Z
+Stopped at: Completed 03-02-PLAN.md
+Resume file: None

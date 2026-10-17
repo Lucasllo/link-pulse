@@ -62,7 +62,7 @@ Requisitos da entrega inicial. Cada um é mapeado para uma fase do roadmap.
 - [x] **CONT-01**: Dockerfile multi-stage com layered jar, usuário não-root numérico e HEALTHCHECK
 - [x] **CONT-02**: `make up` sobe via Docker Compose: app, Postgres, Mongo, Valkey, Prometheus e Grafana, com dependências por healthcheck
 - [x] **CONT-03**: Repositório funciona em Windows (Git Bash/WSL) e Linux: `.gitattributes` com LF, `mvnw` executável, caminhos com espaço tratados, instrução de instalação do `make`
-- [ ] **CONT-04**: Script de seed/demo gera links e cliques para popular os dashboards
+- [x] **CONT-04**: Script de seed/demo gera links e cliques para popular os dashboards
 
 ### Kubernetes
 
@@ -81,8 +81,8 @@ Requisitos da entrega inicial. Cada um é mapeado para uma fase do roadmap.
 ### Observabilidade
 
 - [x] **OBS-01**: App expõe métricas Micrometer/Prometheus (requisições, latência, cache hit/miss, cliques, pipeline) sem tags de alta cardinalidade
-- [ ] **OBS-02**: Dashboard Grafana versionado em JSON com taxa de requisições, latência p95/p99, cache hit ratio e cliques/min
-- [ ] **OBS-03**: Dashboard de saúde do pipeline de cliques (lag, pendentes, descartados)
+- [x] **OBS-02**: Dashboard Grafana versionado em JSON com taxa de requisições, latência p95/p99, cache hit ratio e cliques/min
+- [x] **OBS-03**: Dashboard de saúde do pipeline de cliques (lag, pendentes, descartados)
 - [ ] **OBS-04**: Alertas Prometheus: taxa de 5xx, latência p99 alta, lag do consumer e target down, cada um com runbook
 - [ ] **OBS-05**: Dashboards e regras vêm de uma fonte única (`observability/`), usada pelo compose e pelo kind
 
@@ -175,7 +175,7 @@ Rastreabilidade: quais fases cobrem quais requisitos. Preenchido na criação do
 | CONT-01 | Phase 3 | Complete |
 | CONT-02 | Phase 3 | Complete |
 | CONT-03 | Phase 1 | Complete |
-| CONT-04 | Phase 3 | Pending |
+| CONT-04 | Phase 3 | Complete |
 | K8S-01 | Phase 4 | Pending |
 | K8S-02 | Phase 4 | Pending |
 | K8S-03 | Phase 4 | Pending |
@@ -185,8 +185,8 @@ Rastreabilidade: quais fases cobrem quais requisitos. Preenchido na criação do
 | CI-03 | Phase 4 | Pending |
 | CI-04 | Phase 4 | Pending |
 | OBS-01 | Phase 2 | Complete |
-| OBS-02 | Phase 3 | Pending |
-| OBS-03 | Phase 3 | Pending |
+| OBS-02 | Phase 3 | Complete |
+| OBS-03 | Phase 3 | Complete |
 | OBS-04 | Phase 3 | Pending |
 | OBS-05 | Phase 3 | Pending |
 | IAC-01 | Phase 5 | Pending |
