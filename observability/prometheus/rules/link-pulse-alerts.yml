@@ -7,6 +7,48 @@
 groups:
   - name: link-pulse
     rules:
+      - alert: LinkPulseHigh5xxRate
+        # Fração de respostas 5xx da API. As rotas do actuator ficam fora do numerador e do
+        # denominador: o scrape frequente diluiria a taxa e esconderia a falha da API.
+        expr: |
+          sum(rate(http_server_requests_seconds_count{status=~"5..", uri!~"/actuator.*"}[5m]))
+            / sum(rate(http_server_requests_seconds_count{uri!~"/actuator.*"}[5m])) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Mais de 5% das respostas da API são 5xx"
+          description: "A taxa de respostas 5xx da API passou de 5% por 5 min."
+          runbook_url: https://github.com/Lucasllo/link-pulse/blob/main/observability/runbooks/LinkPulseHigh5xxRate.md
+
+      - alert: LinkPulseHighP99Latency
+        # Só o redirect (o caminho quente). O uri é o template do Spring MVC, nunca o código curto.
+        expr: |
+          histogram_quantile(0.99,
+            sum by (le) (rate(http_server_requests_seconds_bucket{uri="/{code:[A-Za-z0-9_-]+}"}[5m]))
+          ) > 0.5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "p99 do redirect acima de 500 ms"
+          description: "O p99 do GET /{code} ficou acima de 500 ms por 5 min."
+          runbook_url: https://github.com/Lucasllo/link-pulse/blob/main/observability/runbooks/LinkPulseHighP99Latency.md
+
+      - alert: LinkPulseClickConsumerLag
+        # As gauges são do grupo (iguais em toda réplica): max(), nunca sum().
+        # Lag sozinho não basta: com o Mongo fora o consumer segue lendo (lag perto de zero) e as
+        # entradas lidas sem XACK crescem nos pendentes; por isso o or.
+        # NaN > 1000 é falso: lag indefinido não dispara.
+        expr: max(linkpulse_clicks_stream_lag) > 1000 or max(linkpulse_clicks_stream_pending) > 1000
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Consumer de cliques atrasado"
+          description: "Lag ou pendentes do grupo acima de 1000 entradas por 5 min."
+          runbook_url: https://github.com/Lucasllo/link-pulse/blob/main/observability/runbooks/LinkPulseClickConsumerLag.md
+
       - alert: LinkPulseTargetDown
         # == 0 cobre o compose (o scrape falha e up vai a 0). absent() cobre o kind: quando o pod
         # some, os endpoints do ServiceMonitor somem e a série up deixa de existir.
