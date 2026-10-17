@@ -5,10 +5,10 @@
 MVNW := cd app && ./mvnw -B -ntp
 COMPOSE := docker compose -f compose.dev.yaml
 # Stack completa (compose.yaml). Sem make: docker compose up -d --build --wait (e down, down -v, build app)
-STACK := docker compose
-# Git Bash: impede a conversão de argumentos /caminho quando o sh chama o docker.exe.
-export MSYS_NO_PATHCONV := 1
-export MSYS2_ARG_CONV_EXCL := *
+# Git Bash: NOCONV impede a conversão de argumentos /caminho quando o sh chama o docker.exe.
+# Vale só para o docker: exportada para o make inteiro, quebra o classpath do ./mvnw.
+NOCONV := MSYS_NO_PATHCONV=1 MSYS2_ARG_CONV_EXCL='*'
+STACK := $(NOCONV) docker compose
 
 .PHONY: help build test verify run db-up db-down up down clean image
 
