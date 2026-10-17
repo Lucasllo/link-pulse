@@ -17,3 +17,18 @@ updates:
       # e a 4.0 ainda está em RC. Reavaliar quando a 3.10.x amadurecer.
       - dependency-name: "org.apache.maven:apache-maven"
         versions: [">= 3.10.0"]
+
+  # Tags das imagens do compose.yaml e do compose.dev.yaml (Postgres, Valkey, Mongo, Prometheus e
+  # Grafana); manter as dependências iguais nos dois arquivos.
+  - package-ecosystem: docker-compose
+    directory: "/"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+
+  # Imagens base do app/Dockerfile (Temurin JDK e JRE).
+  - package-ecosystem: docker
+    directory: "/app"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5

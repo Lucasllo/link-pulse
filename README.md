@@ -2,14 +2,14 @@
 
 ## O que é
 
-Link Pulse é uma API de encurtamento de URLs: cria links curtos (gerados ou com alias) e redireciona para a URL original com 302. Não tem frontend nem autenticação. Este README cobre a Phase 1 (núcleo de links); cache Redis, analytics de cliques, Kubernetes, observabilidade e Terraform entram nas próximas fases.
+Link Pulse é uma API de encurtamento de URLs: cria links curtos (gerados ou com alias) e redireciona para a URL original com 302. Não tem frontend nem autenticação. Este README cobre o núcleo de links, o cache Valkey e o pipeline de cliques (Phase 2) e a stack local observável com `make up` (Phase 3); Kubernetes e Terraform entram nas próximas fases.
 
 Stack: **Java 21**, **Spring Boot 4.1.1**, **PostgreSQL 18**, **Liquibase 5.0.3** e **Maven 3.9.16** via wrapper (`app/mvnw`, sem Maven instalado).
 
 ## Pré-requisitos
 
 - **JDK 21** no `PATH` (Temurin, Oracle ou outro). O Maven não precisa estar instalado: o wrapper baixa a 3.9.16 e confere o SHA-256.
-- **Docker Desktop ligado.** Os testes de integração (`make verify`, Testcontainers) e o Postgres local (`make db-up`, `make run`) precisam do daemon rodando. Com o Docker parado, os ITs falham com `Could not find a valid Docker environment`. Sem Docker, só `make test` (testes unitários) funciona.
+- **Docker Desktop ligado.** Os testes de integração (`make verify`, Testcontainers) e o Postgres local (`make db-up`, `make run`) precisam do daemon rodando. Com o Docker parado, os ITs falham com `Could not find a valid Docker environment`. Sem Docker, só `make test` (testes unitários) funciona. A stack completa (`make up`) também precisa do daemon, e o primeiro build da imagem leva alguns minutos (download das imagens base, do Maven e das dependências); os seguintes usam o cache do BuildKit.
 - **Git Bash ou WSL no Windows.** O `Makefile` e os exemplos usam sintaxe POSIX (`cd app && ./mvnw ...`).
 - **GNU make** (opcional). O **Git Bash não traz make**. No Windows, instale de uma destas formas:
   - `winget install ezwinports.make`
@@ -31,8 +31,12 @@ Rode da raiz do repositório.
 | `make test` | `cd app && ./mvnw -B -ntp test` | Só os testes unitários (não precisa de Docker) |
 | `make verify` | `cd app && ./mvnw -B -ntp verify` | Checkstyle, unitários, ITs com Testcontainers e SpotBugs (precisa de Docker) |
 | `make db-up` | `docker compose -f compose.dev.yaml up -d --wait` | Sobe as dependências locais do `compose.dev.yaml` (Postgres, Valkey e Mongo) e espera os healthchecks |
-| `make db-down` | `docker compose -f compose.dev.yaml down` | Para as dependências locais do `compose.dev.yaml` (Postgres, Valkey e Mongo; mantém os volumes `pgdata` e `mongodata`) |
+| `make db-down` | `docker compose -f compose.dev.yaml down` | Para as dependências locais do `compose.dev.yaml` (Postgres, Valkey e Mongo; mantém os volumes `linkpulse-dev_pgdata` e `linkpulse-dev_mongodata`) |
 | `make run` | `docker compose -f compose.dev.yaml up -d --wait` e depois `cd app && ./mvnw -B -ntp spring-boot:run -Dspring-boot.run.profiles=dev` | Sobe as dependências locais do `compose.dev.yaml` (Postgres, Valkey e Mongo) e a API com o profile `dev` |
+| `make up` | `docker compose up -d --build --wait` | Builda a imagem `link-pulse:local` e sobe app, Postgres, Mongo, Valkey, Prometheus e Grafana na ordem dos healthchecks |
+| `make down` | `docker compose down` | Para a stack completa (mantém os volumes) |
+| `make clean` | `docker compose down -v --remove-orphans` | Para a stack completa e apaga os volumes |
+| `make image` | `docker compose build app` | Builda só a imagem local do app (`link-pulse:local`) |
 
 No **PowerShell**, use o `mvnw.cmd`:
 
@@ -80,6 +84,30 @@ curl -i http://localhost:8080/demo-link
 O redirect continua respondendo 302 pelo Postgres, sem atraso perceptível: o Lettuce tem timeout de comando de 150 ms e de conexão de 250 ms, rejeita comandos na hora com a conexão caída e, depois de uma falha, o cache fica desviado por 2 s (`linkpulse.cache.bypass-cooldown`). A falha aparece em `curl -s http://localhost:8081/actuator/prometheus | grep linkpulse_cache` (`result="error"` e `result="bypass"`) e em `linkpulse_valkey_unavailable_total`. Para voltar: `docker compose -f compose.dev.yaml start valkey`.
 
 Fora do profile dev, as conexões vêm por variável de ambiente: o datasource (`SPRING_DATASOURCE_URL`, `SPRING_DATASOURCE_USERNAME`, `SPRING_DATASOURCE_PASSWORD`), o Valkey (`SPRING_DATA_REDIS_HOST`, `SPRING_DATA_REDIS_PORT`) e o MongoDB (`SPRING_MONGODB_URI`; o banco continua `linkpulse`, fixado em `spring.mongodb.database`). As credenciais `linkpulse` valem só para o Postgres local de desenvolvimento.
+
+## Stack completa (make up)
+
+```bash
+make up      # sem make: docker compose up -d --build --wait
+```
+
+O `compose.yaml` da raiz builda a imagem `link-pulse:local` (multi-stage, layered jar, usuário não-root `10001` e `HEALTHCHECK` no readiness) e sobe seis serviços. O comando só termina quando todos estão healthy, e o app só inicia depois de Postgres, Valkey e Mongo:
+
+| Serviço | O que faz | Porta no host |
+|---------|-----------|---------------|
+| `app` | A API, no profile `prod` | <http://localhost:8080> |
+| `postgres` | Fonte da verdade dos links (Postgres 18) | — |
+| `valkey` | Cache do redirect, stream de cliques e rate limit | — |
+| `mongo` | Eventos de clique (`click_events`) | — |
+| `prometheus` | Raspa as métricas do app a cada 15 s e guarda 7 dias | <http://localhost:9090> |
+| `grafana` | Datasource Prometheus provisionado por arquivo; leitura anônima, admin `admin`/`admin` por padrão | <http://localhost:3000> |
+
+- **Portas**: só 8080, 3000 e 9090 são publicadas, e todas em `127.0.0.1`. A 8081 (actuator) e os bancos ficam só na rede interna do compose; o Prometheus raspa `app:8081/actuator/prometheus` por dentro dela. Para ver o health: `docker compose exec app curl -s http://localhost:8081/actuator/health`.
+- **Profile `prod`**: o app recebe conexões e chaves por variável de ambiente e **não** aplica o seed `demo-link` do Liquibase (ele é só do profile dev). Crie links com o `POST /links` da seção "API".
+- **Defaults de demonstração**: `POSTGRES_PASSWORD`, `LINKPULSE_IP_HASH_KEY` e `GRAFANA_ADMIN_PASSWORD` têm default no `compose.yaml`. Esses valores são de demonstração e **não são segredo**: sobrescreva por variável de ambiente ou num `.env` na raiz (ignorado pelo git). A senha do Postgres só vale na criação do volume; para trocá-la depois do primeiro `up`, rode `make clean`.
+- **`make run` e `make up` não rodam ao mesmo tempo**: os dois usam a 8080. Já `make db-up` e `make up` convivem, porque são projetos compose separados: `linkpulse` (`compose.yaml`, volumes `linkpulse_*`) e `linkpulse-dev` (`compose.dev.yaml`, volumes `linkpulse-dev_*`). Um `COMPOSE_PROJECT_NAME` definido no ambiente sobrescreve os dois nomes, e aí as stacks voltam a se misturar.
+- **Volumes antigos**: antes do nome de projeto, o `compose.dev.yaml` criava `projeto4_pgdata` e `projeto4_mongodata`. Se existirem, ficaram órfãos (só dados de dev) e saem com `docker volume rm projeto4_pgdata projeto4_mongodata`.
+- `make down` para a stack e mantém os volumes (links, cliques e histórico do Prometheus); `make clean` apaga tudo. O Grafana não tem volume: ele é reconstruído do provisioning a cada recriação.
 
 ## API
 
