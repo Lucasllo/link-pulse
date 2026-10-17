@@ -1,0 +1,20 @@
+# Config do Prometheus do compose (make up). No kind (Phase 4) o scrape vem do ServiceMonitor do
+# chart, e o job precisa continuar se chamando link-pulse: o alerta TargetDown filtra por ele.
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+# Regras de alerta versionadas; um glob sem arquivos é aceito.
+rule_files:
+  - /etc/prometheus/rules/*.yml
+
+scrape_configs:
+  # Porta de gerenciamento (8081), alcançada só pela rede interna do compose.
+  - job_name: link-pulse
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ["app:8081"]
+
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]
