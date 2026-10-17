@@ -16,11 +16,87 @@
   "links": [],
   "panels": [
     {
+      "id": 3,
+      "type": "stat",
+      "title": "Requisições/s (API)",
+      "description": "Total de requisições HTTP por segundo na porta da API (8080). O actuator fica de fora.",
+      "gridPos": { "x": 0, "y": 0, "w": 6, "h": 4 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": { "unit": "reqps", "decimals": 1, "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "blue", "value": null }] } },
+        "overrides": []
+      },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "colorMode": "value", "graphMode": "area", "textMode": "auto", "justifyMode": "auto", "orientation": "auto" },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "sum(rate(http_server_requests_seconds_count{uri!~\"/actuator.*\"}[$__rate_interval]))",
+          "legendFormat": "req/s"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "p99 do redirect",
+      "description": "Estimativa do p99 do GET /{code} pelo histogram_quantile: interpolação linear dentro do bucket do histograma do Micrometer, não o valor exato de uma requisição.",
+      "gridPos": { "x": 6, "y": 0, "w": 6, "h": 4 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "orange", "value": 0.1 }, { "color": "red", "value": 0.5 }] },
+          "mappings": [{ "type": "special", "options": { "match": "nan", "result": { "text": "sem tráfego", "index": 0 } } }]
+        },
+        "overrides": []
+      },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "colorMode": "value", "graphMode": "area", "textMode": "auto", "justifyMode": "auto", "orientation": "auto" },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "histogram_quantile(0.99, sum by (le) (rate(http_server_requests_seconds_bucket{uri=\"/{code:[A-Za-z0-9_-]+}\"}[$__rate_interval])))",
+          "legendFormat": "p99"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "type": "stat",
+      "title": "Cache hit ratio",
+      "description": "Fração das consultas ao cache do redirect respondidas pelo Valkey. negative_hit (404 guardado no cache) conta como hit, porque a resposta saiu do cache; error e bypass (Valkey fora) contam como requisições não servidas pelo cache. Sem consultas no intervalo, mostra sem tráfego.",
+      "gridPos": { "x": 12, "y": 0, "w": 6, "h": 4 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "decimals": 1,
+          "min": 0,
+          "max": 1,
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "orange", "value": 0.5 }, { "color": "green", "value": 0.8 }] },
+          "mappings": [{ "type": "special", "options": { "match": "nan", "result": { "text": "sem tráfego", "index": 0 } } }]
+        },
+        "overrides": []
+      },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "colorMode": "value", "graphMode": "area", "textMode": "auto", "justifyMode": "auto", "orientation": "auto" },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "sum(rate(linkpulse_cache_requests_total{result=~\"hit|negative_hit\"}[$__rate_interval])) / sum(rate(linkpulse_cache_requests_total[$__rate_interval]))",
+          "legendFormat": "hit ratio"
+        }
+      ]
+    },
+    {
       "id": 1,
       "type": "stat",
       "title": "Cliques/min",
-      "description": "Cliques gravados no MongoDB por minuto, bots incluídos.",
-      "gridPos": { "x": 0, "y": 0, "w": 6, "h": 4 },
+      "description": "Cliques gravados no MongoDB por minuto, bots incluídos (rate × 60).",
+      "gridPos": { "x": 18, "y": 0, "w": 6, "h": 4 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "fieldConfig": {
         "defaults": { "unit": "short", "decimals": 0, "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "blue", "value": null }] } },
@@ -40,7 +116,7 @@
       "id": 2,
       "type": "timeseries",
       "title": "Requisições/s por rota e status",
-      "description": "Requisições HTTP por segundo na porta da API (8080), por método, rota e status. O actuator fica de fora.",
+      "description": "Requisições HTTP por segundo na porta da API (8080), por método, rota e status. A rota é o template (/{code:...}), nunca o código; o actuator fica de fora.",
       "gridPos": { "x": 0, "y": 4, "w": 24, "h": 8 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "fieldConfig": { "defaults": { "unit": "reqps", "min": 0 }, "overrides": [] },
@@ -51,6 +127,159 @@
           "datasource": { "type": "prometheus", "uid": "prometheus" },
           "expr": "sum by (method, uri, status) (rate(http_server_requests_seconds_count{uri!~\"/actuator.*\"}[$__rate_interval]))",
           "legendFormat": "{{method}} {{uri}} {{status}}"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "Latência do redirect (p95/p99)",
+      "description": "p95 e p99 do GET /{code}. São estimativas do histogram_quantile: interpolação linear dentro do bucket do histograma do Micrometer.",
+      "gridPos": { "x": 0, "y": 12, "w": 12, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "s", "min": 0 }, "overrides": [] },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "none" } },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(http_server_requests_seconds_bucket{uri=\"/{code:[A-Za-z0-9_-]+}\"}[$__rate_interval])))",
+          "legendFormat": "p95"
+        },
+        {
+          "refId": "B",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "histogram_quantile(0.99, sum by (le) (rate(http_server_requests_seconds_bucket{uri=\"/{code:[A-Za-z0-9_-]+}\"}[$__rate_interval])))",
+          "legendFormat": "p99"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "type": "timeseries",
+      "title": "Latência da criação (p95/p99)",
+      "description": "p95 e p99 do POST /links. São estimativas do histogram_quantile: interpolação linear dentro do bucket do histograma do Micrometer.",
+      "gridPos": { "x": 12, "y": 12, "w": 12, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "s", "min": 0 }, "overrides": [] },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "none" } },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(http_server_requests_seconds_bucket{uri=\"/links\", method=\"POST\"}[$__rate_interval])))",
+          "legendFormat": "p95"
+        },
+        {
+          "refId": "B",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "histogram_quantile(0.99, sum by (le) (rate(http_server_requests_seconds_bucket{uri=\"/links\", method=\"POST\"}[$__rate_interval])))",
+          "legendFormat": "p99"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "type": "timeseries",
+      "title": "Cache hit ratio",
+      "description": "Fração das consultas ao cache do redirect respondidas pelo Valkey. negative_hit conta como hit (resposta servida pelo cache); error e bypass contam como requisições não servidas. Sem consultas no intervalo (0/0), mostra sem tráfego.",
+      "gridPos": { "x": 0, "y": 20, "w": 12, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "decimals": 1,
+          "min": 0,
+          "max": 1,
+          "mappings": [{ "type": "special", "options": { "match": "nan", "result": { "text": "sem tráfego", "index": 0 } } }]
+        },
+        "overrides": []
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "none" } },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "sum(rate(linkpulse_cache_requests_total{result=~\"hit|negative_hit\"}[$__rate_interval])) / sum(rate(linkpulse_cache_requests_total[$__rate_interval]))",
+          "legendFormat": "hit ratio"
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "type": "timeseries",
+      "title": "Cliques/min",
+      "description": "Cliques gravados no MongoDB por minuto, bots incluídos (rate × 60).",
+      "gridPos": { "x": 12, "y": 20, "w": 12, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "short", "decimals": 0, "min": 0 }, "overrides": [] },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "none" } },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "sum(rate(linkpulse_clicks_persisted_total[$__rate_interval])) * 60",
+          "legendFormat": "cliques/min"
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "type": "timeseries",
+      "title": "Respostas 5xx/s",
+      "description": "Respostas de erro do servidor (5xx) por segundo, em todas as rotas.",
+      "gridPos": { "x": 0, "y": 28, "w": 8, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "reqps", "min": 0 }, "overrides": [] },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "none" } },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "sum(rate(http_server_requests_seconds_count{status=~\"5..\"}[$__rate_interval]))",
+          "legendFormat": "5xx/s"
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "type": "timeseries",
+      "title": "Rate limit (429/s)",
+      "description": "Criações recusadas pelo rate limit do POST /links (429) por segundo. O limite é por IP, numa janela fixa de 1 minuto.",
+      "gridPos": { "x": 8, "y": 28, "w": 8, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "reqps", "min": 0 }, "overrides": [] },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "none" } },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "sum(rate(linkpulse_ratelimit_requests_total{result=\"rejected\"}[$__rate_interval]))",
+          "legendFormat": "429/s"
+        }
+      ]
+    },
+    {
+      "id": 12,
+      "type": "timeseries",
+      "title": "Valkey indisponível",
+      "description": "indisponível: aberturas da janela de bypass (o app marcou o Valkey como fora) no intervalo. error: consultas ao cache que falharam; bypass: consultas puladas com a janela aberta (por segundo). Nos dois casos o redirect segue pelo Postgres.",
+      "gridPos": { "x": 16, "y": 28, "w": 8, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "short", "min": 0 }, "overrides": [] },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "none" } },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "sum(increase(linkpulse_valkey_unavailable_total[$__rate_interval]))",
+          "legendFormat": "indisponível"
+        },
+        {
+          "refId": "B",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "sum by (result) (rate(linkpulse_cache_requests_total{result=~\"error|bypass\"}[$__rate_interval]))",
+          "legendFormat": "{{result}}/s"
         }
       ]
     }

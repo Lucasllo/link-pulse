@@ -111,8 +111,11 @@ services:
       GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
       GF_ANALYTICS_REPORTING_ENABLED: "false"
       GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
-      # Home do Grafana: o dashboard da aplicação.
-      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /etc/grafana/dashboards/link-pulse-overview.json
+      # Home do Grafana: redireciona para o dashboard provisionado da aplicação. Não usar
+      # GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: no Grafana 13 ele grava uma cópia do JSON fora
+      # da pasta provisionada (uid default-home-dashboard), que o anônimo não lê (403) e que
+      # não acompanha as mudanças do arquivo.
+      GF_USERS_HOME_PAGE: /d/link-pulse-overview
     volumes:
       - ./observability/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
       - ./observability/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
