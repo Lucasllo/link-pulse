@@ -59,8 +59,8 @@ Requisitos da entrega inicial. Cada um é mapeado para uma fase do roadmap.
 
 ### Container e ambiente local
 
-- [ ] **CONT-01**: Dockerfile multi-stage com layered jar, usuário não-root numérico e HEALTHCHECK
-- [ ] **CONT-02**: `make up` sobe via Docker Compose: app, Postgres, Mongo, Valkey, Prometheus e Grafana, com dependências por healthcheck
+- [x] **CONT-01**: Dockerfile multi-stage com layered jar, usuário não-root numérico e HEALTHCHECK
+- [x] **CONT-02**: `make up` sobe via Docker Compose: app, Postgres, Mongo, Valkey, Prometheus e Grafana, com dependências por healthcheck
 - [x] **CONT-03**: Repositório funciona em Windows (Git Bash/WSL) e Linux: `.gitattributes` com LF, `mvnw` executável, caminhos com espaço tratados, instrução de instalação do `make`
 - [ ] **CONT-04**: Script de seed/demo gera links e cliques para popular os dashboards
 
@@ -172,8 +172,8 @@ Rastreabilidade: quais fases cobrem quais requisitos. Preenchido na criação do
 | QUAL-02 | Phase 2 | Complete |
 | QUAL-03 | Phase 1 | Complete |
 | QUAL-04 | Phase 1 | Complete |
-| CONT-01 | Phase 3 | Pending |
-| CONT-02 | Phase 3 | Pending |
+| CONT-01 | Phase 3 | Complete |
+| CONT-02 | Phase 3 | Complete |
 | CONT-03 | Phase 1 | Complete |
 | CONT-04 | Phase 3 | Pending |
 | K8S-01 | Phase 4 | Pending |
