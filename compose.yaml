@@ -136,6 +136,10 @@ services:
   k6:
     image: grafana/k6:2.3.0
     profiles: ["tools"]
+    # uid:gid do host para gravar em load/results num Linux (o bind mount respeita as permissões
+    # do diretório do usuário); o Makefile exporta K6_USER. 12345 é o usuário padrão da imagem.
+    # No Docker Desktop qualquer uid grava.
+    user: "${K6_USER:-12345:12345}"
     # Caminhos relativos ao working_dir: sem problema com espaço no caminho nem com a conversão
     # de argumentos do Git Bash.
     working_dir: /work

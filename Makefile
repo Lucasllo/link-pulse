@@ -9,8 +9,13 @@ COMPOSE := docker compose -f compose.dev.yaml
 # Vale só para o docker: exportada para o make inteiro, quebra o classpath do ./mvnw.
 NOCONV := MSYS_NO_PATHCONV=1 MSYS2_ARG_CONV_EXCL='*'
 STACK := $(NOCONV) docker compose
+# Usuário do container k6 (compose.yaml): o uid:gid do host, para o --summary-export gravar em
+# load/results num Linux. Sem id (ou no Docker Desktop, onde qualquer uid grava), vale o
+# usuário padrão da imagem.
+K6_USER ?= $(shell id -u 2>/dev/null || echo 12345):$(shell id -g 2>/dev/null || echo 12345)
+export K6_USER
 
-.PHONY: help build test verify run db-up db-down up down clean image seed obs-check
+.PHONY: help build test verify run db-up db-down up down clean image seed load obs-check
 
 help: ## Lista os alvos disponíveis
 	@grep -E '^[a-zA-Z_-]+:.*?## ' Makefile | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-10s %s\n", $$1, $$2}'
@@ -49,6 +54,12 @@ image: ## Builda só a imagem local do app (link-pulse:local)
 # os logs do seed continuam.
 seed: ## Popula links e cliques de demonstração (k6 em container)
 	$(STACK) run --rm -T k6 run --quiet seed.js
+
+# Resumo nativo do k6 no terminal e em JSON (caminho relativo ao working_dir /work, ou seja,
+# load/results/load-summary.json). Sem remote write para o Prometheus: os dashboards mostram a
+# carga pelo lado do servidor. Sai com erro se algum threshold falhar.
+load: ## Teste de carga k6 (resumo em load/results/load-summary.json)
+	$(STACK) run --rm -T k6 run --quiet --summary-export=results/load-summary.json load.js
 
 # promtool da própria imagem do Prometheus: nenhuma ferramenta nova no host. --no-deps: só o
 # container efêmero, sem subir a stack. Os caminhos absolutos chegam intactos ao docker.exe no
