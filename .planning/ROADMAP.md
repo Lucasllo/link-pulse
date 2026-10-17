@@ -125,12 +125,12 @@ Plans:
   4. Dashboards, regras de alerta e datasource (UID fixo) vivem só em `observability/`, e o compose os carrega de lá, sem cópias, prontos para o kind reaproveitar
   5. O teste k6 (redirect e criação, sem seguir redirects) roda contra o compose e passa nos thresholds de p95/p99 e de taxa de erro
 
-**Plans**: 4 plans
+**Plans**: 1/4 plans executed
 
 Plans:
 **Wave 1**
 
-- [ ] 03-01-PLAN.md — Imagem multi-stage (layered jar, usuário 10001, HEALTHCHECK) e make up com os 6 serviços na ordem dos healthchecks, portas só em 127.0.0.1, Grafana com datasource de UID fixo e compose.dev.yaml isolado (wave 1)
+- [x] 03-01-PLAN.md — Imagem multi-stage (layered jar, usuário 10001, HEALTHCHECK) e make up com os 6 serviços na ordem dos healthchecks, portas só em 127.0.0.1, Grafana com datasource de UID fixo e compose.dev.yaml isolado (wave 1)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -184,6 +184,6 @@ As fases seguem a ordem numérica: 1 → 2 → 3 → 4 → 5 (a parte Terraform 
 |-------|----------------|--------|-----------|
 | 1. Fundação e núcleo de links | 8/8 | Complete    | 2026-10-09 |
 | 2. Hot path no Valkey e pipeline de cliques | 9/9 | Complete    | 2026-10-11 |
-| 3. Stack local observável | 0/4 | Not started | - |
+| 3. Stack local observável | 1/4 | In Progress|  |
 | 4. Kubernetes no kind e entrega contínua | 0/TBD | Not started | - |
 | 5. Terraform AWS e vitrine | 0/TBD | Not started | - |
