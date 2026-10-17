@@ -25,7 +25,7 @@ services:
 
   # Cache do redirect (Redis-compatível). volatile-lru só despeja chaves com TTL, como no ElastiCache.
   valkey:
-    image: valkey/valkey:8.1
+    image: valkey/valkey:9.1
     command: ["valkey-server", "--maxmemory", "256mb", "--maxmemory-policy", "volatile-lru"]
     # Só no loopback, como o Postgres.
     ports:
