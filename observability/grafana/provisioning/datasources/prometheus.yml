@@ -1,0 +1,15 @@
+# Datasource do Grafana do compose (make up). No kind (Phase 4) o datasource vem do chart
+# kube-prometheus-stack, com o mesmo UID.
+apiVersion: 1
+datasources:
+  - name: Prometheus
+    # Mesmo UID do datasource padrão do kube-prometheus-stack; é o que os dashboards referenciam.
+    uid: prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    editable: false
+    jsonData:
+      # Igual ao scrape_interval: base do $__rate_interval nos painéis.
+      timeInterval: 15s
