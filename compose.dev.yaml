@@ -39,7 +39,7 @@ services:
   # Eventos de clique (coleção click_events do banco linkpulse), gravados pelo consumer do stream.
   # Sem autenticação: só para desenvolvimento local.
   mongo:
-    image: mongo:8.0
+    image: mongo:8.2
     # Só no loopback, como o Postgres e o Valkey.
     ports:
       - "127.0.0.1:27017:27017"
