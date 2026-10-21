@@ -158,7 +158,24 @@ Plans:
   4. Na main, o GitHub Actions publica a imagem no GHCR (nome em minúsculas, pacote público), roda o scan do Trivy e gera o SBOM
   5. O job de verificação do CI sobe um cluster kind, faz o deploy e passa no smoke test criar link → redirect → stats
 
-**Plans**: TBD
+**Plans**: 4 plans
+
+Plans:
+**Wave 1**
+
+- [ ] 04-01-PLAN.md — Tracer do make k8s: kind (127.0.0.1:80, podSubnet fixo), Traefik, chart deps com imagens oficiais e chart do app (Deployment, Service, Ingress, ConfigMap, Secret); link → 302 pelo Ingress, rate limit por IP real atrás do Traefik e readiness com Postgres/Valkey sem restart (wave 1)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 04-02-PLAN.md — kube-prometheus-stack enxuto com ServiceMonitor (job link-pulse), PrometheusRule e dashboards de observability/ por --set-file, Grafana anônimo, HPA com metrics-server e as três URLs no fim do make k8s (wave 2)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
+- [ ] 04-03-PLAN.md — make k8s-smoke (link → 302 → stats + observabilidade), make k8s-lint (helm lint + kubeconform dev/prod, guardas e paridade de imagens), values-prod e README do kind provado do zero nas portas 8080 e 80 (wave 3)
+
+**Wave 4** *(blocked on Wave 3 completion)*
+
+- [ ] 04-04-PLAN.md — CI: imagem com Trivy e SBOM, smoke em kind com os scripts do avaliador, publish da imagem testada no GHCR com attestations e pacote público (checkpoint humano: push e visibilidade) (wave 4)
 
 ### Phase 5: Terraform AWS e vitrine
 
