@@ -118,6 +118,19 @@ linkpulse:
 management:
   server:
     port: 8081
+  endpoint:
+    health:
+      group:
+        # Liveness só com o estado interno: Postgres, Valkey ou Mongo fora nunca reiniciam o pod
+        # (K8S-02).
+        liveness:
+          include: livenessState
+        # Readiness com Postgres e Valkey. Mongo fora de propósito: só o consumer e o /stats
+        # dependem dele; os cliques esperam no stream. No kind, Valkey fora deixa o pod NotReady
+        # (troca consciente com o fail-open do compose). O HEALTHCHECK da imagem também consulta
+        # este grupo.
+        readiness:
+          include: readinessState,db,redis
   endpoints:
     web:
       exposure:
