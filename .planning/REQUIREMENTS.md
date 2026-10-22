@@ -67,7 +67,7 @@ Requisitos da entrega inicial. Cada um é mapeado para uma fase do roadmap.
 ### Kubernetes
 
 - [ ] **K8S-01**: Helm chart do app com Deployment, Service, Ingress, ConfigMap, Secret e HPA, com values dev/prod
-- [ ] **K8S-02**: Liveness e readiness via Actuator (liveness sem dependências externas; readiness com Postgres e Valkey)
+- [x] **K8S-02**: Liveness e readiness via Actuator (liveness sem dependências externas; readiness com Postgres e Valkey)
 - [ ] **K8S-03**: `make k8s` cria cluster kind e instala Traefik, metrics-server, kube-prometheus-stack, dependências (manifests próprios com imagens oficiais) e o app
 - [ ] **K8S-04**: Prometheus faz scrape do app via ServiceMonitor; dashboards e regras são carregados automaticamente
 
@@ -177,7 +177,7 @@ Rastreabilidade: quais fases cobrem quais requisitos. Preenchido na criação do
 | CONT-03 | Phase 1 | Complete |
 | CONT-04 | Phase 3 | Complete |
 | K8S-01 | Phase 4 | Pending |
-| K8S-02 | Phase 4 | Pending |
+| K8S-02 | Phase 4 | Complete |
 | K8S-03 | Phase 4 | Pending |
 | K8S-04 | Phase 4 | Pending |
 | CI-01 | Phase 1 | Complete |

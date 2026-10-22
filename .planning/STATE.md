@@ -1,18 +1,18 @@
 ---
 gsd_state_version: "1.0"
-current_phase: 4
+current_phase: 04
 current_phase_name: Kubernetes no kind e entrega contínua
 status: executing
-stopped_at: Phase 4 context gathered
-last_updated: "2026-10-21T23:29:05.077Z"
-last_activity: 2026-10-17
-last_activity_desc: Phase 03 complete, transitioned to Phase 4
-state_head: df819676b21e5098bd97c5a7e97734baffe5d5d3
+stopped_at: Completed 04-01-PLAN.md
+last_updated: "2026-10-22T00:28:53.516Z"
+last_activity: 2026-10-21
+last_activity_desc: Phase 04 execution started
+state_head: c9d930695aa9a7d4e2b0bc58350448cccece48de
 progress:
   total_phases: 5
   completed_phases: 3
   total_plans: 25
-  completed_plans: 21
+  completed_plans: 22
   percent: 60
 ---
 
@@ -23,14 +23,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-10-17)
 
 **Core value:** Um avaliador clona o repositório, roda `make up` (compose) ou `make k8s` (kind + Prometheus/Grafana) e vê um encurtador funcionando de ponta a ponta, com redirect rápido via cache e métricas reais nos dashboards versionados.
-**Current focus:** Phase 4 — Kubernetes no kind e entrega contínua
+**Current focus:** Phase 04 — Kubernetes no kind e entrega contínua
 
 ## Current Position
 
-Phase: 4 (Kubernetes no kind e entrega contínua) — READY TO EXECUTE
-Plan: Not started
+Phase: 04 (Kubernetes no kind e entrega contínua) — EXECUTING
+Plan: 2 of 4
 Status: Ready to execute
-Last activity: 2026-10-17 — Phase 03 complete, transitioned to Phase 4
+Last activity: 2026-10-21 — Phase 04 execution started
 
 Progress: [██████░░░░] 60%
 
@@ -80,6 +80,7 @@ Progress: [██████░░░░] 60%
 | Phase 03 P02 | 14min | 3 tasks | 8 files |
 | Phase 03 P03 | 9min | 3 tasks | 9 files |
 | Phase 03 P04 | 11min | 2 tasks | 6 files |
+| Phase 04 P01 | 47 min | 2 tasks | 22 files |
 
 ## Accumulated Context
 
@@ -142,6 +143,9 @@ Decisões recentes que afetam o trabalho atual:
 - [Phase 03]: 03-03: Phase 4 deve manter o job link-pulse no ServiceMonitor (nome do Service ou jobLabel) e levar observability/ ao kind sem cópia (ConfigMaps grafana_dashboard, PrometheusRule a partir de groups:)
 - [Phase 03]: 03-04: k6 2.3.0 confirma --summary-export (A5) e a tag scenario (A4); perfil de D-10 passa num i7-4790/Docker Desktop com redirect p95 3,18 ms/p99 9,29 ms, create p95 39,31 ms, 0 erro e zero 429 na sequência clean→up→seed→load
 - [Phase 03]: 03-04: K6_USER (uid:gid do host) exportado pelo Makefile vira o user do serviço k6; o load-summary.json é versionado como saída crua do make load
+- [Phase 04]: 04-01: Traefik 42.1.0 usa service.spec.type; NodePort 30080, externalTrafficPolicy Local, trustedIPs vazio (host chega como 172.21.0.1)
+- [Phase 04]: 04-01: indicador do Mongo no Boot 4.1.1 é 'mongo'; readiness = readinessState,db,redis; liveness = livenessState
+- [Phase 04]: 04-01: contrato kind: cluster link-pulse, contexto kind-link-pulse, Service link-pulse (http/management), hosts *.localtest.me, tag local-{12 hex}
 
 ### Pending Todos
 
@@ -180,6 +184,6 @@ Itens reconhecidos e adiados no fechamento de milestone, do mais recente para o 
 
 ## Session Continuity
 
-Last session: 2026-10-21T01:42:11.310Z
-Stopped at: Phase 4 context gathered
-Resume file: .planning/phases/04-kubernetes-no-kind-e-entrega-cont-nua/04-CONTEXT.md
+Last session: 2026-10-22T00:28:53.294Z
+Stopped at: Completed 04-01-PLAN.md
+Resume file: None

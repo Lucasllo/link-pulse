@@ -158,12 +158,12 @@ Plans:
   4. Na main, o GitHub Actions publica a imagem no GHCR (nome em minúsculas, pacote público), roda o scan do Trivy e gera o SBOM
   5. O job de verificação do CI sobe um cluster kind, faz o deploy e passa no smoke test criar link → redirect → stats
 
-**Plans**: 4 plans
+**Plans**: 1/4 plans executed
 
 Plans:
 **Wave 1**
 
-- [ ] 04-01-PLAN.md — Tracer do make k8s: kind (127.0.0.1:80, podSubnet fixo), Traefik, chart deps com imagens oficiais e chart do app (Deployment, Service, Ingress, ConfigMap, Secret); link → 302 pelo Ingress, rate limit por IP real atrás do Traefik e readiness com Postgres/Valkey sem restart (wave 1)
+- [x] 04-01-PLAN.md — Tracer do make k8s: kind (127.0.0.1:80, podSubnet fixo), Traefik, chart deps com imagens oficiais e chart do app (Deployment, Service, Ingress, ConfigMap, Secret); link → 302 pelo Ingress, rate limit por IP real atrás do Traefik e readiness com Postgres/Valkey sem restart (wave 1)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -202,5 +202,5 @@ As fases seguem a ordem numérica: 1 → 2 → 3 → 4 → 5 (a parte Terraform 
 | 1. Fundação e núcleo de links | 8/8 | Complete    | 2026-10-09 |
 | 2. Hot path no Valkey e pipeline de cliques | 9/9 | Complete    | 2026-10-11 |
 | 3. Stack local observável | 4/4 | Complete    | 2026-10-17 |
-| 4. Kubernetes no kind e entrega contínua | 0/TBD | Not started | - |
+| 4. Kubernetes no kind e entrega contínua | 1/4 | In Progress|  |
 | 5. Terraform AWS e vitrine | 0/TBD | Not started | - |
