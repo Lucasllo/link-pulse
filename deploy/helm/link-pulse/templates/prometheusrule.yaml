@@ -1,0 +1,21 @@
+{{- /*
+Os quatro alertas de observability/prometheus/rules/link-pulse-alerts.yml, a fonte única. O
+conteúdo chega por --set-file observability.rules=... (deploy/kind/up.sh); o groups: do arquivo
+vira o spec do PrometheusRule sem cópia.
+*/ -}}
+{{- if .Values.observability.enabled }}
+{{- $src := required "observability.rules vazio: rode make k8s ou passe --set-file observability.rules=observability/prometheus/rules/link-pulse-alerts.yml" .Values.observability.rules }}
+{{- $rules := $src | fromYaml }}
+{{- if not $rules.groups }}
+{{- fail "observability.rules não tem groups: (YAML inválido?)" }}
+{{- end }}
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: {{ include "link-pulse.fullname" . }}
+  labels:
+    {{- include "link-pulse.labels" . | nindent 4 }}
+spec:
+  groups:
+    {{- toYaml $rules.groups | nindent 4 }}
+{{- end }}

@@ -44,3 +44,20 @@ resources:
 
 # preStop de 10 s + fases do shutdown de até 30 s cada (spring.lifecycle.timeout-per-shutdown-phase).
 terminationGracePeriodSeconds: 60
+
+metrics:
+  serviceMonitor:
+    # Exige os CRDs do Prometheus Operator (kube-prometheus-stack). Flag em vez de checar a API
+    # (.Capabilities), para o helm template do CI ser determinístico.
+    enabled: true
+    interval: 15s
+
+# Alertas e dashboards de observability/, a fonte única. Preenchidos na hora do deploy por
+# --set-file a partir de observability/ (ver deploy/kind/up.sh); nada é copiado para o chart.
+# Com enabled=true o render falha se as regras ou os dashboards vierem vazios.
+observability:
+  enabled: true
+  # Conteúdo de observability/prometheus/rules/link-pulse-alerts.yml (formato groups:).
+  rules: ""
+  # Um item por JSON de observability/grafana/dashboards: {nome sem .json}: conteúdo.
+  dashboards: {}

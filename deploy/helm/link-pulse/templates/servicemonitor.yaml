@@ -1,0 +1,20 @@
+{{- if .Values.metrics.serviceMonitor.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "link-pulse.fullname" . }}
+  labels:
+    {{- include "link-pulse.labels" . | nindent 4 }}
+spec:
+  # O job vem do label app.kubernetes.io/name do Service (link-pulse), e não do nome do Service: o
+  # alerta LinkPulseTargetDown filtra up{job="link-pulse"}, igual ao job do compose.
+  jobLabel: app.kubernetes.io/name
+  selector:
+    matchLabels:
+      {{- include "link-pulse.selectorLabels" . | nindent 6 }}
+  endpoints:
+    # Nome da porta do Service (Actuator na 8081), nunca o número.
+    - port: management
+      path: /actuator/prometheus
+      interval: {{ .Values.metrics.serviceMonitor.interval }}
+{{- end }}

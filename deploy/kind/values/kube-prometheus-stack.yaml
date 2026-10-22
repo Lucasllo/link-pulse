@@ -1,0 +1,109 @@
+# kube-prometheus-stack 92.10.1 no kind (make k8s): Prometheus v3.15.0, Operator v0.94.1 e o
+# subchart grafana 14.0.1 (Grafana 13.2.4, a mesma versão do compose).
+#
+# Enxuto para laptop: só o que o Link Pulse usa. Sem Alertmanager: o firing aparece em /alerts.
+#
+# Modo completo (dashboards e alertas do cluster), se quiser: grafana.defaultDashboardsEnabled: true,
+# defaultRules.create: true, kubeStateMetrics.enabled: true e nodeExporter.enabled: true (no Docker
+# Desktop, prometheus-node-exporter.hostRootFsMount.enabled: false). Aí os dashboards do cluster
+# cairiam na pasta "Link Pulse"; a pasta passa a vir da annotation do ConfigMap
+# (grafana.sidecar.dashboards.folderAnnotation: grafana_folder, com
+# provider.foldersFromFilesStructure: true) e o UID da pasta deixa de ser fixo.
+
+alertmanager:
+  enabled: false
+# /alerts mostra só os 4 alertas do Link Pulse, como no compose.
+defaultRules:
+  create: false
+nodeExporter:
+  enabled: false
+kubeStateMetrics:
+  enabled: false
+# Componentes do control plane que o kind não expõe: virariam targets vermelhos em /targets.
+kubeControllerManager:
+  enabled: false
+kubeScheduler:
+  enabled: false
+kubeEtcd:
+  enabled: false
+kubeProxy:
+  enabled: false
+
+prometheus:
+  ingress:
+    enabled: true
+    ingressClassName: traefik
+    # O externalUrl sai do primeiro host (http://prometheus.localtest.me). Com outra porta, o
+    # deploy/kind/up.sh passa prometheus.prometheusSpec.externalUrl com :porta.
+    hosts:
+      - prometheus.localtest.me
+    paths:
+      - /
+    pathType: Prefix
+  prometheusSpec:
+    # Iguais ao compose (observability/prometheus/prometheus.yml).
+    scrapeInterval: 15s
+    evaluationInterval: 15s
+    # Disco do laptop: no máximo 2 dias ou 1 GB.
+    retention: 2d
+    retentionSize: 1GB
+    # Sem isso o Prometheus só vê ServiceMonitor/PodMonitor/PrometheusRule com release: monitoring;
+    # abertos, o chart do app não precisa conhecer o nome deste release.
+    serviceMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelectorNilUsesHelmValues: false
+    ruleSelectorNilUsesHelmValues: false
+    # enableAdminAPI fica no default (false): sem API de admin/TSDB exposta pelo Ingress.
+    resources:
+      requests:
+        cpu: 200m
+        memory: 512Mi
+      limits:
+        memory: 1Gi
+
+grafana:
+  # Só os dashboards do Link Pulse (observability/grafana/dashboards) passam pelo sidecar.
+  defaultDashboardsEnabled: false
+  # Não é segredo: senha de demonstração do admin (o anônimo é só Viewer).
+  adminPassword: admin
+  ingress:
+    enabled: true
+    ingressClassName: traefik
+    hosts:
+      - grafana.localtest.me
+    path: /
+    pathType: Prefix
+  # Equivalente aos GF_* do compose.yaml (tabela em observability/README.md).
+  grafana.ini:
+    server:
+      # Com outra porta, o deploy/kind/up.sh troca por http://grafana.localtest.me:{porta}.
+      root_url: http://grafana.localtest.me
+    auth.anonymous:
+      # Leitura sem login; o papel anônimo é só Viewer, nunca Editor nem Admin.
+      enabled: true
+      org_role: Viewer
+    users:
+      # Home no dashboard da aplicação. Não usar dashboards.default_home_dashboard_path: no Grafana
+      # 13 ele grava uma cópia do JSON fora da pasta provisionada, que o anônimo não lê (403).
+      home_page: /d/link-pulse-overview
+    analytics:
+      reporting_enabled: false
+      check_for_updates: false
+  sidecar:
+    dashboards:
+      enabled: true
+      # ConfigMaps do chart deploy/helm/link-pulse (templates/dashboards-configmap.yaml).
+      label: grafana_dashboard
+      labelValue: "1"
+      searchNamespace: ALL
+      # Mesma pasta e mesmo UID do provider do compose (observability/grafana/provisioning).
+      provider:
+        folder: Link Pulse
+        folderUid: link-pulse
+        # O repositório é a fonte única: nada de apagar nem salvar alterações pela UI.
+        disableDelete: true
+        allowUiUpdates: false
+    datasources:
+      # O datasource padrão do chart já tem o UID prometheus, o mesmo dos dashboards.
+      alertmanager:
+        # O template renderiza o datasource do Alertmanager mesmo com ele desligado.
+        enabled: false

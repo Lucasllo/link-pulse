@@ -88,12 +88,33 @@ kind load image-archive .kind/link-pulse.tar --name "$CLUSTER"
 h upgrade --install traefik "$TRAEFIK_CHART" --version 42.1.0 \
   -n traefik --create-namespace -f deploy/kind/values/traefik.yaml --wait --timeout 5m
 
+# ---------- Prometheus e Grafana (kube-prometheus-stack) ----------
+# Antes do app: o chart do app cria ServiceMonitor e PrometheusRule, que exigem os CRDs do Operator.
+h upgrade --install monitoring oci://ghcr.io/prometheus-community/charts/kube-prometheus-stack --version 92.10.1 \
+  -n monitoring --create-namespace -f deploy/kind/values/kube-prometheus-stack.yaml \
+  --wait --timeout 15m
+# O --wait do Helm 4 pode terminar antes de o Operator criar o StatefulSet do Prometheus (Pitfall
+# 11): espera o pod existir e ficar Ready.
+echo "Esperando o Prometheus..."
+for _ in $(seq 1 100); do
+  [ -n "$(k -n monitoring get pod -l app.kubernetes.io/name=prometheus -o name 2>/dev/null)" ] && break
+  sleep 3
+done
+k -n monitoring wait --for=condition=Ready pod -l app.kubernetes.io/name=prometheus --timeout=10m
+k -n monitoring rollout status deploy/monitoring-grafana --timeout=10m
+
 # ---------- dependências (Postgres, Valkey, Mongo) ----------
 h upgrade --install deps "$CHARTS/deps" -n link-pulse --create-namespace --wait --timeout 5m
 
 # ---------- app ----------
 APP_SET=(--set image.tag="$TAG")
 [ "$PORT" = 80 ] || APP_SET+=(--set "env.LINKPULSE_BASE_URL=$BASE")
+# Alertas e dashboards direto de observability/, a fonte única (D-09): o Helm não lê fora do chart,
+# então o conteúdo vai como value. Dashboard novo nessa pasta entra no próximo make k8s.
+APP_SET+=(--set-file observability.rules=observability/prometheus/rules/link-pulse-alerts.yml)
+for f in observability/grafana/dashboards/*.json; do
+  APP_SET+=(--set-file "observability.dashboards.$(basename "$f" .json)=$f")
+done
 h upgrade --install link-pulse "$CHARTS/link-pulse" -n link-pulse \
   -f "$CHARTS/link-pulse/values-dev.yaml" "${APP_SET[@]}" --wait --timeout 10m
 

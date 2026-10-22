@@ -1,0 +1,24 @@
+{{- /*
+Um ConfigMap por JSON de observability/grafana/dashboards, a fonte única, lido pelo sidecar de
+dashboards do Grafana (label grafana_dashboard: "1"). O conteúdo chega por
+--set-file observability.dashboards.{nome}=... (deploy/kind/up.sh) e entra como valor: nunca passa
+por tpl, então as legendas {{method}} dos painéis chegam intactas.
+*/ -}}
+{{- if .Values.observability.enabled }}
+{{- if not .Values.observability.dashboards }}
+{{- fail "observability.dashboards vazio: rode make k8s (um --set-file por JSON de observability/grafana/dashboards)" }}
+{{- end }}
+{{- range $name, $json := .Values.observability.dashboards }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ printf "%s-dashboard-%s" (include "link-pulse.fullname" $) $name | trunc 63 | trimSuffix "-" }}
+  labels:
+    grafana_dashboard: "1"
+    {{- include "link-pulse.labels" $ | nindent 4 }}
+data:
+  {{ $name }}.json: |-
+    {{- $json | nindent 4 }}
+{{- end }}
+{{- end }}
