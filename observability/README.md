@@ -2,7 +2,14 @@
 
 Fonte única da observabilidade do Link Pulse: config do Prometheus, regras de alerta e seus testes, provisioning e dashboards do Grafana, e runbooks.
 
-O `compose.yaml` monta esta pasta direto (bind mount, sem cópia). A Phase 4 (kind + kube-prometheus-stack) reaproveita os mesmos arquivos. Nenhum dashboard nem regra existe em outro lugar do repositório.
+O `compose.yaml` monta esta pasta direto (bind mount, sem cópia). O `make k8s` (kind + kube-prometheus-stack 92.10.1, com Grafana 13.2.4 e Prometheus v3.15.0) leva os mesmos arquivos ao cluster por `--set-file`, também sem cópia. Nenhum dashboard nem regra existe em outro lugar do repositório.
+
+| | Compose (`make up`) | kind (`make k8s`) |
+|---|---|---|
+| Grafana (anônimo, só leitura) | <http://localhost:3000> | <http://grafana.localtest.me> |
+| Alertas do Prometheus | <http://localhost:9090/alerts> | <http://prometheus.localtest.me/alerts> |
+
+No kind, com `K8S_HTTP_PORT` diferente de 80, as URLs ganham `:{porta}` (o `make k8s` imprime as certas). O admin do Grafana é `admin`/`admin` nos dois (senha de demonstração, não é segredo).
 
 ```text
 observability/
@@ -24,15 +31,17 @@ observability/
 
 | Arquivo | O que é | Compose (Phase 3) | kind (Phase 4) |
 |---------|---------|-------------------|----------------|
-| `prometheus/prometheus.yml` | Scrape do app (`app:8081/actuator/prometheus`, job `link-pulse`) e `rule_files` | Diretório `prometheus/` montado em `/etc/prometheus` (read-only) | Não é usado. O scrape vem do **ServiceMonitor** do chart. O job precisa continuar se chamando `link-pulse`: por padrão o job é o nome do Service, então o Service deve se chamar `link-pulse`, ou o ServiceMonitor deve fixar `jobLabel`. Senão o `LinkPulseTargetDown` não casa com nada. |
-| `prometheus/rules/link-pulse-alerts.yml` | Os quatro alertas, grupo `link-pulse` | Carregado por `rule_files: /etc/prometheus/rules/*.yml` | O conteúdo de `groups:` vira o `spec` de um **PrometheusRule** (com o label que o `ruleSelector` do kube-prometheus-stack espera). |
+| `prometheus/prometheus.yml` | Scrape do app (`app:8081/actuator/prometheus`, job `link-pulse`) e `rule_files` | Diretório `prometheus/` montado em `/etc/prometheus` (read-only) | Não é usado. O scrape vem do **ServiceMonitor** do chart `deploy/helm/link-pulse` (`templates/servicemonitor.yaml`), na porta `management` (`/actuator/prometheus`, 15 s), com `jobLabel: app.kubernetes.io/name`: o job é `link-pulse` qualquer que seja o nome do Service, e o `LinkPulseTargetDown` casa. |
+| `prometheus/rules/link-pulse-alerts.yml` | Os quatro alertas, grupo `link-pulse` | Carregado por `rule_files: /etc/prometheus/rules/*.yml` | Vira o **PrometheusRule** do chart `deploy/helm/link-pulse` (`templates/prometheusrule.yaml`): o `deploy/kind/up.sh` passa o arquivo por `--set-file observability.rules=observability/prometheus/rules/link-pulse-alerts.yml` e o `groups:` vira o `spec`. Sem label de release: os seletores do kube-prometheus-stack estão abertos (`ruleSelectorNilUsesHelmValues: false`). |
 | `prometheus/tests/` | Testes de unidade das regras | Só `promtool` (`make obs-check`) | Só `promtool` (o CI da Phase 4 pode reaproveitar o `make obs-check`). |
-| `grafana/provisioning/datasources/` | Datasource Prometheus com UID `prometheus` | Montado em `/etc/grafana/provisioning/datasources` | Não é usado. O datasource padrão do kube-prometheus-stack já tem o UID `prometheus`, o mesmo que os dashboards referenciam. |
-| `grafana/provisioning/dashboards/` | Provider que lê os JSONs da pasta | Montado em `/etc/grafana/provisioning/dashboards` | Não é usado. Quem carrega os dashboards é o sidecar do chart. |
-| `grafana/dashboards/*.json` | Os dois dashboards | Montado em `/etc/grafana/dashboards` | Viram **ConfigMaps** com o label `grafana_dashboard: "1"`, lidos pelo sidecar de dashboards do Grafana. |
+| `grafana/provisioning/datasources/` | Datasource Prometheus com UID `prometheus` | Montado em `/etc/grafana/provisioning/datasources` | Não é usado. O datasource é o padrão do kube-prometheus-stack, com o UID `prometheus`, o mesmo que os dashboards referenciam. |
+| `grafana/provisioning/dashboards/` | Provider que lê os JSONs da pasta | Montado em `/etc/grafana/provisioning/dashboards` | Não é usado. Quem carrega os dashboards é o sidecar do Grafana do kube-prometheus-stack, na pasta `Link Pulse` (UID `link-pulse`), read-only como no compose (`deploy/kind/values/kube-prometheus-stack.yaml`). |
+| `grafana/dashboards/*.json` | Os dois dashboards | Montado em `/etc/grafana/dashboards` | Um **ConfigMap** com o label `grafana_dashboard: "1"` por JSON (`templates/dashboards-configmap.yaml`), passado por `--set-file observability.dashboards.{nome}=observability/grafana/dashboards/{nome}.json` (um por arquivo, num loop do `up.sh`) e lido pelo sidecar de dashboards na pasta `Link Pulse` (UID `link-pulse`). |
 | `runbooks/` | Um runbook por alerta | Linkados pela annotation `runbook_url` (arquivo na `main` do GitHub) | Os mesmos links: as annotations não mudam. |
 
-O Helm só lê arquivos de dentro do diretório do chart (`.Files.Get` não sai dele). Então a Phase 4 decide o mecanismo para levar estes arquivos ao cluster sem copiá-los para outro lugar do repositório, por exemplo `kubectl create configmap --from-file` (com `kubectl label`) no `make k8s`, ou gerar o PrometheusRule a partir de `rules/link-pulse-alerts.yml` na hora do deploy.
+Por que `--set-file`: o Helm só lê arquivos de dentro do diretório do chart (`.Files.Get` não sai dele), um symlink do chart para cá quebra no checkout do Windows, e copiar os arquivos para o chart criaria uma segunda fonte que diverge. Com `--set-file`, o `deploy/kind/up.sh` passa o conteúdo destes arquivos como value na hora do deploy, e o PrometheusRule e os ConfigMaps continuam objetos do release `link-pulse` (somem com ele). O conteúdo entra como valor, nunca como template: as legendas `{{method}}` dos painéis chegam intactas. Se as regras ou os dashboards vierem vazios, o render do chart falha com a mensagem do que passar.
+
+Dashboard novo: basta criar o JSON nesta pasta; o próximo make k8s o publica.
 
 As configurações do Grafana que o compose passa por variável de ambiente viram `grafana.ini` nos values do chart:
 
@@ -61,7 +70,7 @@ As configurações do Grafana que o compose passa por variável de ambiente vira
 | `LinkPulseClickConsumerLag` | `max()` do lag ou dos pendentes do grupo acima de 1000 | 5m | warning | [LinkPulseClickConsumerLag.md](runbooks/LinkPulseClickConsumerLag.md) |
 | `LinkPulseTargetDown` | `up{job="link-pulse"} == 0` ou série ausente | 1m | critical | [LinkPulseTargetDown.md](runbooks/LinkPulseTargetDown.md) |
 
-Não há Alertmanager: o estado firing aparece em <http://localhost:9090/alerts>.
+Não há Alertmanager (nem no compose nem no kind): o estado firing aparece em <http://localhost:9090/alerts> no compose e em <http://prometheus.localtest.me/alerts> no kind.
 
 ## Validação
 
@@ -88,3 +97,5 @@ Depois de editar, com a stack de pé:
 
 - **Dashboard**: nada a fazer. O provider relê a pasta a cada 30 s.
 - **Provisioning do Grafana** (datasource ou provider): `docker compose restart grafana`.
+
+No kind, qualquer mudança em regra ou dashboard entra com um novo `make k8s`: o Operator recarrega o Prometheus e o sidecar relê os ConfigMaps sozinhos.

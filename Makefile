@@ -72,7 +72,7 @@ obs-check: ## Valida a config e as regras do Prometheus (promtool da imagem ofic
 	$(STACK) run --rm --no-deps -T --entrypoint promtool prometheus test rules /etc/prometheus/tests/link-pulse-alerts-test.yml
 
 # O up.sh exporta o NOCONV por conta própria e passa --context kind-link-pulse em todo kubectl/helm.
-k8s: image ## Cria o cluster kind e instala Traefik, deps e o app (Helm)
+k8s: image ## Cria o cluster kind e instala Traefik, metrics-server, Prometheus/Grafana, deps e o app
 	K8S_HTTP_PORT=$(K8S_HTTP_PORT) bash deploy/kind/up.sh
 
 k8s-down: ## Apaga o cluster kind link-pulse (dados incluídos)

@@ -10,7 +10,7 @@ export MSYS_NO_PATHCONV=1 MSYS2_ARG_CONV_EXCL='*'
 cd "$(dirname "$0")/../.."
 
 CLUSTER=${KIND_CLUSTER:-link-pulse}
-CTX="kind-$CLUSTER"
+CTX="kind-$CLUSTER"  # padrão: kind-link-pulse
 HOST=link-pulse.localtest.me
 CHARTS=deploy/helm  # charts do repositório, instalados só por h() (--kube-context fixo)
 TRAEFIK_CHART=oci://ghcr.io/traefik/helm/traefik  # chart OCI oficial, só via h() (--kube-context)
@@ -95,9 +95,15 @@ h upgrade --install traefik "$TRAEFIK_CHART" --version 42.1.0 \
 
 # ---------- Prometheus e Grafana (kube-prometheus-stack) ----------
 # Antes do app: o chart do app cria ServiceMonitor e PrometheusRule, que exigem os CRDs do Operator.
+# Com outra porta, links gerados pelo Grafana (root_url) e pelo Prometheus (externalUrl) levam :porta.
+KPS_SET=()
+if [ "$PORT" != 80 ]; then
+  KPS_SET+=(--set-string "grafana.grafana\.ini.server.root_url=http://grafana.localtest.me:$PORT")
+  KPS_SET+=(--set "prometheus.prometheusSpec.externalUrl=http://prometheus.localtest.me:$PORT")
+fi
 h upgrade --install monitoring oci://ghcr.io/prometheus-community/charts/kube-prometheus-stack --version 92.10.1 \
   -n monitoring --create-namespace -f deploy/kind/values/kube-prometheus-stack.yaml \
-  --wait --timeout 15m
+  ${KPS_SET[@]+"${KPS_SET[@]}"} --wait --timeout 15m
 # O --wait do Helm 4 pode terminar antes de o Operator criar o StatefulSet do Prometheus (Pitfall
 # 11): espera o pod existir e ficar Ready.
 echo "Esperando o Prometheus..."
@@ -123,15 +129,24 @@ done
 h upgrade --install link-pulse "$CHARTS/link-pulse" -n link-pulse \
   -f "$CHARTS/link-pulse/values-dev.yaml" "${APP_SET[@]}" --wait --timeout 10m
 
+SUFFIX=
+[ "$PORT" = 80 ] || SUFFIX=":$PORT"
+
 cat <<EOF
 
-Link Pulse no kind: $BASE  (imagem link-pulse:$TAG)
+Link Pulse no kind (contexto $CTX, imagem link-pulse:$TAG)
+
+  App:        $BASE  (Swagger: $BASE/swagger-ui.html)
+  Grafana:    http://grafana.localtest.me$SUFFIX  (anônimo, só leitura; admin/admin não é segredo)
+  Prometheus: http://prometheus.localtest.me$SUFFIX  (alertas em /alerts)
 
 Criar um link:
   curl -s -X POST $BASE/links -H 'Content-Type: application/json' -d '{"url":"https://example.com"}'
 Seguir o link (troque {code} pelo campo code da resposta):
   curl -i $BASE/{code}
 
-$HOST resolve para 127.0.0.1 (e ::1); se o IPv6 atrasar, use curl -4.
+localtest.me resolve para 127.0.0.1 por DNS público; se a sua rede bloquear (proteção a DNS
+rebinding), use curl --resolve $HOST:$PORT:127.0.0.1 ou o arquivo hosts. Se o IPv6 (::1)
+atrasar, use curl -4.
 Apagar o cluster (dados incluídos): make k8s-down
 EOF
