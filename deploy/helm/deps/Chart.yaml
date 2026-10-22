@@ -1,0 +1,5 @@
+apiVersion: v2
+name: deps
+description: "Dependências dev-only do Link Pulse no kind: imagens oficiais, sem Bitnami"
+type: application
+version: 0.1.0

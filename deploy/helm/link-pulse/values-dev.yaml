@@ -1,0 +1,30 @@
+# Values do kind (make k8s). "dev" é o ambiente kind, mas o profile Spring continua prod, sem seed
+# do Liquibase (D-08). Os Services postgres, valkey e mongo vêm do chart deploy/helm/deps.
+
+image:
+  # A imagem chega ao nó pelo kind load (deploy/kind/up.sh); nunca é puxada de um registry.
+  pullPolicy: Never
+
+env:
+  SPRING_PROFILES_ACTIVE: prod
+  SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/linkpulse
+  SPRING_DATASOURCE_USERNAME: linkpulse
+  SPRING_DATA_REDIS_HOST: valkey
+  SPRING_DATA_REDIS_PORT: "6379"
+  SPRING_MONGODB_URI: mongodb://mongo:27017/linkpulse
+  # shortUrl clicável pelo Ingress (D-03). Com K8S_HTTP_PORT diferente de 80, o up.sh acrescenta a
+  # porta por --set.
+  LINKPULSE_BASE_URL: http://link-pulse.localtest.me
+  # Impede link apontando para o próprio app pelos nomes internos do Service.
+  LINKPULSE_SELF_HOSTS: link-pulse,link-pulse.link-pulse,link-pulse.link-pulse.svc,link-pulse.link-pulse.svc.cluster.local
+  # O app só confia no X-Forwarded-For vindo do CIDR dos pods (o Traefik), igual ao podSubnet de
+  # deploy/kind/kind-config.yaml (D-06). O default do application.yml continua vazio.
+  SERVER_TOMCAT_REMOTEIP_INTERNAL_PROXIES: 10.244.0.0/16
+
+secret:
+  create: true
+  data:
+    # Não é segredo: default de demonstração (igual ao postgres.password do chart deps).
+    SPRING_DATASOURCE_PASSWORD: linkpulse
+    # Não é segredo: default de demonstração (fora do kind a chave vem de um Secret próprio).
+    LINKPULSE_IP_HASH_KEY: kind-demo-ip-hash-key-not-a-secret

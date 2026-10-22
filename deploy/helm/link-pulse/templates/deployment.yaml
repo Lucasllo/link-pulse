@@ -1,0 +1,89 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "link-pulse.fullname" . }}
+  labels:
+    {{- include "link-pulse.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "link-pulse.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "link-pulse.selectorLabels" . | nindent 8 }}
+      annotations:
+        # Rollout automático quando o ConfigMap ou o Secret do chart mudam.
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
+    spec:
+      # O app não fala com a API do Kubernetes.
+      automountServiceAccountToken: false
+      # Sem POSTGRES_PORT=tcp://... e afins no env: o relaxed binding do Spring poderia ligá-los a
+      # propriedades por acidente.
+      enableServiceLinks: false
+      terminationGracePeriodSeconds: {{ .Values.terminationGracePeriodSeconds }}
+      securityContext:
+        # Mesmo usuário numérico da imagem (USER 10001:10001 no Dockerfile).
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: link-pulse
+          image: "{{ .Values.image.repository }}:{{ required "image.tag é obrigatória: make k8s passa local-{id}" .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          envFrom:
+            - configMapRef:
+                name: {{ include "link-pulse.fullname" . }}
+            - secretRef:
+                name: {{ include "link-pulse.secretName" . }}
+          ports:
+            - name: http
+              containerPort: 8080
+            - name: management
+              containerPort: 8081
+          # JVM + Liquibase: até 180 s antes de a liveness passar a valer.
+          startupProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: management
+            periodSeconds: 2
+            failureThreshold: 90
+          # Liveness só com o estado interno do app: Postgres, Valkey ou Mongo fora não reiniciam o pod.
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: management
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 3
+          # Readiness com Postgres e Valkey: sem eles o pod sai do Service, sem reiniciar.
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: management
+            periodSeconds: 5
+            timeoutSeconds: 2
+            failureThreshold: 3
+          lifecycle:
+            preStop:
+              # Tempo para o pod sair dos endpoints (Traefik) antes do SIGTERM.
+              sleep:
+                seconds: 10
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          volumeMounts:
+            # java.io.tmpdir (diretórios de trabalho do Tomcat) com o rootfs somente leitura.
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}

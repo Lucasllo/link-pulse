@@ -1,0 +1,21 @@
+# Dependências do Link Pulse no kind (dev-only: na AWS são RDS e ElastiCache).
+# Manter as tags iguais às do compose.yaml, compose.dev.yaml e TestcontainersConfiguration.
+# Os nomes dos Services (postgres, valkey, mongo) são os mesmos do compose: o env do app não muda.
+postgres:
+  image: postgres:18.6
+  database: linkpulse
+  user: linkpulse
+  # Não é segredo: default de demonstração; igual ao secret.data.SPRING_DATASOURCE_PASSWORD do
+  # values-dev do app. A senha só vale na criação do volume (como no compose).
+  password: linkpulse
+  storage: 1Gi
+
+valkey:
+  image: valkey/valkey:8.1
+  maxmemory: 256mb
+
+mongo:
+  image: mongo:8.0
+  # Cache do WiredTiger pequeno: amigável a laptop.
+  wiredTigerCacheSizeGB: "0.25"
+  storage: 1Gi

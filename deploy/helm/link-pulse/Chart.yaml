@@ -1,0 +1,6 @@
+apiVersion: v2
+name: link-pulse
+description: "Encurtador de URLs com analytics de cliques (Spring Boot, Postgres, Valkey e MongoDB)"
+type: application
+version: 0.1.0
+appVersion: "0.1.0"

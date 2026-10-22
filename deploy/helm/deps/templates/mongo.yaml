@@ -1,0 +1,77 @@
+# MongoDB: eventos de clique (click_events). Espelho do serviço mongo do compose. Sem autenticação:
+# fica só na rede do cluster, sem Ingress.
+apiVersion: v1
+kind: Service
+metadata:
+  name: mongo
+  labels:
+    app.kubernetes.io/name: mongo
+    app.kubernetes.io/part-of: link-pulse
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: mongo
+  ports:
+    - name: mongo
+      port: 27017
+      targetPort: mongo
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: mongo
+  labels:
+    app.kubernetes.io/name: mongo
+    app.kubernetes.io/part-of: link-pulse
+spec:
+  serviceName: mongo
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: mongo
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: mongo
+        app.kubernetes.io/part-of: link-pulse
+    spec:
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      containers:
+        - name: mongo
+          image: {{ .Values.mongo.image | quote }}
+          args:
+            - mongod
+            - --wiredTigerCacheSizeGB
+            - {{ .Values.mongo.wiredTigerCacheSizeGB | quote }}
+          ports:
+            - name: mongo
+              containerPort: 27017
+          readinessProbe:
+            # O mongosh é pesado (sobe um Node.js): período e timeout maiores que os do compose.
+            exec:
+              command: ["mongosh", "--quiet", "--eval", "db.adminCommand('ping')"]
+            periodSeconds: 10
+            timeoutSeconds: 5
+          livenessProbe:
+            tcpSocket:
+              port: mongo
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              memory: 768Mi
+          volumeMounts:
+            - name: data
+              mountPath: /data/db
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: [ReadWriteOnce]
+        resources:
+          requests:
+            storage: {{ .Values.mongo.storage }}

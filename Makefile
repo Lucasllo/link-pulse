@@ -14,11 +14,14 @@ STACK := $(NOCONV) docker compose
 # usuário padrão da imagem.
 K6_USER ?= $(shell id -u 2>/dev/null || echo 12345):$(shell id -g 2>/dev/null || echo 12345)
 export K6_USER
+# Kubernetes local (kind). Sem make: make image e depois bash deploy/kind/up.sh
+# (porta: K8S_HTTP_PORT=8080 bash deploy/kind/up.sh). A porta só vale na criação do cluster.
+K8S_HTTP_PORT ?= 80
 
-.PHONY: help build test verify run db-up db-down up down clean image seed load obs-check
+.PHONY: help build test verify run db-up db-down up down clean image seed load obs-check k8s k8s-down
 
 help: ## Lista os alvos disponíveis
-	@grep -E '^[a-zA-Z_-]+:.*?## ' Makefile | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-10s %s\n", $$1, $$2}'
+	@grep -E '^[a-zA-Z0-9_-]+:.*?## ' Makefile | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-10s %s\n", $$1, $$2}'
 
 build: ## Empacota o jar sem rodar testes
 	$(MVNW) -DskipTests package
@@ -67,3 +70,10 @@ load: ## Teste de carga k6 (resumo em load/results/load-summary.json)
 obs-check: ## Valida a config e as regras do Prometheus (promtool da imagem oficial)
 	$(STACK) run --rm --no-deps -T --entrypoint promtool prometheus check config /etc/prometheus/prometheus.yml
 	$(STACK) run --rm --no-deps -T --entrypoint promtool prometheus test rules /etc/prometheus/tests/link-pulse-alerts-test.yml
+
+# O up.sh exporta o NOCONV por conta própria e passa --context kind-link-pulse em todo kubectl/helm.
+k8s: image ## Cria o cluster kind e instala Traefik, deps e o app (Helm)
+	K8S_HTTP_PORT=$(K8S_HTTP_PORT) bash deploy/kind/up.sh
+
+k8s-down: ## Apaga o cluster kind link-pulse (dados incluídos)
+	$(NOCONV) kind delete cluster --name link-pulse

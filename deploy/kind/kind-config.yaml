@@ -1,0 +1,22 @@
+# Cluster do make k8s: um nó só, com a imagem fixada por digest.
+# A porta 80 do host, só em 127.0.0.1, cai no nodePort 30080 do Traefik (D-01): nada fica exposto
+# para a rede local.
+# Porta 80 ocupada (IIS, http.sys)? make k8s-down && make k8s K8S_HTTP_PORT=8080
+# O up.sh troca o hostPort abaixo por sed antes do kind create cluster; com o cluster de pé, trocar
+# a porta exige recriar o cluster.
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+networking:
+  # Explícito porque o app confia neste CIDR para ler o X-Forwarded-For do Traefik
+  # (SERVER_TOMCAT_REMOTEIP_INTERNAL_PROXIES no values-dev do chart, D-06).
+  podSubnet: "10.244.0.0/16"
+  serviceSubnet: "10.96.0.0/16"
+nodes:
+  - role: control-plane
+    image: kindest/node:v1.37.0@sha256:a1ed56cfb0e7b93589bdf97c8cd566405a265939e3620fc4f5de89adff580ae5
+    extraPortMappings:
+      # containerPort = ports.web.nodePort de deploy/kind/values/traefik.yaml.
+      - containerPort: 30080
+        hostPort: 80
+        listenAddress: "127.0.0.1"
+        protocol: TCP

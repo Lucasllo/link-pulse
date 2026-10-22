@@ -5,3 +5,5 @@ target/
 *.log
 .DS_Store
 .env
+# tar da imagem do kind load (deploy/kind/up.sh)
+.kind/

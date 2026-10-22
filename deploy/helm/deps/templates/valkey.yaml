@@ -1,0 +1,70 @@
+# Valkey: cache do redirect, stream de cliques e rate limit. Espelho do serviço valkey do compose.
+apiVersion: v1
+kind: Service
+metadata:
+  name: valkey
+  labels:
+    app.kubernetes.io/name: valkey
+    app.kubernetes.io/part-of: link-pulse
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: valkey
+  ports:
+    - name: valkey
+      port: 6379
+      targetPort: valkey
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: valkey
+  labels:
+    app.kubernetes.io/name: valkey
+    app.kubernetes.io/part-of: link-pulse
+spec:
+  serviceName: valkey
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: valkey
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: valkey
+        app.kubernetes.io/part-of: link-pulse
+    spec:
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      containers:
+        - name: valkey
+          image: {{ .Values.valkey.image | quote }}
+          # Igual ao command do compose. volatile-lru só despeja chaves com TTL, como no
+          # ElastiCache: o stream de cliques e as chaves sem TTL nunca são despejados (D-08).
+          args:
+            - valkey-server
+            - --maxmemory
+            - {{ .Values.valkey.maxmemory | quote }}
+            - --maxmemory-policy
+            - volatile-lru
+          ports:
+            - name: valkey
+              containerPort: 6379
+          readinessProbe:
+            exec:
+              command: ["valkey-cli", "ping"]
+            periodSeconds: 5
+            timeoutSeconds: 3
+          livenessProbe:
+            tcpSocket:
+              port: valkey
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            # Acima do maxmemory (256mb), com folga para buffers de cliente.
+            limits:
+              memory: 384Mi
+      # Sem PVC: o compose também não persiste o Valkey.

@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "link-pulse.fullname" . }}
+  labels:
+    {{- include "link-pulse.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector:
+    {{- include "link-pulse.selectorLabels" . | nindent 4 }}
+  ports:
+    - name: http
+      port: {{ .Values.service.httpPort }}
+      targetPort: http
+    # Actuator: só dentro do cluster (probes do kubelet e scrape do Prometheus). O Ingress não
+    # roteia esta porta.
+    - name: management
+      port: {{ .Values.service.managementPort }}
+      targetPort: management

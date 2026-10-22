@@ -1,0 +1,29 @@
+# Traefik (chart traefik/traefik 42.1.0, Traefik v3.7.x) como Ingress controller do kind.
+# Substitui o ingress-nginx, aposentado em mar/2026 (D-07).
+ingressClass:
+  enabled: true
+  # IngressClass padrão: os Ingress do app, do Grafana e do Prometheus usam ingressClassName: traefik.
+  isDefaultClass: true
+  name: traefik
+
+service:
+  # No chart 42.x o tipo e as demais chaves do Service ficam em service.spec.
+  spec:
+    type: NodePort
+    # Sem SNAT do kube-proxy: o Traefik vê o IP de origem do port mapping do kind, não o do nó.
+    externalTrafficPolicy: Local
+
+ports:
+  web:
+    # = containerPort do extraPortMappings em deploy/kind/kind-config.yaml.
+    nodePort: 30080
+    # Ninguém de fora é confiável: o Traefik descarta o X-Forwarded-For que o cliente mandar e
+    # acrescenta o IP de origem. Assim o cliente não escolhe o IP que o rate limit conta (D-06).
+    forwardedHeaders:
+      trustedIPs: []
+      insecure: false
+  websecure:
+    expose:
+      # Sem TLS no kind.
+      default: false
+# O dashboard do Traefik continua sem exposição (default do chart).

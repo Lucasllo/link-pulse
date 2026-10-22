@@ -1,0 +1,46 @@
+# Defaults do chart do Link Pulse. O kind usa values-dev.yaml por cima destes.
+
+image:
+  repository: link-pulse
+  # Obrigatória: o make k8s passa local-{12 hex do Id da imagem} e o CI sha-{sha7}. Nunca uma tag
+  # mutável: com a mesma tag, um rebuild não dispara rollout.
+  tag: ""
+  pullPolicy: IfNotPresent
+
+replicaCount: 1
+
+# Vira o ConfigMap do app (envFrom). Valores sensíveis vão em secret.data.
+env:
+  # Profile prod em qualquer ambiente do chart: sem seed do Liquibase (D-08).
+  SPRING_PROFILES_ACTIVE: prod
+
+secret:
+  # true: o chart cria o Secret a partir de secret.data. false: usa secret.existingSecret, criado
+  # fora do Helm.
+  create: true
+  existingSecret: ""
+  # Chaves obrigatórias com create=true: SPRING_DATASOURCE_PASSWORD e LINKPULSE_IP_HASH_KEY
+  # (pelo menos 16 caracteres, a mesma regra do app).
+  data: {}
+
+service:
+  httpPort: 8080
+  # Actuator (health e métricas). O Ingress não roteia esta porta.
+  managementPort: 8081
+
+ingress:
+  enabled: true
+  className: traefik
+  host: link-pulse.localtest.me
+
+# Sem limite de CPU para não estrangular a subida da JVM. Com 1Gi de limite, o heap máximo fica em
+# ~768Mi pelo -XX:MaxRAMPercentage=75 da imagem.
+resources:
+  requests:
+    cpu: 250m
+    memory: 512Mi
+  limits:
+    memory: 1Gi
+
+# preStop de 10 s + fases do shutdown de até 30 s cada (spring.lifecycle.timeout-per-shutdown-phase).
+terminationGracePeriodSeconds: 60
