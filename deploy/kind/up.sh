@@ -148,5 +148,6 @@ Seguir o link (troque {code} pelo campo code da resposta):
 localtest.me resolve para 127.0.0.1 por DNS público; se a sua rede bloquear (proteção a DNS
 rebinding), use curl --resolve $HOST:$PORT:127.0.0.1 ou o arquivo hosts. Se o IPv6 (::1)
 atrasar, use curl -4.
+Smoke: make k8s-smoke (sem make: bash deploy/kind/smoke.sh)
 Apagar o cluster (dados incluídos): make k8s-down
 EOF

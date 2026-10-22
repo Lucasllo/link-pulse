@@ -16,9 +16,10 @@ K6_USER ?= $(shell id -u 2>/dev/null || echo 12345):$(shell id -g 2>/dev/null ||
 export K6_USER
 # Kubernetes local (kind). Sem make: make image e depois bash deploy/kind/up.sh
 # (porta: K8S_HTTP_PORT=8080 bash deploy/kind/up.sh). A porta só vale na criação do cluster.
+# Smoke sem make: bash deploy/kind/smoke.sh (lê a porta do próprio cluster).
 K8S_HTTP_PORT ?= 80
 
-.PHONY: help build test verify run db-up db-down up down clean image seed load obs-check k8s k8s-down
+.PHONY: help build test verify run db-up db-down up down clean image seed load obs-check k8s k8s-down k8s-smoke
 
 help: ## Lista os alvos disponíveis
 	@grep -E '^[a-zA-Z0-9_-]+:.*?## ' Makefile | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-10s %s\n", $$1, $$2}'
@@ -77,3 +78,6 @@ k8s: image ## Cria o cluster kind e instala Traefik, metrics-server, Prometheus/
 
 k8s-down: ## Apaga o cluster kind link-pulse (dados incluídos)
 	$(NOCONV) kind delete cluster --name link-pulse
+
+k8s-smoke: ## Smoke no kind: cria link, confere o 302 e espera o clique no /stats
+	bash deploy/kind/smoke.sh
