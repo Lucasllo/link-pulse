@@ -84,6 +84,11 @@ docker image save --platform "$PLATFORM" -o .kind/link-pulse.tar "link-pulse:$TA
   || docker image save -o .kind/link-pulse.tar "link-pulse:$TAG"
 kind load image-archive .kind/link-pulse.tar --name "$CLUSTER"
 
+# ---------- metrics-server (base do HPA) ----------
+h upgrade --install metrics-server metrics-server --repo https://kubernetes-sigs.github.io/metrics-server/ --version 3.14.0 \
+  -n kube-system -f deploy/kind/values/metrics-server.yaml --wait --timeout 5m
+k wait --for=condition=Available apiservice/v1beta1.metrics.k8s.io --timeout=180s
+
 # ---------- Ingress controller ----------
 h upgrade --install traefik "$TRAEFIK_CHART" --version 42.1.0 \
   -n traefik --create-namespace -f deploy/kind/values/traefik.yaml --wait --timeout 5m

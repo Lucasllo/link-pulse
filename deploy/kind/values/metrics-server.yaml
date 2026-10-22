@@ -1,0 +1,6 @@
+# metrics-server 3.14.0 (app v0.9.0) no kind (make k8s): alimenta o HPA do app por CPU.
+# Somado aos defaultArgs do chart (--kubelet-preferred-address-types=InternalIP,..., 15 s).
+args:
+  # Os kubelets do kind usam certificado autoassinado; só para teste (README do metrics-server).
+  # Sem isso o HPA fica em unknown. Não vai para nenhum values de produção.
+  - --kubelet-insecure-tls

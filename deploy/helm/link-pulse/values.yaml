@@ -7,7 +7,17 @@ image:
   tag: ""
   pullPolicy: IfNotPresent
 
+# Ignorado com autoscaling.enabled: aí quem decide as réplicas é o HPA.
 replicaCount: 1
+
+# HPA (autoscaling/v2) por CPU. A utilização é relativa a resources.requests.cpu, então o request
+# é a base do cálculo. Cada réplica abre até 10 conexões (pool padrão do Hikari): 10 x maxReplicas
+# precisa ficar abaixo do max_connections do Postgres (100).
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 3
+  targetCPUUtilizationPercentage: 70
 
 # Vira o ConfigMap do app (envFrom). Valores sensíveis vão em secret.data.
 env:

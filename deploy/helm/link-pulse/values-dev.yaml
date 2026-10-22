@@ -5,6 +5,12 @@ image:
   # A imagem chega ao nó pelo kind load (deploy/kind/up.sh); nunca é puxada de um registry.
   pullPolicy: Never
 
+# HPA com o metrics-server do kind: 1 a 3 réplicas (3 x 10 conexões do Hikari < 100 do Postgres).
+autoscaling:
+  enabled: true
+  minReplicas: 1
+  maxReplicas: 3
+
 env:
   SPRING_PROFILES_ACTIVE: prod
   SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/linkpulse

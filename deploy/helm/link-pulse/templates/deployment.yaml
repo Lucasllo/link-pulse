@@ -5,7 +5,10 @@ metadata:
   labels:
     {{- include "link-pulse.labels" . | nindent 4 }}
 spec:
+  {{- if not .Values.autoscaling.enabled }}
+  # Com HPA, sem spec.replicas: cada helm upgrade resetaria a contagem.
   replicas: {{ .Values.replicaCount }}
+  {{- end }}
   selector:
     matchLabels:
       {{- include "link-pulse.selectorLabels" . | nindent 6 }}
