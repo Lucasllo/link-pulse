@@ -158,7 +158,7 @@ Plans:
   4. Na main, o GitHub Actions publica a imagem no GHCR (nome em minúsculas, pacote público), roda o scan do Trivy e gera o SBOM
   5. O job de verificação do CI sobe um cluster kind, faz o deploy e passa no smoke test criar link → redirect → stats
 
-**Plans**: 1/4 plans executed
+**Plans**: 2/4 plans executed
 
 Plans:
 **Wave 1**
@@ -167,7 +167,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 04-02-PLAN.md — kube-prometheus-stack enxuto com ServiceMonitor (job link-pulse), PrometheusRule e dashboards de observability/ por --set-file, Grafana anônimo, HPA com metrics-server e as três URLs no fim do make k8s (wave 2)
+- [x] 04-02-PLAN.md — kube-prometheus-stack enxuto com ServiceMonitor (job link-pulse), PrometheusRule e dashboards de observability/ por --set-file, Grafana anônimo, HPA com metrics-server e as três URLs no fim do make k8s (wave 2)
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
@@ -202,5 +202,5 @@ As fases seguem a ordem numérica: 1 → 2 → 3 → 4 → 5 (a parte Terraform 
 | 1. Fundação e núcleo de links | 8/8 | Complete    | 2026-10-09 |
 | 2. Hot path no Valkey e pipeline de cliques | 9/9 | Complete    | 2026-10-11 |
 | 3. Stack local observável | 4/4 | Complete    | 2026-10-17 |
-| 4. Kubernetes no kind e entrega contínua | 1/4 | In Progress|  |
+| 4. Kubernetes no kind e entrega contínua | 2/4 | In Progress|  |
 | 5. Terraform AWS e vitrine | 0/TBD | Not started | - |

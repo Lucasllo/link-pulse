@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 04
 current_phase_name: Kubernetes no kind e entrega contínua
 status: executing
-stopped_at: Completed 04-01-PLAN.md
-last_updated: "2026-10-22T00:28:53.516Z"
+stopped_at: Completed 04-02-PLAN.md
+last_updated: "2026-10-22T00:54:27.818Z"
 last_activity: 2026-10-21
 last_activity_desc: Phase 04 execution started
-state_head: c9d930695aa9a7d4e2b0bc58350448cccece48de
+state_head: 4689b649f301d11ddda2371c59a7fbb131c94de8
 progress:
   total_phases: 5
   completed_phases: 3
   total_plans: 25
-  completed_plans: 22
+  completed_plans: 23
   percent: 60
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-10-17)
 ## Current Position
 
 Phase: 04 (Kubernetes no kind e entrega contínua) — EXECUTING
-Plan: 2 of 4
+Plan: 3 of 4
 Status: Ready to execute
 Last activity: 2026-10-21 — Phase 04 execution started
 
@@ -81,6 +81,7 @@ Progress: [██████░░░░] 60%
 | Phase 03 P03 | 9min | 3 tasks | 9 files |
 | Phase 03 P04 | 11min | 2 tasks | 6 files |
 | Phase 04 P01 | 47 min | 2 tasks | 22 files |
+| Phase 04 P02 | 22 min | 3 tasks | 13 files |
 
 ## Accumulated Context
 
@@ -146,6 +147,9 @@ Decisões recentes que afetam o trabalho atual:
 - [Phase 04]: 04-01: Traefik 42.1.0 usa service.spec.type; NodePort 30080, externalTrafficPolicy Local, trustedIPs vazio (host chega como 172.21.0.1)
 - [Phase 04]: 04-01: indicador do Mongo no Boot 4.1.1 é 'mongo'; readiness = readinessState,db,redis; liveness = livenessState
 - [Phase 04]: 04-01: contrato kind: cluster link-pulse, contexto kind-link-pulse, Service link-pulse (http/management), hosts *.localtest.me, tag local-{12 hex}
+- [Phase 04]: 04-02: kube-prometheus-stack 92.10.1 enxuto (release monitoring), seletores abertos, sem Alertmanager; Grafana 13.2.4 anônimo Viewer; observability/ entra por --set-file (PrometheusRule + ConfigMaps grafana_dashboard), sem cópia
+- [Phase 04]: 04-02: contrato chart: observability.{enabled,rules,dashboards}, metrics.serviceMonitor.{enabled,interval}, autoscaling.*; render falha sem os --set-file (CI passa os mesmos ou observability.enabled=false); hosts grafana./prometheus.localtest.me
+- [Phase 04]: 04-02: HPA autoscaling/v2 por CPU 70% (kind 1-3) com metrics-server 3.14.0 (--kubelet-insecure-tls só no kind); Deployment sem spec.replicas com HPA
 
 ### Pending Todos
 
@@ -184,6 +188,6 @@ Itens reconhecidos e adiados no fechamento de milestone, do mais recente para o 
 
 ## Session Continuity
 
-Last session: 2026-10-22T00:28:53.294Z
-Stopped at: Completed 04-01-PLAN.md
+Last session: 2026-10-22T00:54:27.494Z
+Stopped at: Completed 04-02-PLAN.md
 Resume file: None
