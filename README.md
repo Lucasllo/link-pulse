@@ -446,7 +446,34 @@ Configuração (override por variável de ambiente, via relaxed binding do Sprin
 - **Checkstyle** (Google Java Style adaptado para 4 espaços, engine 14.3.0) na fase `validate`. Uma violação quebra o build.
 - **SpotBugs** (effort Max, threshold Medium) na fase `verify`.
 - **Testes:** `*Test` no Surefire (unitários, sem Docker) e `*IT` no Failsafe, com **Testcontainers** (Postgres 18.6 real). `./mvnw -B -ntp verify` roda tudo.
-- **CI** (`.github/workflows/ci.yml`, workflow `ci`): roda em todo push na `main` e em todo pull request, com Java 21 Temurin, checkout em caminho com espaço, `make -n verify` e `./mvnw -B -ntp verify`. As actions são **fixadas por SHA**, e o Dependabot cuida das atualizações.
+- **CI** (`.github/workflows/ci.yml`, workflow `ci`): roda em todo push na `main` e em todo pull request, em quatro jobs. As actions são **fixadas por SHA de commit** (com a versão em comentário), e o Dependabot cuida das atualizações.
+  - `build-test`: Java 21 Temurin, checkout em caminho com espaço, `make -n verify`, `make -n k8s` e `./mvnw -B -ntp verify`.
+  - `image`: builda a imagem do commit (`link-pulse:local`, cache de camadas do GitHub Actions), roda o **Trivy** v0.76.0, que reprova o job se houver vulnerabilidade **CRITICAL com correção disponível** (HIGH e sem correção só aparecem no log), e gera o **SBOM CycloneDX** (artifact `sbom`, barrado se tiver menos de 50 componentes). A imagem testada vira o artifact `image`.
+  - `k8s-smoke` (depois do `image`): sobe kind v0.33.0 com Helm v4.3.1 e roda `make obs-check`, `bash deploy/kind/lint.sh`, `bash deploy/kind/up.sh` e `bash deploy/kind/smoke.sh`, os mesmos scripts do `make k8s`, com a imagem do próprio commit. Na falha, imprime pods, describe, logs e eventos do cluster.
+  - `publish`: só em push na `main` e só depois dos outros três. Empurra para o GHCR **exatamente a imagem que passou no Trivy e no smoke** (`docker load` do artifact, sem rebuild) e cria as attestations de provenance e de SBOM. Pull request, inclusive de fork e do Dependabot, nunca publica.
+
+### Imagem publicada (GHCR)
+
+```bash
+docker pull ghcr.io/lucasllo/link-pulse:latest
+```
+
+- **Tags:** `sha-{sha7}` (os 7 primeiros caracteres do commit que gerou a imagem) e `latest` (o último push verde na `main`). Para fixar uma versão, use a tag `sha-`.
+- **Provenance (SLSA):** confere que a imagem saiu deste repositório, deste workflow e de qual commit.
+
+  ```bash
+  gh attestation verify oci://ghcr.io/lucasllo/link-pulse:latest --owner Lucasllo
+  ```
+
+- **SBOM:** a lista de componentes (pacotes do Ubuntu e jars) está atestada no registry. Para baixar o arquivo, use o artifact `sbom` de qualquer run do workflow `ci` (aba Actions, ou `gh run download <run-id> -n sbom`).
+
+  ```bash
+  gh attestation verify oci://ghcr.io/lucasllo/link-pulse:latest --owner Lucasllo \
+    --predicate-type https://cyclonedx.org/bom
+  ```
+
+- **Permissões mínimas:** o token do workflow só lê o repositório (`contents: read`). Só o job `publish` ganha `packages: write` (push no GHCR), `id-token: write`, `attestations: write` e `artifact-metadata: write` (attestations), tudo com o `GITHUB_TOKEN`, sem secret próprio.
+- **Visibilidade:** o GitHub cria todo pacote como privado. Este pacote foi tornado público uma vez, à mão, depois da primeira publicação (*Package settings → Change visibility → Public*). A troca não tem API e não volta atrás.
 
 ## Licenças de terceiros
 

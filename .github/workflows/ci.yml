@@ -5,7 +5,8 @@ on:
     branches: [main]
   pull_request:
 
-# O token do workflow só lê o repositório; nenhum secret é usado nesta fase.
+# O token do workflow só lê o repositório. Só o job publish (push na main) ganha escrita no GHCR
+# e nas attestations, com o GITHUB_TOKEN; nenhum secret próprio é usado.
 permissions:
   contents: read
 
@@ -201,3 +202,97 @@ jobs:
           kubectl --context kind-link-pulse -n link-pulse logs -l app.kubernetes.io/name=link-pulse --tail=300 || true
           kubectl --context kind-link-pulse get events -A --sort-by=.lastTimestamp || true
           helm --kube-context kind-link-pulse list -A || true
+
+  publish:
+    # PR, inclusive de fork e do Dependabot, nunca publica.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    # Só a imagem que passou no Trivy e no smoke em kind.
+    needs: [build-test, image, k8s-smoke]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      packages: write
+      # As três abaixo são exigidas pelo actions/attest.
+      id-token: write
+      attestations: write
+      artifact-metadata: write
+    # Sem checkout e sem build: o digest publicado é o do tar testado.
+    steps:
+      - name: Baixa a imagem testada
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: image
+
+      - name: Baixa o SBOM
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: sbom
+
+      - name: Carrega a imagem no Docker
+        run: docker load -i link-pulse.tar
+
+      - name: Login no GHCR
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Tags (sha-{sha7} e latest)
+        id: meta
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
+        with:
+          # A action minusculiza Lucasllo -> lucasllo (Pitfall 14).
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=sha
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Push no GHCR
+        id: push
+        env:
+          # Tags por env, nunca interpoladas direto no script.
+          TAGS: ${{ steps.meta.outputs.tags }}
+        run: |
+          set -euo pipefail
+          first="" digest=""
+          while IFS= read -r t; do
+            [ -n "$t" ] || continue
+            docker tag link-pulse:local "$t"
+            out=$(docker push "$t" | tee /dev/stderr)
+            d=$(printf '%s\n' "$out" | grep -oE 'sha256:[0-9a-f]{64}' | tail -n1 || true)
+            if [ -z "$first" ]; then
+              first=$t digest=$d
+            elif [ -n "$d" ] && [ -n "$digest" ] && [ "$d" != "$digest" ]; then
+              echo "digest diferente entre tags: $digest x $d" >&2
+              exit 1
+            fi
+          done <<< "$TAGS"
+          name=${first%:*}
+          if [ -z "$digest" ]; then
+            # Alternativa: o RepoDigests que o push grava na imagem local.
+            ref=$(docker image inspect --format '{{range .RepoDigests}}{{println .}}{{end}}' "$first" | grep -F "$name@" | head -n1 || true)
+            digest=${ref#*@}
+          fi
+          if ! printf '%s' "$digest" | grep -qE '^sha256:[0-9a-f]{64}$'; then
+            echo "digest inválido: '$digest'" >&2
+            exit 1
+          fi
+          echo "name=$name" >> "$GITHUB_OUTPUT"
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+
+      - name: Attestation de provenance (SLSA)
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-name: ${{ steps.push.outputs.name }}
+          subject-digest: ${{ steps.push.outputs.digest }}
+          push-to-registry: true
+
+      - name: Attestation do SBOM (CycloneDX)
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-name: ${{ steps.push.outputs.name }}
+          subject-digest: ${{ steps.push.outputs.digest }}
+          sbom-path: sbom.cdx.json
+          push-to-registry: true
