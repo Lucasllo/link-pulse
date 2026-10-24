@@ -42,6 +42,13 @@ ingress:
   enabled: true
   className: traefik
   host: link-pulse.localtest.me
+  # TLS do Ingress (vira spec.tls). Vazio no kind (HTTP em localtest.me); o values-prod usa
+  # [{secretName: link-pulse-tls, hosts: [lp.example.com]}].
+  tls: []
+
+# Espalhamento dos pods (vira spec.template.spec.topologySpreadConstraints). Sem labelSelector:
+# o template injeta os selectorLabels do chart em cada item. Vazio no kind (nó único).
+topologySpreadConstraints: []
 
 # Sem limite de CPU para não estrangular a subida da JVM. Com 1Gi de limite, o heap máximo fica em
 # ~768Mi pelo -XX:MaxRAMPercentage=75 da imagem.

@@ -34,6 +34,16 @@ spec:
         runAsGroup: 10001
         seccompProfile:
           type: RuntimeDefault
+      {{- with .Values.topologySpreadConstraints }}
+      # Cada item ganha o labelSelector com os selectorLabels do chart: o values não repete labels.
+      topologySpreadConstraints:
+        {{- range . }}
+        - {{ toYaml (omit . "labelSelector") | nindent 10 | trim }}
+          labelSelector:
+            matchLabels:
+              {{- include "link-pulse.selectorLabels" $ | nindent 14 }}
+        {{- end }}
+      {{- end }}
       containers:
         - name: link-pulse
           image: "{{ .Values.image.repository }}:{{ required "image.tag é obrigatória: make k8s passa local-{id}" .Values.image.tag }}"

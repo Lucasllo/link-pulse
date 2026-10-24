@@ -1,0 +1,62 @@
+# Perfil de produção de referência: só renderizado e validado pelo make k8s-lint, nunca instalado
+# no kind; troque nomes e domínio pelos do seu ambiente.
+# Nenhum segredo aqui: senha do Postgres e chave do HMAC vêm de um Secret criado fora do chart.
+
+image:
+  repository: ghcr.io/lucasllo/link-pulse
+  # A tag vem do deploy: --set image.tag=sha-{sha7} (a imagem que o CI publica no GHCR).
+  pullPolicy: IfNotPresent
+
+# 2 a 6 réplicas: 6 x 10 conexões do Hikari = 60, abaixo do max_connections (100) do Postgres.
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 6
+  targetCPUUtilizationPercentage: 70
+
+resources:
+  requests:
+    cpu: 500m
+    memory: 768Mi
+  limits:
+    memory: 1536Mi
+
+env:
+  # Profile prod: sem seed do Liquibase (D-08).
+  SPRING_PROFILES_ACTIVE: prod
+  # link-pulse-db, link-pulse-cache e link-pulse-clicks: Services (ou ExternalName) apontando para
+  # os serviços gerenciados (RDS, ElastiCache e o Mongo do ambiente).
+  SPRING_DATASOURCE_URL: jdbc:postgresql://link-pulse-db:5432/linkpulse
+  SPRING_DATASOURCE_USERNAME: linkpulse
+  SPRING_DATA_REDIS_HOST: link-pulse-cache
+  SPRING_DATA_REDIS_PORT: "6379"
+  SPRING_MONGODB_URI: mongodb://link-pulse-clicks:27017/linkpulse
+  LINKPULSE_BASE_URL: https://lp.example.com
+  # Impede link apontando para o próprio app pelos nomes internos do Service e pelo domínio público.
+  LINKPULSE_SELF_HOSTS: link-pulse,link-pulse.link-pulse,link-pulse.link-pulse.svc,link-pulse.link-pulse.svc.cluster.local,lp.example.com
+  # CIDR dos pods do ingress controller do cluster de produção: só deles o app aceita o
+  # X-Forwarded-For (IP real do rate limit).
+  SERVER_TOMCAT_REMOTEIP_INTERNAL_PROXIES: 10.0.0.0/16
+  # Logs estruturados (JSON ECS) para o agregador de logs do cluster.
+  LOGGING_STRUCTURED_FORMAT_CONSOLE: ecs
+
+secret:
+  # O chart não cria Secret em produção. link-pulse-secrets tem as chaves SPRING_DATASOURCE_PASSWORD
+  # e LINKPULSE_IP_HASH_KEY (pelo menos 16 caracteres) e é criado fora do chart, por External
+  # Secrets ou pelo time de plataforma.
+  create: false
+  existingSecret: link-pulse-secrets
+
+ingress:
+  host: lp.example.com
+  # Certificado em um Secret TLS (cert-manager ou importado).
+  tls:
+    - secretName: link-pulse-tls
+      hosts:
+        - lp.example.com
+
+# Uma réplica por zona sempre que der; sem bloquear o agendamento se uma zona faltar.
+topologySpreadConstraints:
+  - maxSkew: 1
+    topologyKey: topology.kubernetes.io/zone
+    whenUnsatisfiable: ScheduleAnyway
