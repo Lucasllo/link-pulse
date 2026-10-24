@@ -11,7 +11,8 @@ permissions:
 
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  # Cancela só PR: um push na main nunca morre no meio do publish.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   build-test:
@@ -40,7 +41,7 @@ jobs:
 
       - name: Makefile parseia no Linux
         working-directory: "link pulse"
-        run: make -n verify && make help
+        run: make -n verify && make -n k8s && make help
 
       - name: Build, Checkstyle, testes unitários + Testcontainers, SpotBugs
         run: ./mvnw -B -ntp verify
@@ -56,3 +57,147 @@ jobs:
             link pulse/app/target/spotbugsXml.xml
             link pulse/app/target/checkstyle-result.xml
           if-no-files-found: ignore
+
+  image:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: "link pulse"
+
+      - name: Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - name: Build da imagem (link-pulse:local)
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: "link pulse/app"
+          load: true
+          push: false
+          tags: link-pulse:local
+          labels: org.opencontainers.image.revision=${{ github.sha }}
+          # As attestations (provenance e SBOM) vêm do actions/attest no publish.
+          provenance: false
+          sbom: false
+          # O cache gha guarda as camadas, não o --mount=type=cache do ~/.m2.
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Trivy (falha em CRITICAL com correção disponível)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          version: v0.76.0
+          scan-type: image
+          image-ref: link-pulse:local
+          severity: CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"
+          format: table
+          # O default de 5 min conta o download do trivy-java-db (~940 MB) no primeiro run.
+          timeout: 10m
+
+      - name: SBOM (CycloneDX)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          skip-setup-trivy: true
+          scan-type: image
+          image-ref: link-pulse:local
+          format: cyclonedx
+          output: sbom.cdx.json
+          # A trivy-action pode repassar os inputs do passo anterior por variáveis TRIVY_*;
+          # sem isto o SBOM herdaria o filtro e o exit code do scan.
+          severity: UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL
+          ignore-unfixed: false
+          exit-code: "0"
+          timeout: 10m
+
+      - name: SBOM não vazio
+        # Os pacotes do Ubuntu noble do Temurin mais os jars do Spring Boot passam folgado de
+        # 50 componentes: um SBOM vazio ou trivial falha o job.
+        run: jq -e '(.components | length) >= 50' sbom.cdx.json
+
+      - name: Exporta a imagem testada
+        run: docker image save -o link-pulse.tar link-pulse:local
+
+      - name: Artifact da imagem
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: image
+          path: link-pulse.tar
+          retention-days: 1
+          if-no-files-found: error
+
+      - name: Artifact do SBOM
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: sbom
+          path: sbom.cdx.json
+          if-no-files-found: error
+
+  k8s-smoke:
+    needs: image
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    defaults:
+      run:
+        working-directory: "link pulse"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: "link pulse"
+
+      - name: kind v0.33.0 (só o binário)
+        uses: helm/kind-action@1544676c07bb3570fcb70166beaa07c4528fd4aa # v1.15.1
+        with:
+          # O cluster é criado pelo up.sh; sem ignore_failed_clean o post step falha o job (Pitfall 18).
+          install_only: true
+          version: v0.33.0
+          cluster_name: link-pulse
+          ignore_failed_clean: true
+
+      - name: Helm v4.3.1
+        # O runner traz Helm 3; o up.sh exige o v4.
+        uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310 # v5.0.1
+        with:
+          version: v4.3.1
+
+      - name: Scripts executáveis e LF
+        run: |
+          for f in deploy/kind/*.sh; do
+            test -x "$f" || { echo "sem bit executável: $f"; exit 1; }
+            ! grep -q $'\r' "$f" || { echo "CRLF em: $f"; exit 1; }
+          done
+
+      - name: Regras do Prometheus (promtool)
+        run: make obs-check
+
+      - name: Lint dos charts
+        # Falha rápido, antes de subir o cluster.
+        run: bash deploy/kind/lint.sh
+
+      - name: Baixa a imagem do commit
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: image
+          path: "link pulse"
+
+      - name: Carrega a imagem no Docker
+        run: docker load -i link-pulse.tar
+
+      - name: make k8s (mesmo script do avaliador)
+        run: bash deploy/kind/up.sh
+
+      - name: "Smoke: link → 302 → stats"
+        run: bash deploy/kind/smoke.sh
+
+      - name: Diagnóstico do cluster
+        if: failure()
+        run: |
+          kubectl --context kind-link-pulse get pods -A -o wide || true
+          kubectl --context kind-link-pulse -n link-pulse describe pods || true
+          kubectl --context kind-link-pulse -n link-pulse logs -l app.kubernetes.io/name=link-pulse --tail=300 || true
+          kubectl --context kind-link-pulse get events -A --sort-by=.lastTimestamp || true
+          helm --kube-context kind-link-pulse list -A || true
