@@ -2,7 +2,7 @@
 
 ## O que é
 
-Link Pulse é uma API de encurtamento de URLs: cria links curtos (gerados ou com alias) e redireciona para a URL original com 302. Não tem frontend nem autenticação. Este README cobre o núcleo de links, o cache Valkey e o pipeline de cliques (Phase 2) e a stack local observável com `make up` (Phase 3); Kubernetes e Terraform entram nas próximas fases.
+Link Pulse é uma API de encurtamento de URLs: cria links curtos (gerados ou com alias) e redireciona para a URL original com 302. Não tem frontend nem autenticação. Este README cobre o núcleo de links, o cache Valkey e o pipeline de cliques (Phase 2), a stack local observável com `make up` (Phase 3) e o Kubernetes local com `make k8s` (Phase 4: kind, Helm, Traefik, Prometheus e Grafana); o Terraform entra na próxima fase.
 
 Stack: **Java 21**, **Spring Boot 4.1.1**, **PostgreSQL 18**, **Liquibase 5.0.3** e **Maven 3.9.16** via wrapper (`app/mvnw`, sem Maven instalado).
 
@@ -17,6 +17,7 @@ Stack: **Java 21**, **Spring Boot 4.1.1**, **PostgreSQL 18**, **Liquibase 5.0.3*
   - ou rode tudo de dentro do WSL, onde `sudo apt install make` resolve.
 
   Sem make, use a coluna "Sem make" da tabela abaixo. Os comandos são os mesmos.
+- **kind e Helm (só para o `make k8s`)**: `winget install Kubernetes.kind Helm.Helm` (kind v0.33.0, Helm 4.3.x; abra um terminal novo depois). O `kubectl` vem com o Docker Desktop. O cluster inteiro (app, bancos, Traefik, Prometheus e Grafana) roda dentro do WSL2, que precisa de pelo menos 6 GB de RAM: confira `memory=` no `%UserProfile%\.wslconfig`.
 
 Caminhos com espaço são suportados. O CI prova isso a cada push, clonando o repositório em `link pulse/`.
 
@@ -40,6 +41,10 @@ Rode da raiz do repositório.
 | `make seed` | `docker compose run --rm -T k6 run --quiet seed.js` | Popula links e cliques de demonstração com o k6 em container (rode depois do `make up`) |
 | `make load` | `K6_USER="$(id -u):$(id -g)" docker compose run --rm -T k6 run --quiet --summary-export=results/load-summary.json load.js` | Teste de carga k6 com resumo em `load/results/load-summary.json` (rode depois do `make up`) |
 | `make obs-check` | `docker compose run --rm --no-deps -T --entrypoint promtool prometheus check config /etc/prometheus/prometheus.yml` e `docker compose run --rm --no-deps -T --entrypoint promtool prometheus test rules /etc/prometheus/tests/link-pulse-alerts-test.yml` | Valida a config e as regras de alerta do Prometheus com o `promtool` da própria imagem (no Git Bash sem make, prefixe cada comando com `MSYS_NO_PATHCONV=1`) |
+| `make k8s` | `make image` e depois `bash deploy/kind/up.sh` (outra porta: `K8S_HTTP_PORT=8080 bash deploy/kind/up.sh`) | Cria o cluster kind e instala Traefik, metrics-server, Prometheus/Grafana, Postgres/Valkey/Mongo e o app (seção "Kubernetes local") |
+| `make k8s-smoke` | `bash deploy/kind/smoke.sh` | Link → 302 → clique no `/stats`, mais scrape, alertas e dashboard no cluster kind |
+| `make k8s-lint` | `bash deploy/kind/lint.sh` | `helm lint` + kubeconform dos charts (values dev e prod), guardas do chart e paridade das tags de imagem (não precisa de cluster) |
+| `make k8s-down` | `kind delete cluster --name link-pulse` | Apaga o cluster kind e os dados dele |
 
 No **PowerShell**, use o `mvnw.cmd`:
 
@@ -186,6 +191,79 @@ docker compose stop app
 docker compose start app
 # o alerta some quando o scrape volta a funcionar
 ```
+
+## Kubernetes local (make k8s)
+
+```bash
+make k8s        # sem make: make image e depois bash deploy/kind/up.sh
+make k8s-smoke  # sem make: bash deploy/kind/smoke.sh
+make k8s-down   # sem make: kind delete cluster --name link-pulse
+```
+
+### O que o make k8s faz
+
+O [`deploy/kind/up.sh`](deploy/kind/up.sh) sobe o mesmo encurtador observável num cluster [kind](https://kind.sigs.k8s.io/), nesta ordem:
+
+1. Cria o cluster `link-pulse` (kind v0.33.0, um nó com a imagem `kindest/node:v1.37.0` fixada por digest) ou reaproveita o que já existe.
+2. Builda a imagem (`make image`), dá a ela uma tag única (`local-{12 hex do Id}`, para um rebuild sempre virar rollout) e carrega no nó por `kind load image-archive`.
+3. Instala o metrics-server (chart 3.14.0), base do HPA do app.
+4. Instala o Traefik (chart 42.1.0) como Ingress controller.
+5. Instala o kube-prometheus-stack (chart 92.10.1) enxuto: Prometheus, Grafana e Operator, sem Alertmanager.
+6. Instala o chart [`deploy/helm/deps`](deploy/helm/deps) (Postgres, Valkey e Mongo).
+7. Instala o chart [`deploy/helm/link-pulse`](deploy/helm/link-pulse) com os alertas e os dashboards de `observability/`, a mesma fonte do compose.
+
+Todo `kubectl` e `helm` do script leva o contexto `kind-link-pulse`: ele nunca age no cluster que estiver no contexto atual do seu kubeconfig. Rodar de novo com o cluster de pé só atualiza o que mudou. Precisa do Helm 4 (Helm 4.3.x). A primeira subida leva uns 15 min, quase tudo download de imagens; as seguintes são bem mais rápidas.
+
+No fim, o script imprime as URLs e sugere o `make k8s-smoke`, que cria um link (um só por execução, longe do rate limit), confere o 302 sem segui-lo, espera o clique aparecer no `/stats` e confere o scrape no Prometheus, a regra `LinkPulseTargetDown` e o dashboard no Grafana. A última linha é `smoke OK: {code}`. O CI roda os mesmos `up.sh` e `smoke.sh`.
+
+### URLs
+
+| O quê | URL |
+|-------|-----|
+| App (e Swagger em `/swagger-ui.html`) | <http://link-pulse.localtest.me> |
+| Grafana (anônimo só leitura; admin/admin não é segredo) | <http://grafana.localtest.me> |
+| Prometheus (alertas em `/alerts`) | <http://prometheus.localtest.me> |
+
+```bash
+curl -s -X POST http://link-pulse.localtest.me/links -H 'Content-Type: application/json' -d '{"url":"https://example.com"}'
+```
+
+- **`localtest.me`** é um domínio público cujo DNS resolve qualquer subdomínio para `127.0.0.1`, então os três hosts funcionam sem editar nada. Ele também responde `::1`: se o IPv6 atrasar, use `curl -4`. Redes com proteção a DNS rebinding bloqueiam esse tipo de resposta; aí use linhas no arquivo hosts (`127.0.0.1 link-pulse.localtest.me grafana.localtest.me prometheus.localtest.me`) ou `curl --resolve link-pulse.localtest.me:80:127.0.0.1`.
+- A porta só escuta em `127.0.0.1`: nada do cluster fica exposto para a rede local.
+
+### Porta 80 ocupada
+
+IIS, `http.sys` e outros serviços do Windows costumam ocupar a 80, e aí o `kind create cluster` falha. Veja quem está nela com `netstat -ano | findstr :80` e recrie o cluster em outra porta:
+
+```bash
+make k8s-down && make k8s K8S_HTTP_PORT=8080
+```
+
+A `shortUrl` dos links, o Grafana e o Prometheus passam a usar `:8080` (<http://link-pulse.localtest.me:8080>), e o `make k8s-smoke` lê a porta do próprio cluster. A porta só vale na criação: com o cluster de pé, trocar exige `make k8s-down` antes.
+
+### Probes e resiliência
+
+- **Liveness** usa só o estado interno do app; **readiness** inclui Postgres e Valkey. Nenhuma queda de dependência reinicia o pod.
+- **Valkey fora**: no kind, o pod fica `NotReady`, sai do Service e o Traefik responde 503. É uma troca consciente com o fail-open que o compose mostra ("Demonstração: o redirect sem o Valkey"): no cluster, a readiness tira o pod de circulação em vez de servir só pelo Postgres.
+- **Mongo fora**: o pod continua Ready e o redirect segue funcionando; só o `/stats` responde 503 até o Mongo voltar (os cliques esperam no stream).
+- O `preStop` de 10 s dá tempo para o pod sair dos endpoints do Traefik antes do SIGTERM, e o shutdown gracioso termina o que estava em andamento.
+
+### Rate limit atrás do Traefik
+
+O limite de 20 criações por minuto é por IP do cliente. O Traefik descarta o `X-Forwarded-For` que vem do cliente e acrescenta o IP de origem, e o app só confia nesse header quando a conexão vem do CIDR dos pods (`10.244.0.0/16`, igual ao `podSubnet` do [`deploy/kind/kind-config.yaml`](deploy/kind/kind-config.yaml)), por `SERVER_TOMCAT_REMOTEIP_INTERNAL_PROXIES`. Assim, um cliente de fora não consegue forjar o IP para escapar do limite. Um pod dentro do cluster ainda conseguiria forjar o header; isso é aceito no kind, que é de um avaliador só.
+
+### Charts e values
+
+- [`deploy/helm/link-pulse`](deploy/helm/link-pulse): o app, com Deployment, Service, Ingress, HPA, ConfigMap, Secret, ServiceMonitor, PrometheusRule e os ConfigMaps dos dashboards.
+  - `values-dev.yaml` é o kind (o profile Spring continua `prod`, sem seed do Liquibase). As senhas e a chave do HMAC dele são defaults de demonstração e **não são segredo**.
+  - `values-prod.yaml` é um perfil de produção de referência: imagem do GHCR, HPA de 2 a 6 réplicas, resources maiores, logs estruturados ECS, Ingress com TLS, réplicas espalhadas por zona e `secret.create: false` com `existingSecret` (o Secret é criado fora do chart; nenhum segredo no repositório). Ele nunca é instalado no kind: só é renderizado e validado pelo `make k8s-lint`.
+- [`deploy/helm/deps`](deploy/helm/deps): Postgres, Valkey e Mongo, dev-only, com as imagens oficiais (sem Bitnami) e as mesmas tags do compose.
+- `make k8s-lint` (sem make: `bash deploy/kind/lint.sh`, não precisa de cluster) roda `helm lint --strict` e o kubeconform `-strict` (em container, com os schemas do Kubernetes 1.37.1 e dos CRDs do Prometheus Operator) nos dois values e no chart `deps`, confere que o chart recusa renderizar sem `image.tag`, com chave do HMAC curta ou sem Secret, e falha se as tags de `postgres`, `valkey/valkey` e `mongo` divergirem entre compose, chart `deps` e Testcontainers.
+- Não há `make seed` para o kind: o smoke já gera tráfego. Para dashboards cheios, use o `make up` + `make seed` do compose.
+
+### Limpeza
+
+`make k8s-down` apaga o cluster e os dados dele (links e cliques do kind). Se o Docker Desktop reiniciar e o cluster não voltar saudável, recrie: `make k8s-down && make k8s`.
 
 ## API
 
