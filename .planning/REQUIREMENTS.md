@@ -66,9 +66,9 @@ Requisitos da entrega inicial. Cada um é mapeado para uma fase do roadmap.
 
 ### Kubernetes
 
-- [ ] **K8S-01**: Helm chart do app com Deployment, Service, Ingress, ConfigMap, Secret e HPA, com values dev/prod
+- [x] **K8S-01**: Helm chart do app com Deployment, Service, Ingress, ConfigMap, Secret e HPA, com values dev/prod
 - [x] **K8S-02**: Liveness e readiness via Actuator (liveness sem dependências externas; readiness com Postgres e Valkey)
-- [ ] **K8S-03**: `make k8s` cria cluster kind e instala Traefik, metrics-server, kube-prometheus-stack, dependências (manifests próprios com imagens oficiais) e o app
+- [x] **K8S-03**: `make k8s` cria cluster kind e instala Traefik, metrics-server, kube-prometheus-stack, dependências (manifests próprios com imagens oficiais) e o app
 - [x] **K8S-04**: Prometheus faz scrape do app via ServiceMonitor; dashboards e regras são carregados automaticamente
 
 ### CI/CD
@@ -76,7 +76,7 @@ Requisitos da entrega inicial. Cada um é mapeado para uma fase do roadmap.
 - [x] **CI-01**: GitHub Actions roda build, testes (Testcontainers), Checkstyle e SpotBugs em cada push/PR
 - [ ] **CI-02**: Pipeline faz build da imagem e publica no GHCR (na main)
 - [ ] **CI-03**: Imagem passa por scan do Trivy e é gerado um SBOM
-- [ ] **CI-04**: Job de verificação faz deploy em kind e roda smoke test (criar link → redirect → stats)
+- [x] **CI-04**: Job de verificação faz deploy em kind e roda smoke test (criar link → redirect → stats)
 
 ### Observabilidade
 
@@ -176,14 +176,14 @@ Rastreabilidade: quais fases cobrem quais requisitos. Preenchido na criação do
 | CONT-02 | Phase 3 | Complete |
 | CONT-03 | Phase 1 | Complete |
 | CONT-04 | Phase 3 | Complete |
-| K8S-01 | Phase 4 | Pending |
+| K8S-01 | Phase 4 | Complete |
 | K8S-02 | Phase 4 | Complete |
-| K8S-03 | Phase 4 | Pending |
+| K8S-03 | Phase 4 | Complete |
 | K8S-04 | Phase 4 | Complete |
 | CI-01 | Phase 1 | Complete |
 | CI-02 | Phase 4 | Pending |
 | CI-03 | Phase 4 | Pending |
-| CI-04 | Phase 4 | Pending |
+| CI-04 | Phase 4 | Complete |
 | OBS-01 | Phase 2 | Complete |
 | OBS-02 | Phase 3 | Complete |
 | OBS-03 | Phase 3 | Complete |

@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 04
 current_phase_name: Kubernetes no kind e entrega contínua
 status: executing
-stopped_at: Completed 04-02-PLAN.md
-last_updated: "2026-10-22T00:54:27.818Z"
-last_activity: 2026-10-21
+stopped_at: Completed 04-03-PLAN.md
+last_updated: "2026-10-24T13:38:52.133Z"
+last_activity: 2026-10-24
 last_activity_desc: Phase 04 execution started
-state_head: 4689b649f301d11ddda2371c59a7fbb131c94de8
+state_head: 85fabb2aebc76193a45b2a3f7491a9a9c2327048
 progress:
   total_phases: 5
   completed_phases: 3
   total_plans: 25
-  completed_plans: 23
+  completed_plans: 24
   percent: 60
 ---
 
@@ -28,9 +28,9 @@ See: .planning/PROJECT.md (updated 2026-10-17)
 ## Current Position
 
 Phase: 04 (Kubernetes no kind e entrega contínua) — EXECUTING
-Plan: 3 of 4
+Plan: 4 of 4
 Status: Ready to execute
-Last activity: 2026-10-21 — Phase 04 execution started
+Last activity: 2026-10-24 — 04-03 concluído (smoke, lint e README do kind)
 
 Progress: [██████░░░░] 60%
 
@@ -82,6 +82,7 @@ Progress: [██████░░░░] 60%
 | Phase 03 P04 | 11min | 2 tasks | 6 files |
 | Phase 04 P01 | 47 min | 2 tasks | 22 files |
 | Phase 04 P02 | 22 min | 3 tasks | 13 files |
+| Phase 04 P03 | 41min | 3 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -150,6 +151,9 @@ Decisões recentes que afetam o trabalho atual:
 - [Phase 04]: 04-02: kube-prometheus-stack 92.10.1 enxuto (release monitoring), seletores abertos, sem Alertmanager; Grafana 13.2.4 anônimo Viewer; observability/ entra por --set-file (PrometheusRule + ConfigMaps grafana_dashboard), sem cópia
 - [Phase 04]: 04-02: contrato chart: observability.{enabled,rules,dashboards}, metrics.serviceMonitor.{enabled,interval}, autoscaling.*; render falha sem os --set-file (CI passa os mesmos ou observability.enabled=false); hosts grafana./prometheus.localtest.me
 - [Phase 04]: 04-02: HPA autoscaling/v2 por CPU 70% (kind 1-3) com metrics-server 3.14.0 (--kubelet-insecure-tls só no kind); Deployment sem spec.replicas com HPA
+- [Phase 04]: 04-03: preStop.sleep nativo passou no kubeconform -strict 1.37.1 (sem fallback exec)
+- [Phase 04]: 04-03: guardas do lint.sh exigem a mensagem da própria guarda, não só exit != 0
+- [Phase 04]: 04-03: interface do CI = bash deploy/kind/lint.sh, up.sh e smoke.sh (sem make)
 
 ### Pending Todos
 
@@ -188,6 +192,6 @@ Itens reconhecidos e adiados no fechamento de milestone, do mais recente para o 
 
 ## Session Continuity
 
-Last session: 2026-10-22T00:54:27.494Z
-Stopped at: Completed 04-02-PLAN.md
+Last session: 2026-10-24T13:38:51.753Z
+Stopped at: Completed 04-03-PLAN.md
 Resume file: None
