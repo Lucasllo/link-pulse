@@ -4,7 +4,7 @@
 
 Link Pulse é uma API de encurtamento de URLs: cria links curtos (gerados ou com alias) e redireciona para a URL original com 302. Não tem frontend nem autenticação. Este README cobre o núcleo de links, o cache Valkey e o pipeline de cliques (Phase 2), a stack local observável com `make up` (Phase 3) e o Kubernetes local com `make k8s` (Phase 4: kind, Helm, Traefik, Prometheus e Grafana); o Terraform entra na próxima fase.
 
-Stack: **Java 21**, **Spring Boot 4.1.1**, **PostgreSQL 18**, **Liquibase 5.0.3** e **Maven 3.9.16** via wrapper (`app/mvnw`, sem Maven instalado).
+Stack: **Java 21**, **Spring Boot 4.1.2**, **PostgreSQL 18**, **Liquibase 5.0.4** e **Maven 3.9.16** via wrapper (`app/mvnw`, sem Maven instalado).
 
 ## Pré-requisitos
 
@@ -450,5 +450,5 @@ Configuração (override por variável de ambiente, via relaxed binding do Sprin
 
 ## Licenças de terceiros
 
-- **Liquibase 5.0.3**, gerenciado pelo BOM do Spring Boot 4.1.1, usa a licença **`FSL-1.1-ALv2`** (Functional Source License, que vira Apache 2.0 depois de dois anos). A FSL permite este uso de portfólio, sem fim comercial concorrente. Se precisar de licença Apache desde já, a alternativa é fixar o Liquibase 4.33.0 por property no `app/pom.xml` (`<liquibase.version>4.33.0</liquibase.version>`).
+- **Liquibase 5.0.4**, gerenciado pelo BOM do Spring Boot 4.1.2, usa a licença **`FSL-1.1-ALv2`** (Functional Source License, que vira Apache 2.0 depois de dois anos). A FSL permite este uso de portfólio, sem fim comercial concorrente. Se precisar de licença Apache desde já, a alternativa é fixar o Liquibase 4.33.0 por property no `app/pom.xml` (`<liquibase.version>4.33.0</liquibase.version>`).
 - As demais dependências (Spring, Hibernate, driver PostgreSQL, springdoc, Testcontainers) usam licenças permissivas (Apache 2.0, MIT ou BSD).
