@@ -31,6 +31,7 @@ need docker Docker.DockerDesktop
 need kind Kubernetes.kind
 need kubectl Kubernetes.kubectl
 need helm Helm.Helm
+need curl cURL.cURL
 
 docker info >/dev/null 2>&1 || {
   echo "O Docker não respondeu. Ligue o Docker Desktop e rode de novo." >&2
@@ -128,6 +129,29 @@ for f in observability/grafana/dashboards/*.json; do
 done
 h upgrade --install link-pulse "$CHARTS/link-pulse" -n link-pulse \
   -f "$CHARTS/link-pulse/values-dev.yaml" "${APP_SET[@]}" --wait --timeout 10m
+
+# O --wait do Helm termina com o pod Ready, mas o Traefik só põe o pod no load balancer da rota
+# depois do evento do EndpointSlice e da recarga seguinte (throttle de 2 s). Nessa janela a rota
+# responde 503 "no available server" (allowEmptyServices do chart), e um curl ou o smoke logo em
+# seguida falha. Espera a rota do Ingress chegar ao app: só o app responde JSON (inclusive o 404 de
+# código inexistente); o Traefik responde text/plain. GET no /stats não gasta o rate limit do
+# POST /links. Corpo e Content-Type pelo stdout, como no smoke.sh: no Git Bash o curl é um .exe
+# nativo e não enxerga o /dev/null do bash.
+echo "Esperando a rota do Ingress chegar ao app..."
+NL=$'\n'
+deadline=$((SECONDS + 60))
+while :; do
+  resp=$(curl -s --max-time 2 --resolve "$HOST:$PORT:127.0.0.1" -w '\n%{content_type}' \
+    "$BASE/links/up-probe/stats" 2>/dev/null || true)
+  case "${resp##*"$NL"}" in *json*) break ;; esac
+  if [ "$SECONDS" -ge "$deadline" ]; then
+    echo "A rota $BASE não chegou ao app em 60 s (o Traefik ainda responde no lugar dele)." >&2
+    echo "  kubectl --context $CTX -n link-pulse get ingress,endpointslices" >&2
+    echo "  kubectl --context $CTX -n traefik logs deploy/traefik --tail=50" >&2
+    exit 1
+  fi
+  sleep 1
+done
 
 SUFFIX=
 [ "$PORT" = 80 ] || SUFFIX=":$PORT"
