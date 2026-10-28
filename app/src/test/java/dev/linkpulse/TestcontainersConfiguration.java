@@ -19,7 +19,7 @@ import org.testcontainers.utility.DockerImageName;
  * A política {@code volatile-lru} é a mesma do compose e do ElastiCache (D-09).
  *
  * <p>O MongoDB usa a classe {@code org.testcontainers.mongodb.MongoDBContainer} (a do pacote
- * antigo é deprecated no Testcontainers 2.x) com a mesma major do compose ({@code mongo:8.0}).
+ * antigo é deprecated no Testcontainers 2.x) com a mesma tag do compose ({@code mongo:8.0.32}).
  * O bean se chama {@code mongoContainer} porque {@code mongo} já é o nome do {@code MongoClient}
  * da auto-configuração do Boot, e a sobrescrita de beans é desligada.
  */
@@ -44,6 +44,6 @@ public class TestcontainersConfiguration {
     @Bean
     @ServiceConnection
     MongoDBContainer mongoContainer() {
-        return new MongoDBContainer(DockerImageName.parse("mongo:8.0"));
+        return new MongoDBContainer(DockerImageName.parse("mongo:8.0.32"));
     }
 }

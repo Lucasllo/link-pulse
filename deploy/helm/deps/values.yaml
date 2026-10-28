@@ -15,7 +15,7 @@ valkey:
   maxmemory: 256mb
 
 mongo:
-  image: mongo:8.0
+  image: mongo:8.0.32
   # Cache do WiredTiger pequeno: amigável a laptop.
   wiredTigerCacheSizeGB: "0.25"
   storage: 1Gi

@@ -38,7 +38,7 @@ services:
 
   # Eventos de clique (click_events). Sem autenticação: fica só na rede interna.
   mongo:
-    image: mongo:8.0
+    image: mongo:8.0.32
     # Cache do WiredTiger pequeno: amigável a laptop.
     command: ["mongod", "--wiredTigerCacheSizeGB", "0.25"]
     volumes:
