@@ -44,6 +44,11 @@ spec:
             - mongod
             - --wiredTigerCacheSizeGB
             - {{ .Values.mongo.wiredTigerCacheSizeGB | quote }}
+          # Kernel 6.19+: o Mongo 8 se recusa a subir com o rseq no tcmalloc (SERVER-121912).
+          # rseq=1 deixa o glibc dono do rseq; a imagem traz rseq=0.
+          env:
+            - name: GLIBC_TUNABLES
+              value: glibc.pthread.rseq=1
           ports:
             - name: mongo
               containerPort: 27017

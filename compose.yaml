@@ -39,6 +39,10 @@ services:
   # Eventos de clique (click_events). Sem autenticação: fica só na rede interna.
   mongo:
     image: mongo:8.0.32
+    # Kernel 6.19+ (o runner do GitHub já usa): o Mongo 8 se recusa a subir com o rseq no tcmalloc
+    # (SERVER-121912). rseq=1 deixa o glibc dono do rseq; a imagem traz rseq=0.
+    environment:
+      GLIBC_TUNABLES: glibc.pthread.rseq=1
     # Cache do WiredTiger pequeno: amigável a laptop.
     command: ["mongod", "--wiredTigerCacheSizeGB", "0.25"]
     volumes:

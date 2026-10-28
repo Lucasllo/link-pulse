@@ -40,6 +40,10 @@ services:
   # Sem autenticação: só para desenvolvimento local.
   mongo:
     image: mongo:8.0.32
+    # Kernel 6.19+ (o runner do GitHub já usa): o Mongo 8 se recusa a subir com o rseq no tcmalloc
+    # (SERVER-121912). rseq=1 deixa o glibc dono do rseq; a imagem traz rseq=0.
+    environment:
+      GLIBC_TUNABLES: glibc.pthread.rseq=1
     # Só no loopback, como o Postgres e o Valkey.
     ports:
       - "127.0.0.1:27017:27017"

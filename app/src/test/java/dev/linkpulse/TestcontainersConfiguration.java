@@ -44,6 +44,9 @@ public class TestcontainersConfiguration {
     @Bean
     @ServiceConnection
     MongoDBContainer mongoContainer() {
-        return new MongoDBContainer(DockerImageName.parse("mongo:8.0.32"));
+        // Kernel 6.19+ (runner do GitHub): o Mongo 8 se recusa a subir com o rseq no tcmalloc
+        // (SERVER-121912). rseq=1 deixa o glibc dono do rseq; a imagem traz rseq=0.
+        return new MongoDBContainer(DockerImageName.parse("mongo:8.0.32"))
+                .withEnv("GLIBC_TUNABLES", "glibc.pthread.rseq=1");
     }
 }
