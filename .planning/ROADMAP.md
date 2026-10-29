@@ -158,7 +158,7 @@ Plans:
   4. Na main, o GitHub Actions publica a imagem no GHCR (nome em minúsculas, pacote público), roda o scan do Trivy e gera o SBOM
   5. O job de verificação do CI sobe um cluster kind, faz o deploy e passa no smoke test criar link → redirect → stats
 
-**Plans**: 3/4 plans executed
+**Plans**: 4/4 plans executed
 
 Plans:
 **Wave 1**
@@ -175,7 +175,7 @@ Plans:
 
 **Wave 4** *(blocked on Wave 3 completion)*
 
-- [ ] 04-04-PLAN.md — CI: imagem com Trivy e SBOM, smoke em kind com os scripts do avaliador, publish da imagem testada no GHCR com attestations e pacote público (checkpoint humano: push e visibilidade) (wave 4)
+- [x] 04-04-PLAN.md — CI: imagem com Trivy e SBOM, smoke em kind com os scripts do avaliador, publish da imagem testada no GHCR com attestations e pacote público (checkpoint humano: push e visibilidade) (wave 4)
 
 ### Phase 5: Terraform AWS e vitrine
 
@@ -202,5 +202,5 @@ As fases seguem a ordem numérica: 1 → 2 → 3 → 4 → 5 (a parte Terraform 
 | 1. Fundação e núcleo de links | 8/8 | Complete    | 2026-10-09 |
 | 2. Hot path no Valkey e pipeline de cliques | 9/9 | Complete    | 2026-10-11 |
 | 3. Stack local observável | 4/4 | Complete    | 2026-10-17 |
-| 4. Kubernetes no kind e entrega contínua | 3/4 | In Progress|  |
+| 4. Kubernetes no kind e entrega contínua | 4/4 | In Progress|  |
 | 5. Terraform AWS e vitrine | 0/TBD | Not started | - |
