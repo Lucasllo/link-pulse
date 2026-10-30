@@ -11,6 +11,8 @@ A regra é `up{job="link-pulse"} == 0 or absent(up{job="link-pulse"})`:
 - no compose, o container do app parou ou não responde, e `up` vai a 0;
 - no kind (Phase 4), o pod sumiu e a série `up` deixa de existir; o `absent()` cobre esse caso.
 
+Um pod `NotReady` (readiness com o Postgres ou o Valkey fora) continua sendo raspado e mantém `up` em 1: este alerta não cobre o caso em que todas as réplicas saem do Service. Veja a lacuna em [LinkPulseHigh5xxRate](LinkPulseHigh5xxRate.md).
+
 ## Impacto
 
 Sem métricas, o resto da observabilidade fica cego: os dashboards param e os outros alertas não avaliam nada.

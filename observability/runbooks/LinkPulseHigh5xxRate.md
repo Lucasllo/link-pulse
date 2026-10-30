@@ -8,6 +8,8 @@ Mais de 5% das respostas da API foram 5xx durante 5 min seguidos.
 
 A taxa considera todas as rotas da API e deixa de fora as do actuator (`uri!~"/actuator.*"`).
 
+Lacuna no kind: o alerta só vê os 5xx que o próprio app responde. Com o Postgres ou o Valkey fora, a readiness deixa todas as réplicas `NotReady`, o Traefik responde 503 sem passar pelo app e este alerta não dispara (o `LinkPulseTargetDown` também não: o pod `NotReady` continua sendo raspado). Se os clientes recebem 503 e este alerta está quieto, confira `kubectl --context kind-link-pulse -n link-pulse get pods,endpointslices`.
+
 ## Impacto
 
 Parte dos clientes recebe erro: links que não são criados, redirects que falham ou estatísticas que não carregam, conforme a rota afetada.
