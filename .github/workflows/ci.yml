@@ -86,17 +86,33 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Trivy (falha em CRITICAL com correção disponível)
+      # Dois passos: o --severity e o --ignore-unfixed filtram o relatório, e não só o exit code.
+      # Um scan único com o filtro do gate esconderia do log as HIGH e as sem correção.
+      - name: Trivy (relatório HIGH/CRITICAL, inclusive sem correção)
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           version: v0.76.0
           scan-type: image
           image-ref: link-pulse:local
+          severity: HIGH,CRITICAL
+          ignore-unfixed: false
+          exit-code: "0"
+          format: table
+          # O default de 5 min conta o download do trivy-java-db (~940 MB) no primeiro run.
+          timeout: 10m
+
+      - name: Trivy (gate, falha em CRITICAL com correção disponível)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          skip-setup-trivy: true
+          scan-type: image
+          image-ref: link-pulse:local
+          # Todos os filtros explícitos: a trivy-action pode repassar os do passo anterior por
+          # variáveis TRIVY_*.
           severity: CRITICAL
           ignore-unfixed: true
           exit-code: "1"
           format: table
-          # O default de 5 min conta o download do trivy-java-db (~940 MB) no primeiro run.
           timeout: 10m
 
       - name: SBOM (CycloneDX)
