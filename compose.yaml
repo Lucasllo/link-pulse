@@ -85,7 +85,7 @@ services:
 
   # Sem depends_on do app: a observabilidade sobe mesmo se o app falhar.
   prometheus:
-    image: prom/prometheus:v3.15.0
+    image: prom/prometheus:v3.15.1
     # Substituir o command apaga o CMD da imagem: --config.file e --storage.tsdb.path precisam voltar.
     command:
       - --config.file=/etc/prometheus/prometheus.yml
