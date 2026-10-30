@@ -21,9 +21,11 @@ spec:
           type: Utilization
           averageUtilization: {{ .Values.autoscaling.targetCPUUtilizationPercentage }}
   behavior:
-    # Sobe rápido num pico; desce devagar para não oscilar (e não derrubar o pool do Hikari à toa).
+    # Sobe rápido num pico (janela 0, o default do scale-up: reage na hora, sem esperar pela menor
+    # recomendação de uma janela); desce devagar para não oscilar (e não derrubar o pool do Hikari à
+    # toa).
     scaleUp:
-      stabilizationWindowSeconds: 60
+      stabilizationWindowSeconds: 0
     scaleDown:
       stabilizationWindowSeconds: 300
 {{- end }}
