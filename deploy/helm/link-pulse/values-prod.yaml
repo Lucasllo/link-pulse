@@ -60,3 +60,8 @@ topologySpreadConstraints:
   - maxSkew: 1
     topologyKey: topology.kubernetes.io/zone
     whenUnsatisfiable: ScheduleAnyway
+
+# Um pod por vez num drain ou upgrade de nós: as 2 réplicas mínimas nunca saem juntas.
+podDisruptionBudget:
+  enabled: true
+  maxUnavailable: 1

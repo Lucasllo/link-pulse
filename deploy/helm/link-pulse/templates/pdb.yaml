@@ -1,0 +1,17 @@
+{{- if .Values.podDisruptionBudget.enabled }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "link-pulse.fullname" . }}
+  labels:
+    {{- include "link-pulse.labels" . | nindent 4 }}
+spec:
+  # Um drain, um upgrade do node group ou o autoscaler de nós despejam no máximo um pod por vez.
+  maxUnavailable: {{ .Values.podDisruptionBudget.maxUnavailable }}
+  # Pods NotReady saem sem esperar o orçamento: com a readiness presa ao Postgres e ao Valkey, uma
+  # queda deles deixa todas as réplicas NotReady, e o default (IfHealthyBudget) travaria o drain.
+  unhealthyPodEvictionPolicy: AlwaysAllow
+  selector:
+    matchLabels:
+      {{- include "link-pulse.selectorLabels" . | nindent 6 }}
+{{- end }}

@@ -254,9 +254,9 @@ O limite de 20 criações por minuto é por IP do cliente. O Traefik descarta o 
 
 ### Charts e values
 
-- [`deploy/helm/link-pulse`](deploy/helm/link-pulse): o app, com Deployment, Service, Ingress, HPA, ConfigMap, Secret, ServiceMonitor, PrometheusRule e os ConfigMaps dos dashboards.
+- [`deploy/helm/link-pulse`](deploy/helm/link-pulse): o app, com Deployment, Service, Ingress, HPA, ConfigMap, Secret, ServiceMonitor, PrometheusRule e os ConfigMaps dos dashboards (mais o PodDisruptionBudget, desligado por padrão).
   - `values-dev.yaml` é o kind (o profile Spring continua `prod`, sem seed do Liquibase). As senhas e a chave do HMAC dele são defaults de demonstração e **não são segredo**.
-  - `values-prod.yaml` é um perfil de produção de referência: imagem do GHCR, HPA de 2 a 6 réplicas, resources maiores, logs estruturados ECS, Ingress com TLS, réplicas espalhadas por zona e `secret.create: false` com `existingSecret` (o Secret é criado fora do chart; nenhum segredo no repositório). Ele nunca é instalado no kind: só é renderizado e validado pelo `make k8s-lint`.
+  - `values-prod.yaml` é um perfil de produção de referência: imagem do GHCR, HPA de 2 a 6 réplicas, resources maiores, logs estruturados ECS, Ingress com TLS, réplicas espalhadas por zona, PodDisruptionBudget (um pod fora por vez num drain) e `secret.create: false` com `existingSecret` (o Secret é criado fora do chart; nenhum segredo no repositório). Ele nunca é instalado no kind: só é renderizado e validado pelo `make k8s-lint`.
 - [`deploy/helm/deps`](deploy/helm/deps): Postgres, Valkey e Mongo, dev-only, com as imagens oficiais (sem Bitnami) e as mesmas tags do compose.
 - `make k8s-lint` (sem make: `bash deploy/kind/lint.sh`, não precisa de cluster) roda `helm lint --strict` e o kubeconform `-strict` (em container, com os schemas do Kubernetes 1.37.1 e dos CRDs do Prometheus Operator) nos dois values e no chart `deps`, confere que o chart recusa renderizar sem `image.tag`, com chave do HMAC curta ou sem Secret, e falha se as tags de `postgres`, `valkey/valkey` e `mongo` divergirem entre compose, chart `deps` e Testcontainers.
 - Não há `make seed` para o kind: o smoke já gera tráfego. Para dashboards cheios, use o `make up` + `make seed` do compose.

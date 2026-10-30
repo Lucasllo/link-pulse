@@ -50,6 +50,12 @@ ingress:
 # o template injeta os selectorLabels do chart em cada item. Vazio no kind (nó único).
 topologySpreadConstraints: []
 
+# PodDisruptionBudget (policy/v1). Desligado por padrão: o kind tem um nó só, sem drain. O
+# values-prod liga, para o minReplicas: 2 valer também na manutenção dos nós.
+podDisruptionBudget:
+  enabled: false
+  maxUnavailable: 1
+
 # Sem limite de CPU para não estrangular a subida da JVM. Com 1Gi de limite, o heap máximo fica em
 # ~768Mi pelo -XX:MaxRAMPercentage=75 da imagem.
 resources:
