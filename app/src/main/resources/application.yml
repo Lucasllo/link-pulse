@@ -122,13 +122,14 @@ management:
     health:
       group:
         # Liveness só com o estado interno: Postgres, Valkey ou Mongo fora nunca reiniciam o pod
-        # (K8S-02).
+        # (K8S-02). O HEALTHCHECK da imagem consulta este grupo, e não a readiness, pelo mesmo
+        # motivo: o ECS substitui a task cujo health check do container falha.
         liveness:
           include: livenessState
         # Readiness com Postgres e Valkey. Mongo fora de propósito: só o consumer e o /stats
         # dependem dele; os cliques esperam no stream. No kind, Valkey fora deixa o pod NotReady
-        # (troca consciente com o fail-open do compose). O HEALTHCHECK da imagem também consulta
-        # este grupo.
+        # (troca consciente com o fail-open do compose). O healthcheck do app no compose.yaml
+        # também consulta este grupo, para o make up só terminar com o app pronto.
         readiness:
           include: readinessState,db,redis
   endpoints:

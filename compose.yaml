@@ -75,6 +75,16 @@ services:
       - "127.0.0.1:8080:8080"
     # Cada fase do shutdown espera até 30 s; o default de 10 s mataria o lote em andamento.
     stop_grace_period: 45s
+    # Substitui o HEALTHCHECK da imagem (liveness): o make up (--wait) e o depends_on do k6 só
+    # liberam com o app pronto e ligado ao Postgres e ao Valkey. O Docker não reinicia container
+    # unhealthy: com o Valkey parado, o app só aparece unhealthy e continua servindo.
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8081/actuator/health/readiness"]
+      interval: 15s
+      timeout: 3s
+      retries: 3
+      start_period: 90s
+      start_interval: 2s
     depends_on:
       postgres:
         condition: service_healthy

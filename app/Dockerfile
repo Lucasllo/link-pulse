@@ -38,7 +38,11 @@ USER 10001:10001
 # 8080: API. 8081: actuator (health e métricas), que não é publicada no host.
 EXPOSE 8080 8081
 ENV JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=75 -XX:+ExitOnOutOfMemoryError"
+# Liveness, sem dependências externas: orquestradores que agem sobre a saúde do container (o ECS
+# substitui a task unhealthy) não reiniciam o app em loop quando o Postgres ou o Valkey caem
+# (K8S-02). A readiness fica para quem roteia tráfego (Service do Kubernetes, target group do ALB)
+# e para o healthcheck do app no compose.yaml.
 HEALTHCHECK --interval=15s --timeout=3s --start-period=90s --start-interval=2s --retries=3 \
-  CMD curl -fsS http://localhost:8081/actuator/health/readiness || exit 1
+  CMD curl -fsS http://localhost:8081/actuator/health/liveness || exit 1
 # Forma exec: o java é o PID 1 e recebe o SIGTERM (graceful shutdown do Boot).
 ENTRYPOINT ["java", "org.springframework.boot.loader.launch.JarLauncher"]

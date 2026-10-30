@@ -99,7 +99,7 @@ Fora do profile dev, as conexões vêm por variável de ambiente: o datasource (
 make up      # sem make: docker compose up -d --build --wait
 ```
 
-O `compose.yaml` da raiz builda a imagem `link-pulse:local` (multi-stage, layered jar, usuário não-root `10001` e `HEALTHCHECK` no readiness) e sobe seis serviços. O comando só termina quando todos estão healthy, e o app só inicia depois de Postgres, Valkey e Mongo:
+O `compose.yaml` da raiz builda a imagem `link-pulse:local` (multi-stage, layered jar, usuário não-root `10001` e `HEALTHCHECK` na liveness) e sobe seis serviços. O comando só termina quando todos estão healthy, e o app só inicia depois de Postgres, Valkey e Mongo. O `HEALTHCHECK` da imagem olha só o estado interno, para que um orquestrador que substitui container unhealthy (o ECS) não derrube o app em loop quando um banco cai. No compose, o serviço `app` troca esse check por um `healthcheck` na readiness (Postgres e Valkey), e é ele que o `--wait` espera:
 
 | Serviço | O que faz | Porta no host |
 |---------|-----------|---------------|
