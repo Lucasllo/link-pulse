@@ -1,6 +1,7 @@
 # Perfil de produção de referência: só renderizado e validado pelo make k8s-lint, nunca instalado
 # no kind; troque nomes e domínio pelos do seu ambiente.
-# Nenhum segredo aqui: senha do Postgres e chave do HMAC vêm de um Secret criado fora do chart.
+# Nenhum segredo aqui: senha do Postgres, chave do HMAC, senha do Valkey e connection string do
+# Mongo vêm de um Secret criado fora do chart.
 
 image:
   repository: ghcr.io/lucasllo/link-pulse
@@ -26,11 +27,19 @@ env:
   SPRING_PROFILES_ACTIVE: prod
   # link-pulse-db, link-pulse-cache e link-pulse-clicks: Services (ou ExternalName) apontando para
   # os serviços gerenciados (RDS, ElastiCache e o Mongo do ambiente).
-  SPRING_DATASOURCE_URL: jdbc:postgresql://link-pulse-db:5432/linkpulse
+  # sslmode=require: TLS obrigatório até o RDS, mas sem validar o certificado. verify-full exige o
+  # bundle de CA do RDS dentro do container (sslrootcert), que a imagem não traz.
+  SPRING_DATASOURCE_URL: jdbc:postgresql://link-pulse-db:5432/linkpulse?sslmode=require
   SPRING_DATASOURCE_USERNAME: linkpulse
+  # Senha (AUTH token) do Valkey no Secret. Lacuna conhecida: o TLS do Valkey ainda não está
+  # ligado, porque a conexão própria do consumer de cliques
+  # (ClickStreamConsumer.dedicatedConnectionFactory) não lê o spring.data.redis.ssl. Com
+  # SPRING_DATA_REDIS_SSL_ENABLED=true, só o cache e o rate limit falariam TLS, e o consumer não
+  # conectaria a um ElastiCache com transit encryption. Fica para o deploy na AWS (Phase 5).
   SPRING_DATA_REDIS_HOST: link-pulse-cache
   SPRING_DATA_REDIS_PORT: "6379"
-  SPRING_MONGODB_URI: mongodb://link-pulse-clicks:27017/linkpulse
+  # SPRING_MONGODB_URI fica no Secret, e não aqui: a connection string leva usuário, senha e
+  # tls=true.
   LINKPULSE_BASE_URL: https://lp.example.com
   # Impede link apontando para o próprio app pelos nomes internos do Service e pelo domínio público.
   LINKPULSE_SELF_HOSTS: link-pulse,link-pulse.link-pulse,link-pulse.link-pulse.svc,link-pulse.link-pulse.svc.cluster.local,lp.example.com
@@ -43,9 +52,14 @@ env:
   LOGGING_STRUCTURED_FORMAT_CONSOLE: ecs
 
 secret:
-  # O chart não cria Secret em produção. link-pulse-secrets tem as chaves SPRING_DATASOURCE_PASSWORD
-  # e LINKPULSE_IP_HASH_KEY (pelo menos 16 caracteres) e é criado fora do chart, por External
-  # Secrets ou pelo time de plataforma.
+  # O chart não cria Secret em produção. link-pulse-secrets é criado fora do chart, por External
+  # Secrets ou pelo time de plataforma, com as chaves:
+  #   SPRING_DATASOURCE_PASSWORD
+  #   LINKPULSE_IP_HASH_KEY       (pelo menos 16 caracteres)
+  #   SPRING_DATA_REDIS_PASSWORD  (AUTH token do ElastiCache)
+  #   SPRING_MONGODB_URI          (mongodb+srv://usuario:senha@.../linkpulse?tls=true)
+  # O secretRef vem depois do configMapRef no envFrom: uma chave repetida vale a do Secret. Sem
+  # SPRING_MONGODB_URI, o app cai no default localhost:27017 e só o /stats e o consumer falham.
   create: false
   existingSecret: link-pulse-secrets
 
