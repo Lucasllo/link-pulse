@@ -50,6 +50,16 @@ ingress:
 # o template injeta os selectorLabels do chart em cada item. Vazio no kind (nó único).
 topologySpreadConstraints: []
 
+# NetworkPolicy de entrada (networking.k8s.io/v1). Desligada por padrão: no kind, de um avaliador
+# só, o X-Forwarded-For forjado por um pod é aceito. O values-prod liga. Com enabled=true, as duas
+# listas (itens de NetworkPolicyPeer) são obrigatórias, e o render falha se alguma vier vazia.
+networkPolicy:
+  enabled: false
+  # Quem chega à porta http (8080): o ingress controller.
+  ingressFrom: []
+  # Quem chega à porta management (8081, Actuator): o Prometheus.
+  metricsFrom: []
+
 # PodDisruptionBudget (policy/v1). Desligado por padrão: o kind tem um nó só, sem drain. O
 # values-prod liga, para o minReplicas: 2 valer também na manutenção dos nós.
 podDisruptionBudget:

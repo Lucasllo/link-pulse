@@ -1,0 +1,37 @@
+{{- if .Values.networkPolicy.enabled }}
+{{- /* Uma regra com from vazio libera qualquer origem: recusa no render em vez de abrir tudo. */}}
+{{- if empty .Values.networkPolicy.ingressFrom }}
+{{- fail "networkPolicy.ingressFrom vazio: um from vazio liberaria a porta http para qualquer origem" }}
+{{- end }}
+{{- if empty .Values.networkPolicy.metricsFrom }}
+{{- fail "networkPolicy.metricsFrom vazio: um from vazio liberaria a porta management para qualquer origem" }}
+{{- end }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "link-pulse.fullname" . }}
+  labels:
+    {{- include "link-pulse.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "link-pulse.selectorLabels" . | nindent 6 }}
+  # Só entrada: a saída para os bancos e o DNS continua livre.
+  policyTypes:
+    - Ingress
+  ingress:
+    # API: só o ingress controller. Assim nenhum workload do cluster chega direto ao ClusterIP com
+    # um X-Forwarded-For forjado para escolher a chave do rate limit (Pitfall P5).
+    - from:
+        {{- toYaml .Values.networkPolicy.ingressFrom | nindent 8 }}
+      ports:
+        - port: http
+          protocol: TCP
+    # Actuator: só o Prometheus. As probes saem do kubelet do próprio nó, tráfego que a maioria dos
+    # CNIs (Calico, Cilium) libera independente da NetworkPolicy; confira no CNI do cluster.
+    - from:
+        {{- toYaml .Values.networkPolicy.metricsFrom | nindent 8 }}
+      ports:
+        - port: management
+          protocol: TCP
+{{- end }}

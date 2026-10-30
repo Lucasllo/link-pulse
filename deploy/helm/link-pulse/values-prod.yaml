@@ -34,8 +34,10 @@ env:
   LINKPULSE_BASE_URL: https://lp.example.com
   # Impede link apontando para o próprio app pelos nomes internos do Service e pelo domínio público.
   LINKPULSE_SELF_HOSTS: link-pulse,link-pulse.link-pulse,link-pulse.link-pulse.svc,link-pulse.link-pulse.svc.cluster.local,lp.example.com
-  # CIDR dos pods do ingress controller do cluster de produção: só deles o app aceita o
-  # X-Forwarded-For (IP real do rate limit).
+  # Só de proxies neste CIDR o app aceita o X-Forwarded-For (IP real do rate limit). Um /16 cobre a
+  # rede de pods inteira, não só o ingress controller: quem fecha o bypass é a networkPolicy abaixo,
+  # que só deixa o controller chegar à porta http. Sem ela, restrinja ao CIDR das subnets dos pods
+  # do controller.
   SERVER_TOMCAT_REMOTEIP_INTERNAL_PROXIES: 10.0.0.0/16
   # Logs estruturados (JSON ECS) para o agregador de logs do cluster.
   LOGGING_STRUCTURED_FORMAT_CONSOLE: ecs
@@ -60,6 +62,25 @@ topologySpreadConstraints:
   - maxSkew: 1
     topologyKey: topology.kubernetes.io/zone
     whenUnsatisfiable: ScheduleAnyway
+
+# Porta http só para o ingress controller e Actuator só para o Prometheus. Namespaces e labels são
+# os do kind (Traefik em traefik, kube-prometheus-stack em monitoring); troque pelos do seu cluster.
+networkPolicy:
+  enabled: true
+  ingressFrom:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: traefik
+      podSelector:
+        matchLabels:
+          app.kubernetes.io/name: traefik
+  metricsFrom:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: monitoring
+      podSelector:
+        matchLabels:
+          app.kubernetes.io/name: prometheus
 
 # Um pod por vez num drain ou upgrade de nós: as 2 réplicas mínimas nunca saem juntas.
 podDisruptionBudget:

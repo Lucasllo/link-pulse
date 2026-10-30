@@ -92,6 +92,8 @@ guard "secret.create=false sem existingSecret" "secret.existingSecret é obrigat
   -f "$C/values-dev.yaml" "${SETS[@]}" --set secret.create=false
 guard "sem as regras de observability/" "observability.rules vazio" \
   -f "$C/values-dev.yaml" "${DASH[@]}" --set image.tag=lint
+guard "networkPolicy.enabled sem ingressFrom" "networkPolicy.ingressFrom vazio" \
+  -f "$C/values-dev.yaml" "${SETS[@]}" --set networkPolicy.enabled=true
 
 # ---------- paridade das imagens ----------
 # O Dependabot atualiza o compose; o chart deps e os ITs não podem ficar para trás. A regex exige
