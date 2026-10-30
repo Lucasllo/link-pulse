@@ -18,7 +18,9 @@ export K6_USER
 # (porta: K8S_HTTP_PORT=8080 bash deploy/kind/up.sh). A porta só vale na criação do cluster.
 # Smoke sem make: bash deploy/kind/smoke.sh (lê a porta do próprio cluster). Lint dos charts sem
 # make: bash deploy/kind/lint.sh (não precisa de cluster; kubeconform em container).
-K8S_HTTP_PORT ?= 80
+# Vazia por padrão: o default 80 fica no up.sh, que só avisa de conflito com o cluster existente
+# quando a porta foi pedida de fato (e não quando veio de um default do Makefile).
+K8S_HTTP_PORT ?=
 
 .PHONY: help build test verify run db-up db-down up down clean image seed load obs-check k8s k8s-down k8s-smoke k8s-lint
 
@@ -75,7 +77,7 @@ obs-check: ## Valida a config e as regras do Prometheus (promtool da imagem ofic
 
 # O up.sh exporta o NOCONV por conta própria e passa --context kind-link-pulse em todo kubectl/helm.
 k8s: image ## Cria o cluster kind e instala Traefik, metrics-server, Prometheus/Grafana, deps e o app
-	K8S_HTTP_PORT=$(K8S_HTTP_PORT) bash deploy/kind/up.sh
+	$(if $(K8S_HTTP_PORT),K8S_HTTP_PORT=$(K8S_HTTP_PORT) )bash deploy/kind/up.sh
 
 k8s-down: ## Apaga o cluster kind link-pulse (dados incluídos)
 	$(NOCONV) kind delete cluster --name link-pulse
