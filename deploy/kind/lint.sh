@@ -19,10 +19,17 @@ need docker Docker.DockerDesktop
 
 C=deploy/helm/link-pulse
 DEPS=deploy/helm/deps
-KUBECONFORM=(docker run --rm -i ghcr.io/yannh/kubeconform:v0.8.0 -strict -summary
-  -kubernetes-version 1.37.1 -schema-location default)
+# Tudo fixado, como as actions por SHA: imagem por digest (índice multi-arch da v0.8.0) e os dois
+# repositórios de schemas por commit, nunca por branch. Sem isso, uma mudança no catálogo reprova
+# ou aprova o gate sem nenhum commit aqui. Os schemas ainda vêm do GitHub raw em todo run. Para
+# atualizar: git ls-remote <repositório> e docker buildx imagetools inspect <imagem>.
+KUBECONFORM_IMAGE=ghcr.io/yannh/kubeconform:v0.8.0@sha256:faffaf43f95aa6425306e1ab8d6fcad72acb9049158f38e574c085ea1ec0f64e
+# Mesmo template do "-schema-location default" do kubeconform, com o commit no lugar do master.
+K8S_SCHEMAS='https://raw.githubusercontent.com/yannh/kubernetes-json-schema/47163ead3738a996c3e30be9691bb37b8071d9d3/{{.NormalizedKubernetesVersion}}-standalone{{.StrictSuffix}}/{{.ResourceKind}}{{.KindSuffix}}.json'
+KUBECONFORM=(docker run --rm -i "$KUBECONFORM_IMAGE" -strict -summary
+  -kubernetes-version 1.37.1 -schema-location "$K8S_SCHEMAS")
 # ServiceMonitor e PrometheusRule (CRDs do Prometheus Operator) pelo catálogo da comunidade.
-CRDS=(-schema-location 'https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json')
+CRDS=(-schema-location 'https://raw.githubusercontent.com/datreeio/CRDs-catalog/3eb90d47aba8d61919d4419dd38301536e32a94b/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json')
 
 fail() {
   echo "$*" >&2
