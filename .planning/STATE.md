@@ -168,7 +168,7 @@ None yet.
 - [Phase 1]: Loop de redirect via DNS segue como mitigação parcial (T-08-06), agora reforçada pelo rate limit por IP entregue na Phase 2
 - [Phase 3]: WR-04 aceito na UAT: o runbook de lag não menciona que entradas nunca entregues e aparadas pelo MAXLEN não entram em `linkpulse_clicks_lost_total`
 - [Phase 2]: WR-01 aceito na UAT: com Valkey pausado/particionado, requisições concorrentes no fim da janela de bypass pagam ~150 ms (limitação conhecida, documentada)
-- [Phase 4 → 5]: 04-REVIEW com 9 warnings abertos (0 critical); o mais relevante para a Phase 5 é o HEALTHCHECK da imagem no grupo readiness (com Postgres/Valkey), que vira reinício em loop no ECS. Também: README falso sobre HIGH no log do Trivy, XFF confiando no /16 sem NetworkPolicy no values-prod, sem PDB, aviso falso de porta no `make k8s`
+- [Phase 4 → 5]: 04-REVIEW corrigido (9/9, 04-REVIEW-FIX.md). Pendências para a Phase 5: (1) `ClickStreamConsumer.dedicatedConnectionFactory` ignora SSL, então o ElastiCache com criptografia em trânsito exige TLS nessa conexão; (2) confirmar o `make up` com o HEALTHCHECK na liveness e a readiness no healthcheck do compose (WR-04); (3) WR-03 só documentado (sem alerta para todas as réplicas NotReady)
 - [Phase 4]: Tag `local-{id}` da imagem muda a cada `make image` sem mudança de código (deferred-items da 04-02): todo `make k8s` faz rollout e acumula tags
 - [Phase 5]: Spike do token do LocalStack Hobby e do `mock_provider`; sem token, a validação fica nas camadas lint + `terraform test`
 
