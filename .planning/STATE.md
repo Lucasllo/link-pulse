@@ -1,44 +1,44 @@
 ---
 gsd_state_version: "1.0"
-current_phase: 04
-current_phase_name: Kubernetes no kind e entrega contínua
-status: verifying
-stopped_at: Completed 04-03-PLAN.md
-last_updated: "2026-10-29T00:06:05.640Z"
-last_activity: 2026-10-24
-last_activity_desc: Phase 04 execution started
-state_head: 2e93f60ac26e479d65515b200bc38bfe4a925bd9
+current_phase: 5
+current_phase_name: Terraform AWS e vitrine
+status: planning
+stopped_at: Phase 04 complete, ready to plan Phase 5
+last_updated: "2026-10-30T00:51:33.203Z"
+last_activity: 2026-10-29
+last_activity_desc: Phase 04 complete, transitioned to Phase 5
+state_head: 921913b7cc81216cf4119f441ae72416e0e28a82
 progress:
   total_phases: 5
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 25
   completed_plans: 25
-  percent: 60
+  percent: 80
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-10-17)
+See: .planning/PROJECT.md (updated 2026-10-30)
 
 **Core value:** Um avaliador clona o repositório, roda `make up` (compose) ou `make k8s` (kind + Prometheus/Grafana) e vê um encurtador funcionando de ponta a ponta, com redirect rápido via cache e métricas reais nos dashboards versionados.
-**Current focus:** Phase 04 — Kubernetes no kind e entrega contínua
+**Current focus:** Phase 05 — Terraform AWS e vitrine
 
 ## Current Position
 
-Phase: 04 (Kubernetes no kind e entrega contínua) — EXECUTING
-Plan: 4 of 4
-Status: Phase complete — ready for verification
-Last activity: 2026-10-24 — 04-03 concluído (smoke, lint e README do kind)
+Phase: 5 — Terraform AWS e vitrine
+Plan: Not started
+Status: Ready to plan
+Last activity: 2026-10-29 — Phase 04 complete, transitioned to Phase 5
 
-Progress: [██████░░░░] 60%
+Progress: [████████░░] 80%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 21
+- Total plans completed: 25
 - Average duration: -
 - Total execution time: 0.0 hours
 
@@ -49,6 +49,7 @@ Progress: [██████░░░░] 60%
 | 1 | 8 | - | - |
 | 02 | 9 | - | - |
 | 03 | 4 | - | - |
+| 04 | 4 | - | - |
 
 **Recent Trend:**
 
@@ -154,6 +155,8 @@ Decisões recentes que afetam o trabalho atual:
 - [Phase 04]: 04-03: preStop.sleep nativo passou no kubeconform -strict 1.37.1 (sem fallback exec)
 - [Phase 04]: 04-03: guardas do lint.sh exigem a mensagem da própria guarda, não só exit != 0
 - [Phase 04]: 04-03: interface do CI = bash deploy/kind/lint.sh, up.sh e smoke.sh (sem make)
+- [Phase 04]: 04-04: Spring Boot 4.1.2 (patch) zera 3 CVEs CRITICAL do Tomcat; publish carrega o tar testado (sem build); `ghcr.io/lucasllo/link-pulse:sha-{sha7}` + `gh attestation verify` são contrato da Phase 5
+- [Phase 04]: 04-04: Mongo 8.0.32 com GLIBC_TUNABLES rseq=1 (kernel 6.19+ do runner, SERVER-121912); a espera da rota fica no up.sh
 
 ### Pending Todos
 
@@ -163,10 +166,10 @@ None yet.
 
 - [Phase 1 → todas]: `linkpulse.code.alphabet`/`multiplier` são contrato one-way: mudar depois altera os códigos já emitidos
 - [Phase 1]: Loop de redirect via DNS segue como mitigação parcial (T-08-06), agora reforçada pelo rate limit por IP entregue na Phase 2
-- [Phase 3 → 4]: levar ao kind `maxmemory-policy volatile-lru` no Valkey, `LINKPULSE_IP_HASH_KEY` obrigatória e o job `link-pulse` no ServiceMonitor; smoke precisa de UA de navegador ou `includeBots=true`
 - [Phase 3]: WR-04 aceito na UAT: o runbook de lag não menciona que entradas nunca entregues e aparadas pelo MAXLEN não entram em `linkpulse_clicks_lost_total`
 - [Phase 2]: WR-01 aceito na UAT: com Valkey pausado/particionado, requisições concorrentes no fim da janela de bypass pagam ~150 ms (limitação conhecida, documentada)
-- [Phase 4]: Pesquisar versões atuais dos charts Traefik, kube-prometheus-stack e metrics-server, seletores (`*SelectorNilUsesHelmValues`) e sidecar de dashboards
+- [Phase 4 → 5]: 04-REVIEW com 9 warnings abertos (0 critical); o mais relevante para a Phase 5 é o HEALTHCHECK da imagem no grupo readiness (com Postgres/Valkey), que vira reinício em loop no ECS. Também: README falso sobre HIGH no log do Trivy, XFF confiando no /16 sem NetworkPolicy no values-prod, sem PDB, aviso falso de porta no `make k8s`
+- [Phase 4]: Tag `local-{id}` da imagem muda a cada `make image` sem mudança de código (deferred-items da 04-02): todo `make k8s` faz rollout e acumula tags
 - [Phase 5]: Spike do token do LocalStack Hobby e do `mock_provider`; sem token, a validação fica nas camadas lint + `terraform test`
 
 ### Quick Tasks Completed
@@ -192,6 +195,6 @@ Itens reconhecidos e adiados no fechamento de milestone, do mais recente para o 
 
 ## Session Continuity
 
-Last session: 2026-10-24T13:38:51.753Z
-Stopped at: Completed 04-03-PLAN.md
+Last session: 2026-10-30
+Stopped at: Phase 04 complete, ready to plan Phase 5
 Resume file: None

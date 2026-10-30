@@ -74,8 +74,8 @@ Requisitos da entrega inicial. Cada um é mapeado para uma fase do roadmap.
 ### CI/CD
 
 - [x] **CI-01**: GitHub Actions roda build, testes (Testcontainers), Checkstyle e SpotBugs em cada push/PR
-- [ ] **CI-02**: Pipeline faz build da imagem e publica no GHCR (na main)
-- [ ] **CI-03**: Imagem passa por scan do Trivy e é gerado um SBOM
+- [x] **CI-02**: Pipeline faz build da imagem e publica no GHCR (na main)
+- [x] **CI-03**: Imagem passa por scan do Trivy e é gerado um SBOM
 - [x] **CI-04**: Job de verificação faz deploy em kind e roda smoke test (criar link → redirect → stats)
 
 ### Observabilidade
@@ -181,8 +181,8 @@ Rastreabilidade: quais fases cobrem quais requisitos. Preenchido na criação do
 | K8S-03 | Phase 4 | Complete |
 | K8S-04 | Phase 4 | Complete |
 | CI-01 | Phase 1 | Complete |
-| CI-02 | Phase 4 | Pending |
-| CI-03 | Phase 4 | Pending |
+| CI-02 | Phase 4 | Complete |
+| CI-03 | Phase 4 | Complete |
 | CI-04 | Phase 4 | Complete |
 | OBS-01 | Phase 2 | Complete |
 | OBS-02 | Phase 3 | Complete |

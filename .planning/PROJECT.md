@@ -37,16 +37,12 @@ Um avaliador clona o repositório, roda `make up` (compose) ou `make k8s` (kind 
 - ✓ Dashboards Grafana versionados em JSON (aplicação e pipeline de cliques), anônimo Viewer, `make seed` com dados de demonstração pela API — Phase 3
 - ✓ Alertas no Prometheus (5xx, p99 do redirect, lag/pendentes do consumer, TargetDown) com testes `promtool` (`make obs-check`) e runbooks — Phase 3
 - ✓ Teste de carga com k6 (`make load`), thresholds por cenário e resumo versionado; resultados no README — Phase 3
+- ✓ Helm chart do app (Deployment, Service, Ingress, ConfigMap, Secret, HPA, ServiceMonitor, PrometheusRule, dashboards) com liveness/readiness via Actuator e values dev/prod; chart `deps` com imagens oficiais — Phase 4
+- ✓ `make k8s` cria o cluster kind (porta só em 127.0.0.1), instala Traefik, metrics-server, kube-prometheus-stack, deps e o app; `make k8s-smoke` e `make k8s-lint` (helm lint + kubeconform) — Phase 4
+- ✓ GitHub Actions: build + testes + Checkstyle/SpotBugs, imagem com Trivy (CRITICAL) e SBOM, publicação no GHCR público com provenance e SBOM atestados, actions por SHA — Phase 4
+- ✓ Job `k8s-smoke` sobe o kind no CI com os mesmos scripts do avaliador e roda o smoke antes do publish — Phase 4
 
 ### Ativos
-
-**Container e Kubernetes**
-- [ ] Helm chart do app com Deployment, Service, Ingress, ConfigMap, Secret, HPA, liveness/readiness via Actuator; values para dev/prod
-- [ ] `make k8s` cria cluster kind, instala dependências e o app via Helm, com kube-prometheus-stack (Prometheus/Grafana)
-
-**CI/CD**
-- [ ] GitHub Actions: build + testes (Testcontainers) + Checkstyle/SpotBugs + build da imagem + publicação no GHCR
-- [ ] Job de verificação que faz deploy em kind e roda smoke test
 
 **AWS / Terraform**
 - [ ] Terraform provisionando ECR, ECS Fargate, RDS (Postgres), ElastiCache (Redis) e rede necessária
@@ -85,14 +81,14 @@ Um avaliador clona o repositório, roda `make up` (compose) ou `make k8s` (kind 
 |---------|---------------|-----------|
 | Base62 do ID da sequência do Postgres | Sem colisão, determinístico e simples de testar | ✓ Phase 1 (com permutação mod 62^7 para ofuscar a ordem) |
 | Redis Streams para eventos de clique | Assíncrono e durável sem infra nova; demonstra backpressure/lag | ✓ Phase 2 (consumer próprio em lote, XCLAIM só confirma IDs ausentes do stream) |
-| Helm chart (com values dev/prod) | Padrão de mercado; integra com kube-prometheus-stack | — Pendente |
+| Helm chart (com values dev/prod) | Padrão de mercado; integra com kube-prometheus-stack | ✓ Phase 4 (observability/ entra por --set-file, sem cópia; values-prod só renderizado e validado) |
 | ECS Fargate como alvo AWS | Terraform mais leve que EKS (o LocalStack gratuito não cobre ECS nem EKS) | — Pendente |
 | Terraform validado em camadas (lint + `terraform test` com mock + LocalStack Hobby parcial) | LocalStack gratuito não inclui ECS/RDS/ElastiCache/ECR desde 2026-03; custo zero | — Pendente |
-| Imagem publicada no GHCR | Grátis, sem secrets AWS no CI | — Pendente |
+| Imagem publicada no GHCR | Grátis, sem secrets AWS no CI | ✓ Phase 4 (publish envia o tar já testado no Trivy e no kind; `ghcr.io/lucasllo/link-pulse:sha-{sha7}` é contrato da Phase 5) |
 | 404 para inexistente, 410 para expirado | Semântica HTTP correta | ✓ Phase 1 |
 | Spring Boot 4.1.1 | Linha 3.x sem suporte OSS desde 2026-06-30; 4.1 suportado até 2027-07 | ✓ Phase 1 |
 | Valkey 8.1 em todos os ambientes | Paridade com ElastiCache (Redis OSS parado na 7.1); protocolo compatível com Spring Data Redis | ✓ Phase 2 (compose e Testcontainers) |
-| Traefik + manifests próprios no kind | ingress-nginx aposentado (2026-03) e catálogo gratuito Bitnami encerrado | — Pendente |
+| Traefik + manifests próprios no kind | ingress-nginx aposentado (2026-03) e catálogo gratuito Bitnami encerrado | ✓ Phase 4 (Traefik 42.1.0, trustedIPs vazio; app confia só no CIDR dos pods) |
 | Coleção Mongo normal `click_events` (não time-series) | Time-series não aceita índice único; idempotência usa `_id` = ID do stream | ✓ Phase 2 |
 | Liquibase 5.0.3 (BOM do Boot 4.1.1), licença FSL-1.1-ALv2 | Versão gerenciada e testada pelo Boot 4.1; a FSL permite uso em portfólio; a alternativa Apache (4.33.0 por property) fica documentada no README | ✓ Registrada na Phase 1 |
 | Checagem de host de destino sem DNS (`TargetHostPolicy`) + `LINKPULSE_SELF_HOSTS` | Resolver DNS no POST custa latência e é contornável por rebinding; loop via DNS fica como mitigação parcial documentada | ✓ Phase 1 |
@@ -102,6 +98,9 @@ Um avaliador clona o repositório, roda `make up` (compose) ou `make k8s` (kind 
 | Grafana anônimo como Viewer, dashboards/datasource read-only por provisioning | Avaliador vê os painéis sem login e sem poder alterá-los | ✓ Phase 3 |
 | Alertas sem Alertmanager, com runbook por `runbook_url` e testes `promtool` | Regras verificáveis no CI e no kind sem infra extra | ✓ Phase 3 |
 | k6 com `redirects: 0` e `--summary-export` (sem jslib remoto) | Mede só a API e evita import remoto em runtime | ✓ Phase 3 (redirect p95 3,18 ms / p99 9,29 ms) |
+| Readiness no kind inclui Postgres e Valkey (sem fail-open no cluster) | O pod sai do Service em vez de servir só pelo Postgres; liveness não depende de nada externo | ✓ Phase 4 (troca consciente; acoplamento de réplicas é WR do 04-REVIEW) |
+| Spring Boot 4.1.2 (patch) | Zera 3 CVEs CRITICAL do tomcat-embed-core sem sobrescrever o BOM | ✓ Phase 4 |
+| Mongo 8.0.32 com `GLIBC_TUNABLES` rseq=1 | Mongo 8 aborta no kernel 6.19+ do runner (SERVER-121912); remover quando corrigido | ✓ Phase 4 (workaround) |
 
 ## Evolução
 
@@ -121,4 +120,4 @@ Este documento evolui nas transições de fase e nos fechamentos de milestone.
 4. Atualizar Contexto com o estado atual
 
 ---
-*Última atualização: 2026-10-17 após a Phase 3*
+*Última atualização: 2026-10-30 após a Phase 4*

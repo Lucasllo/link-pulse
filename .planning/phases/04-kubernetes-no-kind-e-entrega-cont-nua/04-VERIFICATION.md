@@ -1,9 +1,10 @@
 ---
 phase: 04-kubernetes-no-kind-e-entrega-cont-nua
 verified: 2026-10-29T00:21:30Z
-status: human_needed
+status: passed
 score: 31/33 must-haves verificados (5/5 critérios do ROADMAP; 26/28 truths dos planos)
 covered_files:
+
   - .github/workflows/ci.yml
   - .planning/REQUIREMENTS.md
   - .planning/phases/04-kubernetes-no-kind-e-entrega-cont-nua/04-01-PLAN.md
@@ -50,10 +51,12 @@ covered_files:
   - deploy/kind/values/metrics-server.yaml
   - deploy/kind/values/traefik.yaml
   - observability/README.md
+
 covered_digest: "v1:sha256:be1d163671080d8773a5ff165c4f8982dab9cc8b98e18e1516cb720617797b36"
 behavior_unverified: 2
 overrides_applied: 0
 behavior_unverified_items:
+
   - truth: "Um X-Forwarded-For forjado pelo cliente não muda a identidade do rate limit pelo Traefik: 20 criações com XFF diferentes recebem 201 e a 21ª recebe 429; um pod do cluster com IP real diferente segue recebendo 201 (04-01, D-06)"
     test: "Com o cluster de pé e numa janela nova de 1 min, mandar do host 21 POST /links para http://link-pulse.localtest.me, cada um com um X-Forwarded-For diferente; em seguida, de um pod (kubectl --context kind-link-pulse run ... curl), mandar um POST pelo Service do Traefik"
     expected: "201 nos 20 primeiros, 429 no 21º; o POST do pod recebe 201 na mesma janela"
@@ -63,6 +66,7 @@ behavior_unverified_items:
     expected: "Os dois smokes terminam em 'smoke OK: {code}'; na 8080 a shortUrl, o Grafana (root_url) e o Prometheus (externalUrl) levam :8080"
     why_human: "O caminho da porta 80 do zero é provado pelo job k8s-smoke do CI (cluster novo a cada run). O caminho 8080 (sed do hostPort, KPS_SET, env.LINKPULSE_BASE_URL) só tem a evidência narrada no 04-03-SUMMARY; nenhum teste automatizado o executa e o verificador não recria o cluster."
 human_verification:
+
   - test: "Abrir no navegador http://link-pulse.localtest.me/swagger-ui.html, criar um link pelo POST /links e clicar na shortUrl; depois abrir http://grafana.localtest.me e http://prometheus.localtest.me/alerts (human-check adiado do 04-02-PLAN, Task 3)"
     expected: "A shortUrl abre o destino; o Grafana abre sem login direto no dashboard 'Link Pulse — Aplicação' com dados de requisições; o Prometheus lista os quatro alertas do Link Pulse, inativos com o app de pé"
     why_human: "Clicar na shortUrl no navegador do host (D-03) e ver os painéis com dados é verificação visual. As partes de API já foram conferidas pelo verificador (dashboards na pasta link-pulse via anônimo, 4 regras com runbook_url, up=1)."

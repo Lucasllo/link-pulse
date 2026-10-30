@@ -16,7 +16,7 @@ As fases decimais aparecem entre as inteiras vizinhas, em ordem numérica.
 - [x] **Phase 1: Fundação e núcleo de links** - Criar e redirecionar links a partir do Postgres, com Liquibase, qualidade estática e CI verdes desde o início (completed 2026-10-09)
 - [x] **Phase 2: Hot path no Valkey e pipeline de cliques** - Cache-aside com fail-open, rate limit por IP, cliques assíncronos via Redis Streams → MongoDB e endpoint de estatísticas (completed 2026-10-11)
 - [x] **Phase 3: Stack local observável** - Imagem do app, `make up` com os 6 serviços, dashboards e alertas versionados, seed de demonstração e teste de carga k6 (completed 2026-10-17)
-- [ ] **Phase 4: Kubernetes no kind e entrega contínua** - Helm chart, `make k8s` com Traefik e kube-prometheus-stack, publicação no GHCR com Trivy/SBOM e smoke test em kind no CI
+- [x] **Phase 4: Kubernetes no kind e entrega contínua** - Helm chart, `make k8s` com Traefik e kube-prometheus-stack, publicação no GHCR com Trivy/SBOM e smoke test em kind no CI (completed 2026-10-29)
 - [ ] **Phase 5: Terraform AWS e vitrine** - Módulos AWS validados em camadas (lint, `terraform test` com mock, LocalStack Hobby) e README pt-BR com evidências
 
 ## Phase Details
@@ -202,5 +202,5 @@ As fases seguem a ordem numérica: 1 → 2 → 3 → 4 → 5 (a parte Terraform 
 | 1. Fundação e núcleo de links | 8/8 | Complete    | 2026-10-09 |
 | 2. Hot path no Valkey e pipeline de cliques | 9/9 | Complete    | 2026-10-11 |
 | 3. Stack local observável | 4/4 | Complete    | 2026-10-17 |
-| 4. Kubernetes no kind e entrega contínua | 4/4 | In Progress|  |
+| 4. Kubernetes no kind e entrega contínua | 4/4 | Complete    | 2026-10-29 |
 | 5. Terraform AWS e vitrine | 0/TBD | Not started | - |
