@@ -23,7 +23,7 @@ Fora desta fase: apply real na AWS, push de imagem para o ECR pelo CI, Mongo ger
 - **D-05:** URI do MongoDB entra como **variável sensível gravada num secret do Secrets Manager** e injetada na task via `secrets` (env `SPRING_MONGODB_URI`). Docs explicam Atlas (PrivateLink/peering) vs DocumentDB (compatibilidade parcial com aggregation/time-series).
 - **D-06:** RDS com **`manage_master_user_password = true`** (senha gerada/rotacionada no Secrets Manager, nada no state); a task referencia o secret gerenciado (chave `password`). Postgres 18 (mesma major do local/kind).
 - **D-07:** Serviço ECS com **desired 2, autoscaling min 2 / max 4, target tracking CPU ~60%**, deployment circuit breaker com rollback, sizing **0.5 vCPU / 1 GB** (espelhando o HPA do `values-prod`).
-- **D-08:** Target group na **8080**, health check do ALB na **8081** `/actuator/health/readiness`. O SG das tasks aceita 8080 e 8081 **somente do SG do ALB**; o listener do ALB nunca expõe a 8081.
+- **D-08 (revisada em 2026-11-05, após a pesquisa):** Target group na **8080**, health check do ALB na **8081** `/actuator/health/liveness` (não a readiness: no ECS, task que falha no health check do ALB é substituída, e a readiness inclui `db,redis`, o que transformaria queda de dependência em churn de tasks). O path fica como variável `health_check_path`. O SG das tasks aceita 8080 e 8081 **somente do SG do ALB**; o listener do ALB nunca expõe a 8081.
 
 ### LocalStack e camadas de validação
 - **D-09:** Root separado **`envs/localstack`** que reaproveita os mesmos módulos e compõe só o subset do Hobby: network (sem NAT), secrets, IAM (roles de execução/task) e CloudWatch log group. Os módulos precisam permitir isso (ex.: `enable_nat_gateway = false`).
@@ -55,7 +55,7 @@ Fora desta fase: apply real na AWS, push de imagem para o ECR pelo CI, Mongo ger
 ### Claude's Discretion
 - Nomes exatos dos módulos, variáveis e outputs; uso ou não de `terraform-aws-modules/vpc` (preferência: escrito à mão).
 - Região default (sugestão `us-east-1` ou `sa-east-1`, documentada), CIDRs, classe da instância RDS (ex.: `db.t4g.micro`) e do ElastiCache (`cache.t4g.micro` ou serverless), retenção de logs.
-- **TLS do Valkey no ElastiCache:** decidir `transit_encryption_enabled` e, se ligado, a env do app (`SPRING_DATA_REDIS_SSL_ENABLED=true`) — Phase 4 (WR-06) documentou a lacuna de TLS do Valkey; o researcher confirma que o app aceita sem mudança de código.
+- **TLS do Valkey no ElastiCache (decidido em 2026-11-05, após a pesquisa):** `transit_encryption_enabled = false` como default do módulo, sem `auth_token`, acesso só pelo SG das tasks e sem mudança no app (`ClickStreamConsumer.dedicatedConnectionFactory` conecta sem SSL). A variável não é exposta em `envs/prod`. A lacuna entra nos trade-offs (D-17), junto com a WR-06 da Phase 4.
 - Como o `tf-localstack` verifica os recursos (aws cli via container, `terraform output`, ou `check` blocks).
 - Ordem/forma de migrar o README para `docs/` e onde fica o procedimento do plan real (provavelmente `docs/terraform-aws.md`).
 
