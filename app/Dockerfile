@@ -2,7 +2,7 @@
 # Imagem do Link Pulse: build com o ./mvnw do repositório e runtime só com o JRE, em camadas.
 
 # ---------- build: compila com o mvnw do repositório (mesmo Maven do CI) ----------
-FROM eclipse-temurin:21-jdk-noble AS build
+FROM eclipse-temurin:25-jdk-noble AS build
 # unzip: sem ele o mvnw troca o .zip pelo .tar.gz do Maven, cujo SHA-256 não bate com o
 # distributionSha256Sum fixado no maven-wrapper.properties (que é do .zip).
 RUN apt-get update \
@@ -24,7 +24,7 @@ RUN --mount=type=cache,target=/root/.m2 ./mvnw -B -ntp -DskipTests package \
 RUN java -Djarmode=tools -jar /src/app.jar extract --layers --launcher --destination /src/extracted
 
 # ---------- runtime: JRE com curl (para o HEALTHCHECK), usuário numérico ----------
-FROM eclipse-temurin:21-jre-noble
+FROM eclipse-temurin:25-jre-noble
 LABEL org.opencontainers.image.source="https://github.com/Lucasllo/link-pulse"
 RUN groupadd --system --gid 10001 app \
  && useradd --system --uid 10001 --gid 10001 --no-create-home --shell /usr/sbin/nologin app
