@@ -116,7 +116,7 @@ services:
   # Sem volume de dados: o Grafana é reconstruído do provisioning a cada recriação.
   grafana:
     # Mesma versão do subchart do kube-prometheus-stack 92.10.1 do kind.
-    image: grafana/grafana:13.2.4
+    image: grafana/grafana:13.3.0
     environment:
       GF_SECURITY_ADMIN_USER: admin
       # Não é segredo: default de demonstração.
