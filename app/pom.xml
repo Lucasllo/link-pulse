@@ -20,7 +20,7 @@
     <properties>
         <!-- O parent usa 17 por padrão; o projeto roda em Java 21. -->
         <java.version>21</java.version>
-        <springdoc.version>3.1.1</springdoc.version>
+        <springdoc.version>3.2.0</springdoc.version>
         <!-- O plugin 3.6.0 traz o Checkstyle 9.3, que não entende Java 21; o engine é sobrescrito. -->
         <checkstyle.version>14.3.0</checkstyle.version>
     </properties>
